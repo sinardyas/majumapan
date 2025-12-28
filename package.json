@@ -1,0 +1,29 @@
+{
+  "name": "pos-system",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:api": "turbo run dev --filter=@pos/api",
+    "dev:web": "turbo run dev --filter=@pos/web",
+    "build": "turbo run build",
+    "build:api": "turbo run build --filter=@pos/api",
+    "build:web": "turbo run build --filter=@pos/web",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "db:generate": "turbo run db:generate --filter=@pos/api",
+    "db:migrate": "turbo run db:migrate --filter=@pos/api",
+    "db:push": "turbo run db:push --filter=@pos/api",
+    "db:seed": "turbo run db:seed --filter=@pos/api",
+    "db:studio": "turbo run db:studio --filter=@pos/api",
+    "typecheck": "turbo run typecheck"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2"
+  },
+  "packageManager": "npm@10.0.0"
+}

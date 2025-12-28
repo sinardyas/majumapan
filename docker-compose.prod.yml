@@ -1,0 +1,61 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pos-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pos_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
+      POSTGRES_DB: ${POSTGRES_DB:-pos}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pos_user -d pos"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pos-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pos-api
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pos_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pos}
+      JWT_SECRET: ${JWT_SECRET:?JWT secret is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      REFRESH_TOKEN_EXPIRES_IN: ${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      API_PORT: 3000
+      API_HOST: 0.0.0.0
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pos-network
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_API_URL: /api/v1
+    container_name: pos-web
+    restart: always
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      - api
+    networks:
+      - pos-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  pos-network:
+    driver: bridge

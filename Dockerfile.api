@@ -1,0 +1,37 @@
+# Build stage
+FROM oven/bun:1-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* bun.lockb* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared/package.json ./packages/shared/
+
+# Install dependencies
+RUN bun install --frozen-lockfile || bun install
+
+# Copy source code
+COPY apps/api ./apps/api
+COPY packages/shared ./packages/shared
+COPY tsconfig.json ./
+
+# Production stage - Run source directly with Bun
+FROM oven/bun:1-alpine AS runner
+
+WORKDIR /app
+
+# Copy necessary files
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/apps/api ./apps/api
+COPY --from=builder /app/packages/shared ./packages/shared
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/tsconfig.json ./
+
+# Set environment
+ENV NODE_ENV=production
+
+EXPOSE 3000
+
+# Run with Bun directly (supports native server export)
+CMD ["bun", "run", "apps/api/src/index.ts"]
