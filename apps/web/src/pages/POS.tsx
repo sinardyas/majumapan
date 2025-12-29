@@ -220,8 +220,9 @@ export default function POS() {
       }
       
       // Check minimum purchase
-      if (discount.minPurchaseAmount && subtotal < discount.minPurchaseAmount) {
-        setDiscountError(`Minimum purchase of $${discount.minPurchaseAmount.toFixed(2)} required`);
+      const minPurchase = Number(discount.minPurchaseAmount);
+      if (minPurchase && subtotal < minPurchase) {
+        setDiscountError(`Minimum purchase of $${minPurchase.toFixed(2)} required`);
         return;
       }
       
@@ -232,16 +233,18 @@ export default function POS() {
       }
       
       // Calculate discount amount
+      const discountValueNum = Number(discount.value);
       let discountValue = 0;
       if (discount.discountType === 'percentage') {
-        discountValue = (subtotal * discount.value) / 100;
+        discountValue = (subtotal * discountValueNum) / 100;
       } else {
-        discountValue = discount.value;
+        discountValue = discountValueNum;
       }
       
       // Apply max discount cap
-      if (discount.maxDiscountAmount && discountValue > discount.maxDiscountAmount) {
-        discountValue = discount.maxDiscountAmount;
+      const maxDiscount = Number(discount.maxDiscountAmount);
+      if (maxDiscount && discountValue > maxDiscount) {
+        discountValue = maxDiscount;
       }
       
       // Apply discount

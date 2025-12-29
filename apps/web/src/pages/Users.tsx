@@ -55,10 +55,10 @@ export default function Users() {
     }
 
     try {
-      const response = await api.get<{ users: User[] }>('/users');
+      const response = await api.get<User[]>('/users');
       
       if (response.success && response.data) {
-        setUsers(response.data.users);
+        setUsers(response.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);

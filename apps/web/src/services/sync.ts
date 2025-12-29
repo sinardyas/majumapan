@@ -14,6 +14,83 @@ import {
 } from '@/db';
 import { LOCAL_RETENTION_DAYS } from '@pos/shared';
 
+// =============================================================================
+// Data Transformation Helpers
+// =============================================================================
+// Drizzle ORM returns PostgreSQL decimal fields as strings to preserve precision.
+// These helpers convert them to JavaScript numbers for use in the frontend.
+// See ADR-0002: docs/adr/0002-decimal-string-to-number-conversion.md
+
+/**
+ * Safely converts a decimal string (or number) to a JavaScript number.
+ * Returns null if the input is null/undefined.
+ */
+function toNumber(value: string | number | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  return isNaN(num) ? null : num;
+}
+
+/**
+ * Safely converts a decimal string (or number) to a JavaScript number.
+ * Returns 0 if the input is null/undefined.
+ */
+function toNumberOrZero(value: string | number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const num = Number(value);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
+ * Transforms a product from API response to local storage format.
+ * Converts decimal string fields to numbers.
+ */
+function transformProduct(p: Record<string, unknown>): LocalProduct {
+  return {
+    id: p.id as string,
+    storeId: p.storeId as string,
+    categoryId: (p.categoryId as string) || null,
+    sku: p.sku as string,
+    barcode: (p.barcode as string) || null,
+    name: p.name as string,
+    description: (p.description as string) || null,
+    price: toNumberOrZero(p.price as string | number),
+    costPrice: toNumber(p.costPrice as string | number | null),
+    imageUrl: (p.imageUrl as string) || null,
+    imageBase64: (p.imageBase64 as string) || null,
+    isActive: (p.isActive as boolean) ?? true,
+    createdAt: p.createdAt as string,
+    updatedAt: p.updatedAt as string,
+  };
+}
+
+/**
+ * Transforms a discount from API response to local storage format.
+ * Converts decimal string fields to numbers.
+ */
+function transformDiscount(d: Record<string, unknown>): LocalDiscount {
+  return {
+    id: d.id as string,
+    storeId: (d.storeId as string) || null,
+    code: (d.code as string) || null,
+    name: d.name as string,
+    description: (d.description as string) || null,
+    discountType: d.discountType as 'percentage' | 'fixed',
+    discountScope: d.discountScope as 'product' | 'cart',
+    value: toNumberOrZero(d.value as string | number),
+    minPurchaseAmount: toNumber(d.minPurchaseAmount as string | number | null),
+    maxDiscountAmount: toNumber(d.maxDiscountAmount as string | number | null),
+    startDate: (d.startDate as string) || null,
+    endDate: (d.endDate as string) || null,
+    usageLimit: (d.usageLimit as number) || null,
+    usageCount: (d.usageCount as number) ?? 0,
+    isActive: (d.isActive as boolean) ?? true,
+    productIds: (d.productIds as string[]) || [],
+    createdAt: d.createdAt as string,
+    updatedAt: d.updatedAt as string,
+  };
+}
+
 // API response types
 interface FullSyncResponse {
   store: LocalStore;
@@ -116,12 +193,11 @@ class SyncService {
             })));
           }
 
-          // Insert products
+          // Insert products (with decimal string to number conversion)
           if (products.length > 0) {
-            await db.products.bulkPut(products.map(p => ({
-              ...p,
-              isActive: p.isActive ?? true,
-            })));
+            await db.products.bulkPut(
+              products.map(p => transformProduct(p as unknown as Record<string, unknown>))
+            );
           }
 
           // Insert stock
@@ -129,13 +205,11 @@ class SyncService {
             await db.stock.bulkPut(stock);
           }
 
-          // Insert discounts
+          // Insert discounts (with decimal string to number conversion)
           if (discounts.length > 0) {
-            await db.discounts.bulkPut(discounts.map(d => ({
-              ...d,
-              isActive: d.isActive ?? true,
-              productIds: d.productIds || [],
-            })));
+            await db.discounts.bulkPut(
+              discounts.map(d => transformDiscount(d as unknown as Record<string, unknown>))
+            );
           }
         }
       );
@@ -195,12 +269,16 @@ class SyncService {
             await db.categories.bulkDelete(changes.categories.deleted);
           }
 
-          // Products
+          // Products (with decimal string to number conversion)
           if (changes.products.created.length > 0) {
-            await db.products.bulkPut(changes.products.created);
+            await db.products.bulkPut(
+              changes.products.created.map(p => transformProduct(p as unknown as Record<string, unknown>))
+            );
           }
           if (changes.products.updated.length > 0) {
-            await db.products.bulkPut(changes.products.updated);
+            await db.products.bulkPut(
+              changes.products.updated.map(p => transformProduct(p as unknown as Record<string, unknown>))
+            );
           }
           if (changes.products.deleted.length > 0) {
             await db.products.bulkDelete(changes.products.deleted);
@@ -211,12 +289,16 @@ class SyncService {
             await db.stock.bulkPut(changes.stock.updated);
           }
 
-          // Discounts
+          // Discounts (with decimal string to number conversion)
           if (changes.discounts.created.length > 0) {
-            await db.discounts.bulkPut(changes.discounts.created);
+            await db.discounts.bulkPut(
+              changes.discounts.created.map(d => transformDiscount(d as unknown as Record<string, unknown>))
+            );
           }
           if (changes.discounts.updated.length > 0) {
-            await db.discounts.bulkPut(changes.discounts.updated);
+            await db.discounts.bulkPut(
+              changes.discounts.updated.map(d => transformDiscount(d as unknown as Record<string, unknown>))
+            );
           }
           if (changes.discounts.deleted.length > 0) {
             await db.discounts.bulkDelete(changes.discounts.deleted);
