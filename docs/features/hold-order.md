@@ -1,5 +1,9 @@
 # Feature Specification: Hold Order
 
+## Status
+
+**Implemented** - Completed on 2024-12-29
+
 ## Overview
 
 The Hold Order feature allows cashiers to temporarily save an in-progress order and serve other customers. This is useful when a customer needs to step away (e.g., forgot wallet, needs to get more items) but intends to return and complete their purchase.
@@ -30,31 +34,37 @@ The Hold Order feature allows cashiers to temporarily save an in-progress order 
 ### HeldOrder Interface
 
 ```typescript
+// apps/web/src/db/index.ts
+
+interface HeldOrderItem {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  discountId?: string;
+  discountName?: string;
+  discountValue: number;
+  subtotal: number;
+}
+
+interface HeldOrderDiscount {
+  id: string;
+  code: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  value: number;
+  amount: number;
+}
+
 interface HeldOrder {
   id: string;                    // Unique ID (UUID)
   storeId: string;               // Store this order belongs to
   cashierId: string;             // Cashier who held the order
   customerName?: string;         // Optional customer name/reference
   note?: string;                 // Optional note (e.g., "Went to ATM")
-  items: Array<{
-    productId: string;
-    productName: string;
-    productSku: string;
-    quantity: number;
-    unitPrice: number;
-    discountId?: string;
-    discountName?: string;
-    discountValue: number;
-    subtotal: number;
-  }>;
-  cartDiscount: {
-    id: string;
-    code: string;
-    name: string;
-    discountType: 'percentage' | 'fixed';
-    value: number;
-    amount: number;
-  } | null;
+  items: HeldOrderItem[];
+  cartDiscount: HeldOrderDiscount | null;
   subtotal: number;
   discountAmount: number;
   taxAmount: number;
@@ -87,27 +97,27 @@ this.version(4).stores({
    - Customer name input (placeholder: "Customer name or reference")
    - Note textarea (placeholder: "Add a note...")
 5. Cashier enters "John - Table 5" and note "Went to ATM"
-6. Clicks [Hold]
+6. Clicks [Hold Order]
 7. System:
    - Generates UUID for held order
    - Sets expiresAt = now + 24 hours
    - Saves to IndexedDB (heldOrders table)
    - Clears cart
 8. Toast appears: "Order held successfully"
-9. Held orders badge updates: [Held Orders (1)]
+9. Held orders badge updates in header icon
 10. Cashier can now serve next customer
 ```
 
 ### Flow 2: Resume an Order (Empty Cart)
 
 ```
-1. Cashier clicks [Held Orders (1)] button
+1. Cashier clicks held orders icon button in cart header
 2. HeldOrdersList modal opens
 3. Shows list filtered to current cashier's orders only
 4. Cashier sees "John - Table 5" order:
    - 3 items - $49.50
-   - "5 mins ago"
-   - Note: "Went to ATM"
+   - "5 minutes ago"
+   - Note: Went to ATM
 5. Clicks [Resume]
 6. System:
    - Fetches held order from IndexedDB
@@ -124,7 +134,7 @@ this.version(4).stores({
 
 ```
 1. Cashier has items in current cart
-2. Clicks [Held Orders (2)] button
+2. Clicks held orders icon in cart header
 3. HeldOrdersList modal opens
 4. Clicks [Resume] on a held order
 5. ResumeConfirmModal appears:
@@ -162,7 +172,8 @@ this.version(4).stores({
 ```
 1. Cashier opens HeldOrdersList modal
 2. Clicks [Delete] on an order
-3. Confirmation dialog: "Delete this held order? This cannot be undone."
+3. Inline confirmation appears: "Delete this held order? This cannot be undone."
+   [Cancel] [Delete]
 4. Clicks [Delete]
 5. System deletes order from IndexedDB
 6. Toast appears: "Held order deleted"
@@ -185,8 +196,8 @@ this.version(4).stores({
 
 ```
 ┌─────────────────────────────────────┐
-│ Current Order                       │
-│ (Resumed: John - Table 5)           │  ← Shown only if resumed
+│ Current Order              [📋 (2)]│  ← Icon button with badge in header
+│ (Resumed: John - Table 5)          │  ← Shown only if resumed
 ├─────────────────────────────────────┤
 │                                     │
 │  ┌─────────────────────────────┐    │
@@ -211,9 +222,6 @@ this.version(4).stores({
 │  ┌─────────────────────────────┐    │
 │  │      Pay $83.57             │    │
 │  └─────────────────────────────┘    │
-│  ┌─────────────────────────────┐    │
-│  │    Held Orders (2)          │    │  ← Badge shows count
-│  └─────────────────────────────┘    │
 │  ┌──────────────┐ ┌─────────────┐   │
 │  │ Hold Order   │ │ Clear Cart  │   │
 │  └──────────────┘ └─────────────┘   │
@@ -226,6 +234,9 @@ this.version(4).stores({
 ┌─────────────────────────────────────┐
 │ Hold Order                       ✕  │
 ├─────────────────────────────────────┤
+│                                     │
+│ Save this order to serve other      │
+│ customers. You can resume it later. │
 │                                     │
 │ Customer Name (optional)            │
 │ ┌─────────────────────────────────┐ │
@@ -251,18 +262,16 @@ this.version(4).stores({
 ├─────────────────────────────────────┤
 │                                     │
 │ ┌─────────────────────────────────┐ │
-│ │ John - Table 5                  │ │
+│ │ John - Table 5        5 min ago │ │
 │ │ 3 items - $49.50                │ │
-│ │ 5 mins ago                      │ │
 │ │ Note: Went to ATM               │ │
 │ │                                 │ │
 │ │        [Resume]  [Delete]       │ │
 │ └─────────────────────────────────┘ │
 │                                     │
 │ ┌─────────────────────────────────┐ │
-│ │ Order at 2:45 PM                │ │
+│ │ Order at 2:45 PM     12 min ago │ │
 │ │ 1 item - $12.99                 │ │
-│ │ 12 mins ago                     │ │
 │ │                                 │ │
 │ │        [Resume]  [Delete]       │ │
 │ └─────────────────────────────────┘ │
@@ -280,11 +289,31 @@ this.version(4).stores({
 │ Replace Current Cart?            ✕  │
 ├─────────────────────────────────────┤
 │                                     │
+│            ⚠️ (warning icon)        │
+│                                     │
 │  Your current cart has 3 items      │
 │  ($25.00). This will be cleared.    │
 │                                     │
 ├─────────────────────────────────────┤
 │           [Cancel]  [Replace Cart]  │
+└─────────────────────────────────────┘
+```
+
+### Delete Confirmation (Inline)
+
+```
+┌─────────────────────────────────────┐
+│ ┌─────────────────────────────────┐ │
+│ │ John - Table 5        5 min ago │ │
+│ │ 3 items - $49.50                │ │
+│ │                                 │ │
+│ │ ┌─────────────────────────────┐ │ │
+│ │ │ Delete this held order?     │ │ │
+│ │ │ This cannot be undone.      │ │ │
+│ │ │                             │ │ │
+│ │ │    [Cancel]  [Delete]       │ │ │
+│ │ └─────────────────────────────┘ │ │
+│ └─────────────────────────────────┘ │
 └─────────────────────────────────────┘
 ```
 
@@ -304,170 +333,106 @@ this.version(4).stores({
 │    Hold an order to serve other     │
 │    customers and resume later       │
 │                                     │
+├─────────────────────────────────────┤
+│  Orders automatically expire after  │
+│  24 hours                           │
 └─────────────────────────────────────┘
 ```
 
-## Implementation Tasks
+## Implementation Summary
 
-### Task 1: Update Database Schema
-
-**File:** `apps/web/src/db/index.ts`
-
-**Changes:**
-1. Add `HeldOrder` interface (exported)
-2. Add `heldOrders` table to `PosDatabase` class
-3. Add Version 4 schema with new table
-4. Add helper functions:
-   - `saveHeldOrder(order: HeldOrder): Promise<string>`
-   - `getHeldOrdersForCashier(storeId: string, cashierId: string): Promise<HeldOrder[]>`
-   - `getHeldOrder(id: string): Promise<HeldOrder | undefined>`
-   - `deleteHeldOrder(id: string): Promise<void>`
-   - `deleteExpiredHeldOrders(): Promise<number>`
-   - `getHeldOrdersCount(storeId: string, cashierId: string): Promise<number>`
-
----
-
-### Task 2: Update Cart Store
-
-**File:** `apps/web/src/stores/cartStore.ts`
-
-**Changes:**
-1. Add state:
-   - `resumedOrderInfo: { id: string; customerName?: string } | null`
-
-2. Add actions:
-   - `holdOrder(storeId: string, cashierId: string, customerName?: string, note?: string): Promise<string>`
-   - `resumeOrder(heldOrderId: string, revalidateDiscount: (discount: CartDiscount) => Promise<boolean>): Promise<{ success: boolean; discountRemoved?: boolean; discountName?: string }>`
-   - `clearResumedOrderInfo(): void`
-
----
-
-### Task 3: Create HoldOrderModal Component
-
-**File:** `apps/web/src/components/pos/HoldOrderModal.tsx`
-
-**Props:**
-```typescript
-interface HoldOrderModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onHold: (customerName?: string, note?: string) => void;
-  isLoading?: boolean;
-}
-```
-
-**Features:**
-- Customer name input (optional)
-- Note textarea (optional)
-- Cancel and Hold buttons
-- Loading state while saving
-
----
-
-### Task 4: Create HeldOrdersList Component
-
-**File:** `apps/web/src/components/pos/HeldOrdersList.tsx`
-
-**Props:**
-```typescript
-interface HeldOrdersListProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onResume: (heldOrderId: string) => void;
-  onDelete: (heldOrderId: string) => void;
-  storeId: string;
-  cashierId: string;
-}
-```
-
-**Features:**
-- Fetch and display held orders for current cashier
-- Show customer name or auto-generated timestamp name
-- Show item count, total, relative time, note
-- Resume and Delete buttons per order
-- Empty state
-- Expiration notice footer
-- Delete confirmation
-
----
-
-### Task 5: Create ResumeConfirmModal Component
-
-**File:** `apps/web/src/components/pos/ResumeConfirmModal.tsx`
-
-**Props:**
-```typescript
-interface ResumeConfirmModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  currentCartItemCount: number;
-  currentCartTotal: number;
-}
-```
-
-**Features:**
-- Warning message about cart replacement
-- Cancel and Replace Cart buttons
-
----
-
-### Task 6: Update POS Page
-
-**File:** `apps/web/src/pages/POS.tsx`
-
-**Changes:**
-
-1. **Add state:**
-   ```typescript
-   const [showHoldModal, setShowHoldModal] = useState(false);
-   const [showHeldOrdersList, setShowHeldOrdersList] = useState(false);
-   const [showResumeConfirm, setShowResumeConfirm] = useState(false);
-   const [heldOrdersCount, setHeldOrdersCount] = useState(0);
-   const [pendingResumeOrderId, setPendingResumeOrderId] = useState<string | null>(null);
-   ```
-
-2. **Add effects:**
-   - Load held orders count on mount
-   - Update count after hold/resume/delete
-   - Clean up expired orders on mount
-
-3. **Add discount re-validation function:**
-   ```typescript
-   const revalidateDiscount = async (discount: CartDiscount): Promise<boolean> => {
-     // Check if discount exists and is valid
-     // Return true if valid, false if not
-   };
-   ```
-
-4. **Update Cart Header:**
-   - Show resumed order info when applicable
-
-5. **Add UI elements:**
-   - "Held Orders (X)" button with badge
-   - "Hold Order" button (disabled when cart empty)
-
-6. **Add modals:**
-   - HoldOrderModal
-   - HeldOrdersList  
-   - ResumeConfirmModal
-
-7. **Add toast notifications:**
-   - Success: "Order held successfully"
-   - Success: "Order resumed"
-   - Success: "Held order deleted"
-   - Warning: "Discount '[name]' is no longer valid and was removed"
-
-## File Summary
+### Files Created/Modified
 
 | # | File | Action | Description |
 |---|------|--------|-------------|
-| 1 | `apps/web/src/db/index.ts` | Modify | Add HeldOrder interface, Version 4 schema, helper functions |
-| 2 | `apps/web/src/stores/cartStore.ts` | Modify | Add holdOrder, resumeOrder actions, resumedOrderInfo state |
-| 3 | `apps/web/src/components/pos/HoldOrderModal.tsx` | Create | Modal for holding order with optional name/note |
-| 4 | `apps/web/src/components/pos/HeldOrdersList.tsx` | Create | Modal listing held orders with resume/delete actions |
-| 5 | `apps/web/src/components/pos/ResumeConfirmModal.tsx` | Create | Confirmation modal for cart replacement |
-| 6 | `apps/web/src/pages/POS.tsx` | Modify | Integrate all components and functionality |
+| 1 | `apps/web/src/db/index.ts` | Modified | Added `HeldOrder`, `HeldOrderItem`, `HeldOrderDiscount` interfaces; Version 4 schema with `heldOrders` table; 6 helper functions |
+| 2 | `apps/web/src/stores/cartStore.ts` | Modified | Added `holdOrder`, `resumeOrder` actions; `resumedOrderInfo` state; `ResumedOrderInfo` and `ResumeOrderResult` interfaces |
+| 3 | `apps/web/src/components/pos/HoldOrderModal.tsx` | Created | Modal for holding order with optional customer name and note |
+| 4 | `apps/web/src/components/pos/HeldOrdersList.tsx` | Created | Modal listing held orders with resume/delete actions and inline delete confirmation |
+| 5 | `apps/web/src/components/pos/ResumeConfirmModal.tsx` | Created | Confirmation modal for cart replacement with warning icon |
+| 6 | `apps/web/src/pages/POS.tsx` | Modified | Integrated all components; added held orders icon button in cart header |
+| 7 | `apps/web/package.json` | Modified | Added `date-fns` dependency for relative time formatting |
+
+### Database Helper Functions
+
+```typescript
+// apps/web/src/db/index.ts
+
+// Save a held order to IndexedDB
+saveHeldOrder(order: HeldOrder): Promise<string>
+
+// Get a specific held order by ID
+getHeldOrder(id: string): Promise<HeldOrder | undefined>
+
+// Get all held orders for a specific cashier (filtered by expiration)
+getHeldOrdersForCashier(storeId: string, cashierId: string): Promise<HeldOrder[]>
+
+// Get count of held orders for a specific cashier
+getHeldOrdersCount(storeId: string, cashierId: string): Promise<number>
+
+// Delete a specific held order
+deleteHeldOrder(id: string): Promise<void>
+
+// Delete all expired held orders (returns count deleted)
+deleteExpiredHeldOrders(): Promise<number>
+```
+
+### Cart Store Actions
+
+```typescript
+// apps/web/src/stores/cartStore.ts
+
+// Hold current cart and save to IndexedDB
+holdOrder(
+  storeId: string,
+  cashierId: string,
+  customerName?: string,
+  note?: string
+): Promise<string>
+
+// Resume a held order with discount re-validation
+resumeOrder(
+  heldOrderId: string,
+  revalidateDiscount: (discount: CartDiscount) => Promise<boolean>
+): Promise<ResumeOrderResult>
+
+// Clear resumed order info from state
+clearResumedOrderInfo(): void
+```
+
+### POS Page Integration
+
+Key additions to `apps/web/src/pages/POS.tsx`:
+
+1. **State variables**: `showHoldModal`, `showHeldOrdersList`, `showResumeConfirm`, `heldOrdersCount`, `pendingResumeOrderId`, `isHolding`
+
+2. **Effects**:
+   - Initialize held orders on mount (cleanup expired + load count)
+
+3. **Handler functions**:
+   - `revalidateDiscount()` - Check if discount is still valid
+   - `handleHoldOrder()` - Hold current cart
+   - `executeResume()` - Execute the resume operation
+   - `handleResumeOrder()` - Handle resume with cart check
+   - `handleConfirmResume()` - Confirm cart replacement
+   - `handleDeleteHeldOrder()` - Delete a held order
+
+4. **UI elements**:
+   - Icon button with badge in cart header
+   - "Hold Order" and "Clear Cart" buttons side by side
+   - Three modals: HoldOrderModal, HeldOrdersList, ResumeConfirmModal
+
+### Dependencies Added
+
+```json
+{
+  "date-fns": "^4.1.0"
+}
+```
+
+Used for:
+- `format()` - Format held order timestamp as "Order at 2:45 PM"
+- `formatDistanceToNow()` - Display relative time like "5 minutes ago"
 
 ## Edge Cases
 
@@ -477,27 +442,28 @@ interface ResumeConfirmModalProps {
 | Browser crash | Persisted in IndexedDB |
 | Hold empty cart | "Hold Order" button disabled when cart is empty |
 | Expired held orders | Cleaned up automatically on POS page mount |
-| Discount expired between hold and resume | Re-validated on resume, warning shown if invalid |
+| Discount expired between hold and resume | Re-validated on resume, warning toast shown if invalid |
 | Resume order from different cashier | Not visible (filtered by cashier ID) |
 | Resume with items in cart | Confirmation modal shown, cart replaced if confirmed |
-| Delete held order | Confirmation dialog before deletion |
+| Delete held order | Inline confirmation before deletion |
 | Network offline | Works fully offline (IndexedDB is local) |
 
 ## Testing Scenarios
 
 1. **Basic hold and resume**: Hold order, resume it, verify items restored correctly
-2. **Hold with customer name**: Verify name displayed in list
+2. **Hold with customer name**: Verify name displayed in list and cart header
 3. **Hold with note**: Verify note displayed in list
 4. **Resume with empty cart**: Should resume without confirmation
 5. **Resume with items in cart**: Should show confirmation dialog
 6. **Discount preservation**: Hold order with discount, resume, verify discount applied
 7. **Discount expiration**: Hold order with discount, expire discount, resume, verify warning
 8. **Multiple held orders**: Hold several orders, verify all listed
-9. **Delete held order**: Delete order, verify removed from list
+9. **Delete held order**: Delete order, verify removed from list after confirmation
 10. **Expiration cleanup**: Create expired order (mock), verify cleanup removes it
 11. **Cashier isolation**: Login as different cashier, verify cannot see other's held orders
 12. **Page refresh**: Hold order, refresh page, verify order still in list
 13. **Empty state**: No held orders, verify empty state displayed
+14. **Badge count**: Verify badge updates correctly after hold/resume/delete
 
 ## Related Documents
 

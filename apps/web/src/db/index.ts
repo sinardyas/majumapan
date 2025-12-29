@@ -104,6 +104,45 @@ export interface LocalStore {
   phone: string | null;
 }
 
+// Held Order types for Hold Order feature
+// See ADR-0004: docs/adr/0004-hold-order-indexeddb-persistence.md
+export interface HeldOrderItem {
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  discountId?: string;
+  discountName?: string;
+  discountValue: number;
+  subtotal: number;
+}
+
+export interface HeldOrderDiscount {
+  id: string;
+  code: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  value: number;
+  amount: number;
+}
+
+export interface HeldOrder {
+  id: string;
+  storeId: string;
+  cashierId: string;
+  customerName?: string;
+  note?: string;
+  items: HeldOrderItem[];
+  cartDiscount: HeldOrderDiscount | null;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  total: number;
+  heldAt: string;
+  expiresAt: string;
+}
+
 class PosDatabase extends Dexie {
   categories!: Table<LocalCategory>;
   products!: Table<LocalProduct>;
@@ -112,6 +151,7 @@ class PosDatabase extends Dexie {
   transactions!: Table<LocalTransaction>;
   syncMeta!: Table<SyncMeta>;
   store!: Table<LocalStore>;
+  heldOrders!: Table<HeldOrder>;
 
   constructor() {
     super('pos-database');
@@ -150,6 +190,19 @@ class PosDatabase extends Dexie {
       transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
       syncMeta: 'key',
       store: 'id',
+    });
+
+    // Version 4: Add heldOrders table for Hold Order feature
+    // See ADR-0004: docs/adr/0004-hold-order-indexeddb-persistence.md
+    this.version(4).stores({
+      categories: 'id, storeId, name',
+      products: 'id, storeId, categoryId, sku, barcode, name',
+      stock: 'id, storeId, productId, [storeId+productId]',
+      discounts: 'id, storeId, code, discountScope',
+      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
+      syncMeta: 'key',
+      store: 'id',
+      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
     });
   }
 }
@@ -224,5 +277,88 @@ export async function clearAllData(): Promise<void> {
     db.transactions.clear(),
     db.syncMeta.clear(),
     db.store.clear(),
+    db.heldOrders.clear(),
   ]);
+}
+
+// =============================================================================
+// Held Orders Helper Functions
+// See ADR-0004: docs/adr/0004-hold-order-indexeddb-persistence.md
+// =============================================================================
+
+/**
+ * Save a held order to IndexedDB
+ */
+export async function saveHeldOrder(order: HeldOrder): Promise<string> {
+  await db.heldOrders.put(order);
+  return order.id;
+}
+
+/**
+ * Get a specific held order by ID
+ */
+export async function getHeldOrder(id: string): Promise<HeldOrder | undefined> {
+  return db.heldOrders.get(id);
+}
+
+/**
+ * Get all held orders for a specific cashier (filtered by expiration)
+ * Orders are sorted by heldAt descending (newest first)
+ */
+export async function getHeldOrdersForCashier(
+  storeId: string,
+  cashierId: string
+): Promise<HeldOrder[]> {
+  const now = new Date().toISOString();
+  
+  const orders = await db.heldOrders
+    .where('cashierId')
+    .equals(cashierId)
+    .filter(order => order.storeId === storeId && order.expiresAt > now)
+    .toArray();
+  
+  // Sort by heldAt descending (newest first)
+  return orders.sort((a, b) => b.heldAt.localeCompare(a.heldAt));
+}
+
+/**
+ * Get count of held orders for a specific cashier
+ */
+export async function getHeldOrdersCount(
+  storeId: string,
+  cashierId: string
+): Promise<number> {
+  const now = new Date().toISOString();
+  
+  return db.heldOrders
+    .where('cashierId')
+    .equals(cashierId)
+    .filter(order => order.storeId === storeId && order.expiresAt > now)
+    .count();
+}
+
+/**
+ * Delete a specific held order
+ */
+export async function deleteHeldOrder(id: string): Promise<void> {
+  await db.heldOrders.delete(id);
+}
+
+/**
+ * Delete all expired held orders
+ * Returns the number of deleted orders
+ */
+export async function deleteExpiredHeldOrders(): Promise<number> {
+  const now = new Date().toISOString();
+  
+  const expired = await db.heldOrders
+    .where('expiresAt')
+    .below(now)
+    .toArray();
+  
+  if (expired.length > 0) {
+    await db.heldOrders.bulkDelete(expired.map(o => o.id));
+  }
+  
+  return expired.length;
 }
