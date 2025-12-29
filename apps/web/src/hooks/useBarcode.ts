@@ -9,7 +9,7 @@ interface UseBarcodeOptions {
 export function useBarcode({ onScan, minLength = 4, maxDelay = 50 }: UseBarcodeOptions) {
   const [buffer, setBuffer] = useState('');
   const lastKeyTime = useRef<number>(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     const currentTime = Date.now();

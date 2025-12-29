@@ -42,7 +42,7 @@ export function useSync(options: UseSyncOptions = {}) {
     clearError,
   } = useSyncStore();
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasInitialSyncRef = useRef(false);
 
   // Sync when coming back online

@@ -13,6 +13,7 @@
     "db:migrate": "bun run src/db/migrate.ts",
     "db:push": "drizzle-kit push",
     "db:seed": "bun run src/db/seed.ts",
+    "db:setup": "bun run src/db/setup.ts",
     "db:reset": "bun run src/db/migrate.ts && bun run src/db/seed.ts",
     "db:studio": "drizzle-kit studio"
   },

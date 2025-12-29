@@ -1,15 +1,15 @@
 # Build stage
-FROM oven/bun:1-alpine AS builder
+FROM oven/bun:1.1.38-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json bun.lock* bun.lockb* ./
+# Copy package files and turbo config
+COPY package.json bun.lock turbo.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install dependencies
-RUN bun install --frozen-lockfile || bun install
+RUN bun install --frozen-lockfile
 
 # Copy source code
 COPY apps/api ./apps/api
@@ -17,13 +17,14 @@ COPY packages/shared ./packages/shared
 COPY tsconfig.json ./
 
 # Production stage - Run source directly with Bun
-FROM oven/bun:1-alpine AS runner
+FROM oven/bun:1.1.38-alpine AS runner
 
 WORKDIR /app
 
 # Copy necessary files
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/apps/api ./apps/api
+COPY --from=builder /app/apps/api/drizzle ./apps/api/drizzle
 COPY --from=builder /app/packages/shared ./packages/shared
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/tsconfig.json ./

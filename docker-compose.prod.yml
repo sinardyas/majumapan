@@ -17,6 +17,22 @@ services:
     networks:
       - pos-network
 
+  db-setup:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: pos-db-setup
+    working_dir: /app/apps/api
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pos_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-pos}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["bun", "run", "db:setup"]
+    restart: "no"
+    networks:
+      - pos-network
+
   api:
     build:
       context: .
@@ -32,8 +48,8 @@ services:
       API_HOST: 0.0.0.0
       NODE_ENV: production
     depends_on:
-      postgres:
-        condition: service_healthy
+      db-setup:
+        condition: service_completed_successfully
     networks:
       - pos-network
 
