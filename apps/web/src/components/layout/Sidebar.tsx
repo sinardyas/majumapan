@@ -113,7 +113,7 @@ export function Sidebar() {
     <aside className="fixed left-0 top-0 h-full w-64 bg-gray-900 text-white flex flex-col">
       {/* Logo */}
       <div className="h-16 flex items-center justify-center border-b border-gray-800">
-        <h1 className="text-xl font-bold text-primary-400">POS System</h1>
+        <h1 className="text-xl font-bold text-primary-400">Majumapan</h1>
       </div>
 
       {/* Navigation */}

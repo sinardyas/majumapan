@@ -91,7 +91,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">POS System</h1>
+          <h1 className="text-4xl font-bold text-white mb-2">Majumapan</h1>
           <p className="text-primary-200">Sign in to your account</p>
         </div>
 
@@ -152,7 +152,7 @@ export default function Login() {
               Demo credentials:
             </p>
             <div className="space-y-2 text-xs text-gray-600">
-              <p><strong>Admin:</strong> admin@pos.local / admin123</p>
+              {/* <p><strong>Admin:</strong> admin@pos.local / admin123</p> */}
               <p><strong>Manager:</strong> manager@downtown.pos.local / manager123</p>
               <p><strong>Cashier:</strong> cashier1@downtown.pos.local / cashier123</p>
             </div>

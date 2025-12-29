@@ -1,12 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
-import { useCartStore } from '@/stores/cartStore';
-import { db, type LocalProduct, type LocalTransaction } from '@/db';
+import { useCartStore, type CartDiscount } from '@/stores/cartStore';
+import { 
+  db, 
+  type LocalProduct, 
+  type LocalTransaction,
+  getHeldOrdersCount,
+  deleteExpiredHeldOrders,
+  deleteHeldOrder,
+} from '@/db';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
 import { PaymentModal } from '@/components/pos/PaymentModal';
 import { Receipt } from '@/components/pos/Receipt';
+import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
+import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
+import { ResumeConfirmModal } from '@/components/pos/ResumeConfirmModal';
 import type { PaymentMethod } from '@pos/shared';
 
 export default function POS() {
@@ -23,9 +34,13 @@ export default function POS() {
     removeItem, 
     clearCart,
     applyDiscount,
-    removeDiscount 
+    removeDiscount,
+    holdOrder,
+    resumeOrder,
+    resumedOrderInfo,
   } = useCartStore();
   const { isOnline } = useOnlineStatus();
+  const toast = useToast();
   
   const [products, setProducts] = useState<(LocalProduct & { stockQuantity: number })[]>([]);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
@@ -47,6 +62,14 @@ export default function POS() {
   const [storeName, setStoreName] = useState('');
   const [storeAddress, setStoreAddress] = useState<string | null>(null);
   const [storePhone, setStorePhone] = useState<string | null>(null);
+  
+  // Hold Order state
+  const [showHoldModal, setShowHoldModal] = useState(false);
+  const [showHeldOrdersList, setShowHeldOrdersList] = useState(false);
+  const [showResumeConfirm, setShowResumeConfirm] = useState(false);
+  const [heldOrdersCount, setHeldOrdersCount] = useState(0);
+  const [pendingResumeOrderId, setPendingResumeOrderId] = useState<string | null>(null);
+  const [isHolding, setIsHolding] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -153,6 +176,29 @@ export default function POS() {
 
     loadData();
   }, [user?.storeId]);
+
+  // Initialize held orders: cleanup expired and load count
+  useEffect(() => {
+    const initHeldOrders = async () => {
+      if (!user?.storeId || !user?.id) return;
+      
+      try {
+        // Clean up expired orders
+        const expiredCount = await deleteExpiredHeldOrders();
+        if (expiredCount > 0) {
+          console.log(`Cleaned up ${expiredCount} expired held orders`);
+        }
+        
+        // Load count
+        const count = await getHeldOrdersCount(user.storeId, user.id);
+        setHeldOrdersCount(count);
+      } catch (error) {
+        console.error('Error initializing held orders:', error);
+      }
+    };
+    
+    initHeldOrders();
+  }, [user?.storeId, user?.id]);
 
   // Filter products
   const filteredProducts = products.filter((product) => {
@@ -263,6 +309,102 @@ export default function POS() {
       setDiscountError('Failed to apply discount');
     } finally {
       setIsApplyingDiscount(false);
+    }
+  };
+
+  // ============================================================================
+  // Hold Order Handlers
+  // ============================================================================
+
+  const revalidateDiscount = async (discount: CartDiscount): Promise<boolean> => {
+    try {
+      const dbDiscount = await db.discounts.get(discount.id);
+      
+      if (!dbDiscount || !dbDiscount.isActive) return false;
+      
+      const now = new Date();
+      if (dbDiscount.startDate && new Date(dbDiscount.startDate) > now) return false;
+      if (dbDiscount.endDate && new Date(dbDiscount.endDate) < now) return false;
+      if (dbDiscount.usageLimit && dbDiscount.usageCount >= dbDiscount.usageLimit) return false;
+      
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleHoldOrder = async (customerName?: string, note?: string) => {
+    if (!user?.storeId || !user?.id) return;
+    
+    setIsHolding(true);
+    try {
+      await holdOrder(user.storeId, user.id, customerName, note);
+      setHeldOrdersCount(prev => prev + 1);
+      setShowHoldModal(false);
+      toast.success('Order held successfully');
+    } catch (error) {
+      console.error('Error holding order:', error);
+      toast.error('Failed to hold order');
+    } finally {
+      setIsHolding(false);
+    }
+  };
+
+  const executeResume = async (heldOrderId: string) => {
+    try {
+      const result = await resumeOrder(heldOrderId, revalidateDiscount);
+      
+      if (!result.success) {
+        toast.error(result.error || 'Failed to resume order');
+        return;
+      }
+      
+      // Update count
+      setHeldOrdersCount(prev => Math.max(0, prev - 1));
+      setShowHeldOrdersList(false);
+      setShowResumeConfirm(false);
+      setPendingResumeOrderId(null);
+      
+      toast.success('Order resumed');
+      
+      // Show warning if discount was removed
+      if (result.discountRemoved && result.discountName) {
+        toast.warning(
+          `Discount '${result.discountName}' is no longer valid and was removed`
+        );
+      }
+    } catch (error) {
+      console.error('Error resuming order:', error);
+      toast.error('Failed to resume order');
+    }
+  };
+
+  const handleResumeOrder = async (heldOrderId: string) => {
+    // If cart has items, show confirmation first
+    if (items.length > 0) {
+      setPendingResumeOrderId(heldOrderId);
+      setShowResumeConfirm(true);
+      return;
+    }
+    
+    // Otherwise, resume directly
+    await executeResume(heldOrderId);
+  };
+
+  const handleConfirmResume = async () => {
+    if (pendingResumeOrderId) {
+      await executeResume(pendingResumeOrderId);
+    }
+  };
+
+  const handleDeleteHeldOrder = async (heldOrderId: string) => {
+    try {
+      await deleteHeldOrder(heldOrderId);
+      setHeldOrdersCount(prev => Math.max(0, prev - 1));
+      toast.success('Held order deleted');
+    } catch (error) {
+      console.error('Error deleting held order:', error);
+      toast.error('Failed to delete held order');
     }
   };
 
@@ -571,8 +713,30 @@ export default function POS() {
       {/* Cart Section */}
       <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
         {/* Cart Header */}
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold">Current Order</h2>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Current Order</h2>
+            {resumedOrderInfo && (
+              <p className="text-sm text-primary-600 mt-1">
+                Resumed: {resumedOrderInfo.customerName || 'Held Order'}
+              </p>
+            )}
+          </div>
+          {/* Held Orders Button */}
+          <button
+            onClick={() => setShowHeldOrdersList(true)}
+            className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Held Orders"
+          >
+            <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            {heldOrdersCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+                {heldOrdersCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Cart Items */}
@@ -738,14 +902,26 @@ export default function POS() {
             >
               Pay {formatCurrency(total)}
             </Button>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={clearCart}
-              disabled={items.length === 0}
-            >
-              Clear Cart
-            </Button>
+            
+            {/* Hold Order and Clear Cart buttons side by side */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowHoldModal(true)}
+                disabled={items.length === 0}
+              >
+                Hold Order
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={clearCart}
+                disabled={items.length === 0}
+              >
+                Clear Cart
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -813,6 +989,36 @@ export default function POS() {
           </div>
         </div>
       )}
+
+      {/* Hold Order Modal */}
+      <HoldOrderModal
+        isOpen={showHoldModal}
+        onClose={() => setShowHoldModal(false)}
+        onHold={handleHoldOrder}
+        isLoading={isHolding}
+      />
+
+      {/* Held Orders List Modal */}
+      <HeldOrdersList
+        isOpen={showHeldOrdersList}
+        onClose={() => setShowHeldOrdersList(false)}
+        onResume={handleResumeOrder}
+        onDelete={handleDeleteHeldOrder}
+        storeId={user?.storeId || ''}
+        cashierId={user?.id || ''}
+      />
+
+      {/* Resume Confirm Modal */}
+      <ResumeConfirmModal
+        isOpen={showResumeConfirm}
+        onClose={() => {
+          setShowResumeConfirm(false);
+          setPendingResumeOrderId(null);
+        }}
+        onConfirm={handleConfirmResume}
+        currentCartItemCount={items.length}
+        currentCartTotal={total}
+      />
     </div>
   );
 }

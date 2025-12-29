@@ -5,7 +5,6 @@ import {
   getHeldOrder, 
   deleteHeldOrder as deleteHeldOrderFromDb,
   type HeldOrder,
-  type HeldOrderDiscount,
 } from '@/db';
 
 export interface CartItem {

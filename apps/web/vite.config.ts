@@ -10,7 +10,7 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
-        name: 'POS System',
+        name: '5758 | POS System',
         short_name: 'POS',
         description: 'Offline-first Point of Sale System',
         theme_color: '#3b82f6',
