@@ -1,6 +1,6 @@
-# Offline-First POS System
+# Majumapan - Offline-First POS System
 
-A web-based Point of Sale (POS) system designed with offline-first architecture, featuring automatic synchronization when internet connectivity is restored.
+Majumapan is a web-based Point of Sale (POS) system designed with offline-first architecture, featuring automatic synchronization when internet connectivity is restored.
 
 ## Features
 
