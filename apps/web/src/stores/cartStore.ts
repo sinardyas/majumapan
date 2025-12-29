@@ -1,5 +1,12 @@
 import { create } from 'zustand';
 import { TAX_RATE } from '@pos/shared';
+import { 
+  saveHeldOrder, 
+  getHeldOrder, 
+  deleteHeldOrder as deleteHeldOrderFromDb,
+  type HeldOrder,
+  type HeldOrderDiscount,
+} from '@/db';
 
 export interface CartItem {
   productId: string;
@@ -13,13 +20,25 @@ export interface CartItem {
   subtotal: number;
 }
 
-interface CartDiscount {
+export interface CartDiscount {
   id: string;
   code: string;
   name: string;
   discountType: 'percentage' | 'fixed';
   value: number;
   amount: number;
+}
+
+export interface ResumedOrderInfo {
+  id: string;
+  customerName?: string;
+}
+
+export interface ResumeOrderResult {
+  success: boolean;
+  discountRemoved?: boolean;
+  discountName?: string;
+  error?: string;
 }
 
 interface CartState {
@@ -32,6 +51,9 @@ interface CartState {
   taxAmount: number;
   total: number;
 
+  // Hold Order state
+  resumedOrderInfo: ResumedOrderInfo | null;
+
   // Actions
   addItem: (item: Omit<CartItem, 'subtotal'>) => void;
   updateItemQuantity: (productId: string, quantity: number) => void;
@@ -40,6 +62,19 @@ interface CartState {
   removeDiscount: () => void;
   clearCart: () => void;
   calculateTotals: () => void;
+
+  // Hold Order actions
+  holdOrder: (
+    storeId: string,
+    cashierId: string,
+    customerName?: string,
+    note?: string
+  ) => Promise<string>;
+  resumeOrder: (
+    heldOrderId: string,
+    revalidateDiscount: (discount: CartDiscount) => Promise<boolean>
+  ) => Promise<ResumeOrderResult>;
+  clearResumedOrderInfo: () => void;
 }
 
 const calculateItemSubtotal = (item: Omit<CartItem, 'subtotal'>): number => {
@@ -53,6 +88,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   discountAmount: 0,
   taxAmount: 0,
   total: 0,
+  resumedOrderInfo: null,
 
   addItem: (newItem) => {
     const items = get().items;
@@ -122,6 +158,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       discountAmount: 0,
       taxAmount: 0,
       total: 0,
+      resumedOrderInfo: null,
     });
   },
 
@@ -147,5 +184,140 @@ export const useCartStore = create<CartState>((set, get) => ({
       taxAmount,
       total,
     });
+  },
+
+  // ==========================================================================
+  // Hold Order Actions
+  // See docs/features/hold-order.md and ADR-0004
+  // ==========================================================================
+
+  holdOrder: async (storeId, cashierId, customerName, note) => {
+    const { items, cartDiscount, subtotal, discountAmount, taxAmount, total } = get();
+    
+    if (items.length === 0) {
+      throw new Error('Cannot hold an empty cart');
+    }
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+
+    const heldOrder: HeldOrder = {
+      id: crypto.randomUUID(),
+      storeId,
+      cashierId,
+      customerName,
+      note,
+      items: items.map(item => ({
+        productId: item.productId,
+        productName: item.productName,
+        productSku: item.productSku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        discountId: item.discountId,
+        discountName: item.discountName,
+        discountValue: item.discountValue,
+        subtotal: item.subtotal,
+      })),
+      cartDiscount: cartDiscount ? {
+        id: cartDiscount.id,
+        code: cartDiscount.code,
+        name: cartDiscount.name,
+        discountType: cartDiscount.discountType,
+        value: cartDiscount.value,
+        amount: cartDiscount.amount,
+      } : null,
+      subtotal,
+      discountAmount,
+      taxAmount,
+      total,
+      heldAt: now.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+    };
+
+    // Save to IndexedDB
+    await saveHeldOrder(heldOrder);
+
+    // Clear the cart
+    get().clearCart();
+
+    return heldOrder.id;
+  },
+
+  resumeOrder: async (heldOrderId, revalidateDiscount) => {
+    const heldOrder = await getHeldOrder(heldOrderId);
+    
+    if (!heldOrder) {
+      return { success: false, error: 'Held order not found' };
+    }
+
+    // Check if order has expired
+    if (new Date(heldOrder.expiresAt) < new Date()) {
+      await deleteHeldOrderFromDb(heldOrderId);
+      return { success: false, error: 'Held order has expired' };
+    }
+
+    let discountRemoved = false;
+    let discountName: string | undefined;
+    let validatedDiscount: CartDiscount | null = null;
+
+    // Re-validate discount if one was applied
+    if (heldOrder.cartDiscount) {
+      const cartDiscount: CartDiscount = {
+        id: heldOrder.cartDiscount.id,
+        code: heldOrder.cartDiscount.code,
+        name: heldOrder.cartDiscount.name,
+        discountType: heldOrder.cartDiscount.discountType,
+        value: heldOrder.cartDiscount.value,
+        amount: heldOrder.cartDiscount.amount,
+      };
+
+      const isValid = await revalidateDiscount(cartDiscount);
+      
+      if (isValid) {
+        validatedDiscount = cartDiscount;
+      } else {
+        discountRemoved = true;
+        discountName = heldOrder.cartDiscount.name;
+      }
+    }
+
+    // Load items into cart
+    const items: CartItem[] = heldOrder.items.map(item => ({
+      productId: item.productId,
+      productName: item.productName,
+      productSku: item.productSku,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      discountId: item.discountId,
+      discountName: item.discountName,
+      discountValue: item.discountValue,
+      subtotal: item.subtotal,
+    }));
+
+    // Set cart state
+    set({
+      items,
+      cartDiscount: validatedDiscount,
+      resumedOrderInfo: {
+        id: heldOrder.id,
+        customerName: heldOrder.customerName,
+      },
+    });
+
+    // Recalculate totals (especially if discount was removed)
+    get().calculateTotals();
+
+    // Delete held order from IndexedDB
+    await deleteHeldOrderFromDb(heldOrderId);
+
+    return {
+      success: true,
+      discountRemoved,
+      discountName,
+    };
+  },
+
+  clearResumedOrderInfo: () => {
+    set({ resumedOrderInfo: null });
   },
 }));
