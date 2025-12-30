@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { useSyncStore } from '@/stores/syncStore';
 import { api } from '@/services/api';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface LoginResponse {
@@ -43,12 +43,20 @@ export default function Login() {
 
       if (response.success && response.data) {
         const { user, accessToken, refreshToken } = response.data;
+
+        // Reject admin users - they should use the Admin Panel
+        if (user.role === 'admin') {
+          setError('Admin users must use the Admin Panel. Please navigate to the admin login URL.');
+          setLoading(false);
+          return;
+        }
+
         setAuth(
           {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role as 'admin' | 'manager' | 'cashier',
+            role: user.role as 'manager' | 'cashier',
             storeId: user.storeId,
             pin: null,
             isActive: true,
@@ -58,7 +66,7 @@ export default function Login() {
           accessToken,
           refreshToken
         );
-        
+
         // Perform initial full sync if online
         if (isOnline && user.storeId) {
           setSyncStatus('syncing');
@@ -73,7 +81,7 @@ export default function Login() {
           }
           setSyncStatus('done');
         }
-        
+
         navigate('/pos');
       } else {
         setError(response.error || 'Login failed');
@@ -149,10 +157,9 @@ export default function Login() {
           {/* Demo credentials */}
           <div className="mt-6 pt-6 border-t border-gray-200">
             <p className="text-sm text-gray-500 text-center mb-3">
-              Demo credentials:
+              Demo credentials (POS only):
             </p>
             <div className="space-y-2 text-xs text-gray-600">
-              {/* <p><strong>Admin:</strong> admin@pos.local / admin123</p> */}
               <p><strong>Manager:</strong> manager@downtown.pos.local / manager123</p>
               <p><strong>Cashier:</strong> cashier1@downtown.pos.local / cashier123</p>
             </div>

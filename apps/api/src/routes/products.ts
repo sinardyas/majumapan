@@ -3,6 +3,7 @@ import { eq, and, or, like, sql } from 'drizzle-orm';
 import { db, products, stock, syncLog, productDiscounts, discounts } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 import { createProductSchema, updateProductSchema, paginationSchema } from '@pos/shared';
 
 const productsRouter = new Hono();
@@ -243,6 +244,16 @@ productsRouter.post('/', requirePermission('products:create'), async (c) => {
       action: 'create',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'create',
+      entityType: 'product',
+      entityId: newProduct.id,
+      entityName: newProduct.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: newProduct,
@@ -337,6 +348,16 @@ productsRouter.put('/:id', requirePermission('products:update'), async (c) => {
       action: 'update',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'update',
+      entityType: 'product',
+      entityId: id,
+      entityName: existingProduct.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: updatedProduct,
@@ -381,6 +402,16 @@ productsRouter.delete('/:id', requirePermission('products:delete'), async (c) =>
       entityType: 'product',
       entityId: id,
       action: 'delete',
+    });
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'delete',
+      entityType: 'product',
+      entityId: id,
+      entityName: existingProduct.name,
+      c,
     });
 
     return c.json({

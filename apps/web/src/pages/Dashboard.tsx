@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 
 interface DashboardStats {
   todaySales: number;

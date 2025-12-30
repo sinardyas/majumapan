@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { db, users } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 import { createUserSchema, updateUserSchema } from '@pos/shared';
 import { hashPassword, hashPin } from '../utils/password';
 
@@ -153,6 +154,16 @@ usersRouter.post('/', requirePermission('users:create'), async (c) => {
       updatedAt: users.updatedAt,
     });
 
+    await createAuditLog({
+      userId: currentUser.userId,
+      userEmail: currentUser.email,
+      action: 'create',
+      entityType: 'user',
+      entityId: newUser.id,
+      entityName: newUser.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: newUser,
@@ -229,6 +240,16 @@ usersRouter.put('/:id', requirePermission('users:update'), async (c) => {
         updatedAt: users.updatedAt,
       });
 
+    await createAuditLog({
+      userId: currentUser.userId,
+      userEmail: currentUser.email,
+      action: 'update',
+      entityType: 'user',
+      entityId: id,
+      entityName: updatedUser.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: updatedUser,
@@ -281,6 +302,16 @@ usersRouter.delete('/:id', requirePermission('users:delete'), async (c) => {
         name: users.name,
         isActive: users.isActive,
       });
+
+    await createAuditLog({
+      userId: currentUser.userId,
+      userEmail: currentUser.email,
+      action: 'delete',
+      entityType: 'user',
+      entityId: id,
+      entityName: existingUser.name,
+      c,
+    });
 
     return c.json({
       success: true,

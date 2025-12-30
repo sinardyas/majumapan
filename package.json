@@ -3,15 +3,18 @@
   "private": true,
   "workspaces": [
     "apps/*",
+    "apps/admin",
     "packages/*"
   ],
   "scripts": {
     "dev": "turbo run dev",
     "dev:api": "turbo run dev --filter=@pos/api",
     "dev:web": "turbo run dev --filter=@pos/web",
+    "dev:admin": "turbo run dev --filter=@pos/admin",
     "build": "turbo run build",
     "build:api": "turbo run build --filter=@pos/api",
     "build:web": "turbo run build --filter=@pos/web",
+    "build:admin": "turbo run build --filter=@pos/admin",
     "lint": "turbo run lint",
     "clean": "turbo run clean && rm -rf node_modules",
     "db:generate": "turbo run db:generate --filter=@pos/api",

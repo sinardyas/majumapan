@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 
 export default function Transactions() {
   const { user } = useAuthStore();

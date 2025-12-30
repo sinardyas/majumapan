@@ -1,5 +1,5 @@
 import { useSync } from '@/hooks/useSync';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 
 interface SyncStatusProps {
   showDetails?: boolean;

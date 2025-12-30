@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, stores } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 import { createStoreSchema, updateStoreSchema } from '@pos/shared';
 
 const storesRouter = new Hono();
@@ -53,6 +54,7 @@ storesRouter.get('/:id', requirePermission('stores:read'), async (c) => {
 // Create store (Admin only)
 storesRouter.post('/', requirePermission('stores:create'), async (c) => {
   try {
+    const user = c.get('user');
     const body = await c.req.json();
     const result = createStoreSchema.safeParse(body);
 
@@ -69,6 +71,16 @@ storesRouter.post('/', requirePermission('stores:create'), async (c) => {
       phone: result.data.phone || null,
     }).returning();
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'create',
+      entityType: 'store',
+      entityId: newStore.id,
+      entityName: newStore.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: newStore,
@@ -82,6 +94,7 @@ storesRouter.post('/', requirePermission('stores:create'), async (c) => {
 // Update store (Admin only)
 storesRouter.put('/:id', requirePermission('stores:update'), async (c) => {
   try {
+    const user = c.get('user');
     const { id } = c.req.param();
     const body = await c.req.json();
     const result = updateStoreSchema.safeParse(body);
@@ -110,6 +123,16 @@ storesRouter.put('/:id', requirePermission('stores:update'), async (c) => {
       .where(eq(stores.id, id))
       .returning();
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'update',
+      entityType: 'store',
+      entityId: id,
+      entityName: updatedStore.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: updatedStore,
@@ -123,6 +146,7 @@ storesRouter.put('/:id', requirePermission('stores:update'), async (c) => {
 // Soft delete store (Admin only)
 storesRouter.delete('/:id', requirePermission('stores:delete'), async (c) => {
   try {
+    const user = c.get('user');
     const { id } = c.req.param();
 
     // Check if store exists
@@ -141,6 +165,16 @@ storesRouter.delete('/:id', requirePermission('stores:delete'), async (c) => {
       })
       .where(eq(stores.id, id))
       .returning();
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'delete',
+      entityType: 'store',
+      entityId: id,
+      entityName: existingStore.name,
+      c,
+    });
 
     return c.json({
       success: true,

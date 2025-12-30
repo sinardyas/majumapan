@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 import { PAYMENT_METHODS, type PaymentMethod } from '@pos/shared';
 
 interface PaymentModalProps {

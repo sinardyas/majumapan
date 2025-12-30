@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalCategory } from '@/db';
 import { api } from '@/services/api';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
 

@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { ToastProvider } from '@/components/ui/Toast';
+import { ToastProvider } from '@pos/ui';
 
 // Pages
 import Login from '@/pages/Login';
@@ -11,7 +11,6 @@ import Dashboard from '@/pages/Dashboard';
 import Transactions from '@/pages/Transactions';
 import Products from '@/pages/Products';
 import Categories from '@/pages/Categories';
-import Users from '@/pages/Users';
 import Discounts from '@/pages/Discounts';
 
 // Protected Route wrapper
@@ -103,17 +102,6 @@ export default function App() {
           <ProtectedRoute>
             <AuthenticatedLayout>
               <Categories />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/users"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
-              <Users />
             </AuthenticatedLayout>
           </ProtectedRoute>
         }

@@ -10,6 +10,7 @@ import {
   pgEnum,
   uniqueIndex,
   index,
+  jsonb,
 } from 'drizzle-orm/pg-core';
 
 // Enums
@@ -36,7 +37,9 @@ export const stores = pgTable('stores', {
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_stores_active').on(table.isActive),
+]);
 
 // Users
 export const users = pgTable('users', {
@@ -159,6 +162,7 @@ export const transactions = pgTable('transactions', {
   rejectedAt: timestamp('rejected_at'),
   clientTimestamp: timestamp('client_timestamp').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('idx_transactions_store').on(table.storeId),
   index('idx_transactions_cashier').on(table.cashierId),
@@ -203,6 +207,26 @@ export const refreshTokens = pgTable('refresh_tokens', {
   tokenHash: varchar('token_hash', { length: 255 }).notNull(),
   expiresAt: timestamp('expires_at').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-}, (table) => [
+  }, (table) => [
   index('idx_refresh_tokens_user').on(table.userId),
-]);
+  ]);
+
+// Audit Logs
+export const auditLogTable = pgTable('audit_logs', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').references(() => users.id),
+    userEmail: varchar('user_email', { length: 255 }).notNull(),
+    action: varchar('action', { length: 50 }).notNull(),
+    entityType: varchar('entity_type', { length: 50 }).notNull(),
+    entityId: uuid('entity_id'),
+    entityName: varchar('entity_name', { length: 255 }),
+    changes: jsonb('changes'),
+    ipAddress: varchar('ip_address', { length: 45 }),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  }, (table) => [
+    index('idx_audit_logs_user').on(table.userId),
+    index('idx_audit_logs_entity').on(table.entityType, table.entityId),
+    index('idx_audit_logs_action').on(table.action),
+    index('idx_audit_logs_date').on(table.createdAt),
+  ]);

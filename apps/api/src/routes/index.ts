@@ -8,6 +8,10 @@ import stock from './stock';
 import discounts from './discounts';
 import transactions from './transactions';
 import sync from './sync';
+import auditLogs from './audit-logs';
+import data from './data';
+import settings from './settings';
+import reports from './reports';
 
 const routes = new Hono();
 
@@ -21,6 +25,10 @@ routes.route('/stock', stock);
 routes.route('/discounts', discounts);
 routes.route('/transactions', transactions);
 routes.route('/sync', sync);
+routes.route('/audit-logs', auditLogs);
+routes.route('/data', data);
+routes.route('/settings', settings);
+routes.route('/reports', reports);
 
 // Health check
 routes.get('/health', (c) => {

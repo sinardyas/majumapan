@@ -3,6 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import { db, categories, syncLog } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 import { createCategorySchema, updateCategorySchema } from '@pos/shared';
 
 const categoriesRouter = new Hono();
@@ -113,6 +114,16 @@ categoriesRouter.post('/', requirePermission('categories:create'), async (c) => 
       action: 'create',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'create',
+      entityType: 'category',
+      entityId: newCategory.id,
+      entityName: newCategory.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: newCategory,
@@ -168,6 +179,16 @@ categoriesRouter.put('/:id', requirePermission('categories:update'), async (c) =
       action: 'update',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'update',
+      entityType: 'category',
+      entityId: id,
+      entityName: existingCategory.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: updatedCategory,
@@ -212,6 +233,16 @@ categoriesRouter.delete('/:id', requirePermission('categories:delete'), async (c
       entityType: 'category',
       entityId: id,
       action: 'delete',
+    });
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'delete',
+      entityType: 'category',
+      entityId: id,
+      entityName: existingCategory.name,
+      c,
     });
 
     return c.json({

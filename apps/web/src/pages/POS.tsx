@@ -9,8 +9,8 @@ import {
   deleteExpiredHeldOrders,
   deleteHeldOrder,
 } from '@/db';
-import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { Button } from '@pos/ui';
+import { useToast } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
 import { PaymentModal } from '@/components/pos/PaymentModal';

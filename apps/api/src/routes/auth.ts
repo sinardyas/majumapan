@@ -9,6 +9,7 @@ import {
   getExpiresInSeconds,
 } from '../utils/jwt';
 import { authMiddleware } from '../middleware/auth';
+import { createAuditLog } from '../utils/audit';
 import {
   loginSchema,
   pinLoginSchema,
@@ -66,7 +67,17 @@ auth.post('/login', async (c) => {
       tokenHash,
       expiresAt,
     });
-    
+
+    await createAuditLog({
+      userId: user.id,
+      userEmail: user.email,
+      action: 'login',
+      entityType: 'user',
+      entityId: user.id,
+      entityName: user.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: {
@@ -237,10 +248,19 @@ auth.post('/refresh', async (c) => {
 auth.post('/logout', authMiddleware, async (c) => {
   try {
     const user = c.get('user');
-    
-    // Delete all refresh tokens for this user
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'logout',
+      entityType: 'user',
+      entityId: user.userId,
+      entityName: user.email,
+      c,
+    });
+
     await db.delete(refreshTokens).where(eq(refreshTokens.userId, user.userId));
-    
+
     return c.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
