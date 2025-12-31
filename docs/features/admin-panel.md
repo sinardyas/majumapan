@@ -2,7 +2,7 @@
 
 ## Status
 
-**Planned** - Implementation pending
+**Implemented** - Completed on 2024-12-31
 
 ## Overview
 
@@ -45,6 +45,16 @@ Previously, admin functionality was mixed into the POS web application. This cre
 | POS Web | `https://pos.example.com/` |
 | Admin Panel | `https://admin.example.com/` |
 | API | `https://api.example.com/` |
+
+### Shared Packages
+
+The Admin Panel leverages the monorepo architecture with shared packages:
+
+| Package | Purpose |
+|---------|---------|
+| `@pos/shared` | Shared types, Zod schemas, constants |
+| `@pos/ui` | Reusable UI components (Button, Input, Modal, Card, etc.) |
+| `@pos/api-client` | HTTP client with auth integration |
 
 ## Features
 
@@ -221,15 +231,20 @@ Same stack as POS web for consistency:
 | Frontend Framework | React 18.x |
 | Build Tool | Vite 5.x |
 | Styling | TailwindCSS 3.x |
-| State Management | Zustand 4.x |
-| Routing | React Router 6.x |
-| HTTP Client | Fetch API |
-| Form Validation | Zod 3.x |
+| State Management | Zustand 5.x |
+| Routing | React Router 7.x |
+| HTTP Client | @pos/api-client (Fetch API wrapper) |
+| Form Validation | Zod 4.x |
+| Charts | Recharts |
+| Icons | Lucide React |
+| Date Handling | date-fns |
 
 **Differences from POS Web:**
 - No PWA/Service Worker (not offline-first)
 - No IndexedDB/Dexie (no local storage needed)
 - No sync logic
+- Uses shared `@pos/ui` package for UI components
+- Uses shared `@pos/api-client` package for HTTP client
 
 ## Project Structure
 
@@ -242,29 +257,17 @@ apps/admin/
 │   │   │   ├── Sidebar.tsx
 │   │   │   └── Header.tsx
 │   │   ├── ui/
+│   │   │   ├── Badge.tsx
 │   │   │   ├── Button.tsx
-│   │   │   ├── Input.tsx
-│   │   │   ├── Select.tsx
-│   │   │   ├── Table.tsx
-│   │   │   ├── Modal.tsx
 │   │   │   ├── Card.tsx
-│   │   │   └── Toast.tsx
-│   │   ├── stores/
-│   │   │   ├── StoreList.tsx
-│   │   │   ├── StoreForm.tsx
-│   │   │   └── StoreCard.tsx
-│   │   ├── users/
-│   │   │   ├── UserList.tsx
-│   │   │   ├── UserForm.tsx
-│   │   │   └── UserFilters.tsx
-│   │   ├── reports/
-│   │   │   ├── StoreComparison.tsx
-│   │   │   ├── SalesChart.tsx
-│   │   │   └── MetricCard.tsx
-│   │   └── shared/
-│   │       ├── Pagination.tsx
-│   │       ├── SearchInput.tsx
-│   │       └── ExportButton.tsx
+│   │   │   ├── Input.tsx
+│   │   │   ├── Modal.tsx
+│   │   │   ├── Select.tsx
+│   │   │   ├── Skeleton.tsx
+│   │   │   ├── Textarea.tsx
+│   │   │   └── index.ts
+│   │   ├── ErrorBoundary.tsx
+│   │   └── ErrorBoundary.test.tsx
 │   ├── pages/
 │   │   ├── Login.tsx
 │   │   ├── Dashboard.tsx
@@ -275,15 +278,16 @@ apps/admin/
 │   │   ├── DataManagement.tsx
 │   │   └── Settings.tsx
 │   ├── services/
-│   │   └── api.ts
+│   │   └── api.ts          # dashboardApi convenience methods
 │   ├── stores/
 │   │   └── authStore.ts
-│   ├── hooks/
-│   │   └── useAuth.ts
 │   ├── lib/
-│   │   └── utils.ts
+│   │   ├── utils.ts
+│   │   └── utils.test.ts
 │   ├── styles/
 │   │   └── globals.css
+│   ├── test/
+│   │   └── setup.ts
 │   ├── App.tsx
 │   └── main.tsx
 ├── index.html
@@ -292,34 +296,33 @@ apps/admin/
 ├── tsconfig.json
 ├── tailwind.config.js
 ├── postcss.config.js
-└── nginx.conf
+├── eslint.config.js
+└── vitest.config.ts
 ```
 
 ## API Endpoints
 
-### New Endpoints Required
+### Admin Dashboard API
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/audit-logs` | GET | List audit logs with filters |
-| `/export/products` | GET | Export products to CSV |
-| `/export/categories` | GET | Export categories to CSV |
-| `/export/users` | GET | Export users to CSV |
-| `/import/products` | POST | Import products from CSV |
-| `/import/categories` | POST | Import categories from CSV |
-| `/import/users` | POST | Import users from CSV |
-| `/reports/system-overview` | GET | System-wide metrics |
-| `/reports/stores-comparison` | GET | Cross-store comparison |
-| `/settings` | GET | Get all settings |
-| `/settings` | PUT | Update settings |
+| `/api/v1/audit-logs` | GET | List audit logs with filters |
+| `/api/v1/reports/system-overview` | GET | System-wide metrics |
+| `/api/v1/reports/stores-comparison` | GET | Cross-store comparison |
+| `/api/v1/reports/sales-by-store` | GET | Sales trend by store |
+| `/api/v1/reports/top-stores` | GET | Top performing stores |
+| `/api/v1/data/export/:type` | GET | Export data to CSV |
+| `/api/v1/data/import/:type` | POST | Import data from CSV |
+| `/api/v1/settings` | GET | Get all settings |
+| `/api/v1/settings` | PUT | Update settings |
 
 ### Existing Endpoints Used
 
-- `/auth/login` - Authentication
-- `/auth/me` - Current user profile
-- `/auth/logout` - Logout
-- `/stores` - Store CRUD
-- `/users` - User CRUD
+- `/api/v1/auth/login` - Authentication
+- `/api/v1/auth/me` - Current user profile
+- `/api/v1/auth/logout` - Logout
+- `/api/v1/stores` - Store CRUD
+- `/api/v1/users` - User CRUD
 
 ## Database Changes
 
@@ -363,20 +366,20 @@ CREATE INDEX idx_audit_logs_date ON audit_logs(created_at);
 | Login page | Reject admin users with message directing to admin panel |
 | Sidebar | Remove Users navigation item |
 
-## Implementation Phases
+## Implementation Summary
 
-### Phase 1: Foundation
+### Phase 1: Foundation - COMPLETED
 1. Create `apps/admin` with Vite + React + TailwindCSS
 2. Set up routing, layout components, auth store
 3. Implement admin-only login page
-4. Create shared UI components
+4. Create shared UI components (via @pos/ui package)
 
-### Phase 2: Core Admin Features
+### Phase 2: Core Admin Features - COMPLETED
 5. Implement Stores management page
 6. Implement Users management page
 7. Implement Settings page
 
-### Phase 3: Database & API Updates
+### Phase 3: Database & API Updates - COMPLETED
 8. Add audit_logs table and migration
 9. Create audit logging utility
 10. Integrate audit logging into existing routes
@@ -385,19 +388,19 @@ CREATE INDEX idx_audit_logs_date ON audit_logs(created_at);
 13. Implement settings endpoints
 14. Implement cross-store report endpoints
 
-### Phase 4: Reports & Advanced Features
+### Phase 4: Reports & Advanced Features - COMPLETED
 15. Implement Admin Dashboard
 16. Implement Reports page
 17. Implement Audit Logs viewer
 18. Implement Data Management page
 
-### Phase 5: POS Web Cleanup
+### Phase 5: POS Web Cleanup - COMPLETED
 19. Remove Users page from POS web
 20. Update login to reject admin users
 21. Update sidebar navigation
 
-### Phase 6: Docker & Deployment
-22. Create Dockerfile.admin
+### Phase 6: Docker & Deployment - COMPLETED
+22. Create Dockerfile for admin
 23. Update docker-compose files
 24. Configure nginx for subdomain routing
 25. Update documentation
@@ -410,7 +413,30 @@ CREATE INDEX idx_audit_logs_date ON audit_logs(created_at);
 4. **RBAC enforcement**: API validates admin role on all admin endpoints
 5. **CORS configuration**: Admin panel added to allowed origins
 
+## Dependencies
+
+```json
+{
+  "@pos/api-client": "*",
+  "@pos/shared": "*",
+  "@pos/ui": "*",
+  "@radix-ui/react-slot": "^1.2.4",
+  "class-variance-authority": "^0.7.1",
+  "clsx": "^2.1.1",
+  "date-fns": "^4.1.0",
+  "lucide-react": "^0.562.0",
+  "react": "^18.3.1",
+  "react-router-dom": "^7.1.1",
+  "recharts": "^3.6.0",
+  "tailwind-merge": "^3.4.0",
+  "zod": "^4.2.1",
+  "zustand": "^5.0.2"
+}
+```
+
 ## Related Documents
 
 - **ADR-0005**: Admin Panel Separation (architectural decision)
+- **ADR-0006**: UI Component Sharing Strategy
+- **ADR-0007**: Shared API Client Package
 - **PLAN.md**: Original system plan with role permissions
