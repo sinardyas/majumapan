@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
-import { eq, and, sql, desc, gte, lte } from 'drizzle-orm';
-import { db, transactions, transactionItems, stores, users } from '../db';
+import { eq, and, sql, desc, gte, lte, asc } from 'drizzle-orm';
+import { db, transactions, transactionItems, stores, users, products, categories, stock } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 
@@ -191,6 +191,108 @@ reportsRouter.get('/top-stores', requireRole('admin'), async (c) => {
   } catch (error) {
     console.error('Top stores error:', error);
     return c.json({ success: false, error: 'Failed to fetch top stores' }, 500);
+  }
+});
+
+reportsRouter.get('/user-activity', requireRole('admin'), async (c) => {
+  try {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+    const storeId = c.req.query('storeId');
+    const role = c.req.query('role');
+
+    const conditions: any[] = [];
+
+    if (startDate) {
+      conditions.push(gte(transactions.createdAt, new Date(startDate)));
+    }
+
+    if (endDate) {
+      conditions.push(lte(transactions.createdAt, new Date(endDate)));
+    }
+
+    if (storeId) {
+      conditions.push(eq(transactions.storeId, storeId));
+    }
+
+    const userStats = await db.select({
+      userId: users.id,
+      userEmail: users.email,
+      userName: users.name,
+      userRole: users.role,
+      transactionCount: sql<number>`COUNT(*)`,
+      totalRevenue: sql<number>`COALESCE(SUM(CAST(${transactions.total} AS NUMERIC)), 0)`,
+    })
+      .from(transactions)
+      .innerJoin(users, eq(users.id, transactions.cashierId))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(users.id, users.email, users.name, users.role)
+      .orderBy(desc(sql`COUNT(*)`));
+
+    const filteredStats = role
+      ? userStats.filter(u => u.userRole === role)
+      : userStats;
+
+    return c.json({
+      success: true,
+      data: filteredStats,
+    });
+  } catch (error) {
+    console.error('User activity error:', error);
+    return c.json({ success: false, error: 'Failed to fetch user activity' }, 500);
+  }
+});
+
+reportsRouter.get('/product-performance', requireRole('admin'), async (c) => {
+  try {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+    const storeId = c.req.query('storeId');
+    const categoryId = c.req.query('categoryId');
+
+    const conditions: any[] = [
+      eq(transactionItems.id, transactionItems.id),
+      eq(products.id, transactionItems.productId),
+    ];
+
+    if (startDate) {
+      conditions.push(gte(transactions.createdAt, new Date(startDate)));
+    }
+
+    if (endDate) {
+      conditions.push(lte(transactions.createdAt, new Date(endDate)));
+    }
+
+    if (storeId) {
+      conditions.push(eq(products.storeId, storeId));
+    }
+
+    if (categoryId) {
+      conditions.push(eq(products.categoryId, categoryId));
+    }
+
+    const productStats = await db.select({
+      productId: products.id,
+      productName: products.name,
+      productSku: products.sku,
+      categoryId: products.categoryId,
+      totalQuantity: sql<number>`SUM(${transactionItems.quantity})`,
+      totalRevenue: sql<number>`COALESCE(SUM(CAST(${transactionItems.subtotal} AS NUMERIC)), 0)`,
+    })
+      .from(transactionItems)
+      .innerJoin(transactions, eq(transactions.id, transactionItems.transactionId))
+      .innerJoin(products, eq(products.id, transactionItems.productId))
+      .where(and(...conditions))
+      .groupBy(products.id, products.name, products.sku, products.categoryId)
+      .orderBy(desc(sql`SUM(${transactionItems.quantity})`));
+
+    return c.json({
+      success: true,
+      data: productStats,
+    });
+  } catch (error) {
+    console.error('Product performance error:', error);
+    return c.json({ success: false, error: 'Failed to fetch product performance' }, 500);
   }
 });
 

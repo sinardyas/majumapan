@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useToast } from '@pos/ui';
 import { dashboardApi } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
+import { Card, CardContent, Button, Badge, Skeleton } from '@/components/ui';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { RefreshCw, Calendar, TrendingUp } from 'lucide-react';
 
 interface SalesData {
   date: string;
@@ -16,8 +18,30 @@ interface StoreStats {
   transactionCount: number;
 }
 
+type TabType = 'stores' | 'sales' | 'top';
+
+const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316'];
+
+const formatChartValue = (value: number | string) => {
+  if (typeof value === 'string') value = parseFloat(value);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatCompactValue = (value: number | string) => {
+  if (typeof value === 'string') value = parseFloat(value);
+  if (value >= 1000000000) return `Rp ${(value / 1000000000).toFixed(1)}B`;
+  if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `Rp ${(value / 1000).toFixed(1)}K`;
+  return formatCurrency(value);
+};
+
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState<'stores' | 'sales' | 'top'>('stores');
+  const [activeTab, setActiveTab] = useState<TabType>('stores');
   const [salesData, setSalesData] = useState<SalesData[]>([]);
   const [storeComparison, setStoreComparison] = useState<StoreStats[]>([]);
   const [topStores, setTopStores] = useState<StoreStats[]>([]);
@@ -27,8 +51,6 @@ export default function Reports() {
     startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
   });
-
-  const { error } = useToast();
 
   useEffect(() => {
     loadData();
@@ -57,58 +79,55 @@ export default function Reports() {
         }
       }
     } catch {
-      error('Error', 'Failed to load reports data');
+      console.error('Failed to load reports data');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const tabs = [
+    { id: 'stores' as TabType, label: 'Store Comparison' },
+    { id: 'sales' as TabType, label: 'Sales by Store' },
+    { id: 'top' as TabType, label: 'Top Performing Stores' },
+  ];
+
   return (
     <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-        <div className="flex gap-4 items-center">
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-gray-600">From:</span>
+        <div className="flex flex-wrap gap-4 items-center">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-gray-500" />
             <input
               type="date"
               value={dateRange.startDate}
               onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              className="border rounded px-3 py-1"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <span className="text-gray-600">To:</span>
+            <span className="text-gray-500">to</span>
             <input
               type="date"
               value={dateRange.endDate}
               onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              className="border rounded px-3 py-1"
+              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-          </label>
-          <button
-            onClick={loadData}
-            disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-          >
-            {isLoading ? 'Loading...' : 'Refresh'}
-          </button>
+          </div>
+          <Button onClick={loadData} disabled={isLoading} variant="outline" size="sm">
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
         </div>
       </div>
 
       <div className="border-b border-gray-200">
-        <nav className="flex gap-8">
-          {[
-            { id: 'stores', label: 'Store Comparison' },
-            { id: 'sales', label: 'Sales by Store' },
-            { id: 'top', label: 'Top Performing Stores' },
-          ].map((tab) => (
+        <nav className="flex gap-8 overflow-x-auto">
+          {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
+                  ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
@@ -118,200 +137,293 @@ export default function Reports() {
         </nav>
       </div>
 
-      {isLoading && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      {isLoading ? (
+        <div className="space-y-4">
+          <Skeleton className="h-64 w-full rounded-lg" />
         </div>
-      )}
-
-      {!isLoading && activeTab === 'stores' && (
-        <StoreComparisonTable data={storeComparison} />
-      )}
-
-      {!isLoading && activeTab === 'sales' && (
-        <SalesByStoreChart data={salesData} />
-      )}
-
-      {!isLoading && activeTab === 'top' && (
-        <TopStoresTable data={topStores} />
+      ) : (
+        <>
+          {activeTab === 'stores' && <StoreComparisonView data={storeComparison} />}
+          {activeTab === 'sales' && <SalesByStoreView data={salesData} />}
+          {activeTab === 'top' && <TopStoresView data={topStores} />}
+        </>
       )}
     </div>
   );
 }
 
-function StoreComparisonTable({ data }: { data: StoreStats[] }) {
+function StoreComparisonView({ data }: { data: StoreStats[] }) {
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
-        <p className="text-gray-500">No data available for selected date range</p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-gray-500">No data available for selected date range</p>
+        </CardContent>
+      </Card>
     );
   }
 
   const totalRevenue = data.reduce((sum, store) => sum + store.totalRevenue, 0);
+  const chartData = data.map((store, index) => ({
+    name: store.storeName.length > 15 ? store.storeName.substring(0, 15) + '...' : store.storeName,
+    fullName: store.storeName,
+    revenue: store.totalRevenue,
+    transactions: store.transactionCount,
+    percentage: totalRevenue > 0 ? ((store.totalRevenue / totalRevenue) * 100).toFixed(1) : '0',
+    fill: COLORS[index % COLORS.length],
+  }));
 
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Store
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Revenue
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              % of Total
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Transactions
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {data.map((store) => (
-            <tr key={store.storeId} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {store.storeName}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatCurrency(store.totalRevenue)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-gray-200 rounded">
-                    <div
-                      className="h-2 bg-blue-600 rounded"
-                      style={{
-                        width: `${(store.totalRevenue / totalRevenue) * 100}%`,
-                      }}
-                    ></div>
-                  </div>
-                  <span className="text-xs">
-                    {((store.totalRevenue / totalRevenue) * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {store.transactionCount.toLocaleString()}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot className="bg-gray-50">
-          <tr>
-            <td className="px-6 py-4 text-sm font-bold text-gray-900">Total</td>
-            <td className="px-6 py-4 text-sm font-bold text-gray-900">
-              {formatCurrency(totalRevenue)}
-            </td>
-            <td className="px-6 py-4 text-sm text-gray-500">100%</td>
-            <td className="px-6 py-4 text-sm font-bold text-gray-900">
-              {data.reduce((sum, s) => sum + s.transactionCount, 0).toLocaleString()}
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  );
-}
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Revenue by Store</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                  <XAxis type="number" tickFormatter={formatCompactValue} />
+                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                    {chartData.map((entry, index) => (
+                      <Bar key={`bar-${index}`} dataKey="revenue" fill={entry.fill} radius={[0, 4, 4, 0]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
 
-function SalesByStoreChart({ data }: { data: SalesData[] }) {
-  if (data.length === 0) {
-    return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
-        <p className="text-gray-500">No data available for selected date range</p>
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Transaction Volume</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value: any) => value.toLocaleString()} />
+                  <Bar dataKey="transactions" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-    );
-  }
 
-  const maxRevenue = Math.max(...data.map(d => d.totalRevenue));
-
-  return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">Sales Over Time</h3>
-      <div className="space-y-4">
-        {data.map((day) => (
-          <div key={day.date} className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">
-                {new Date(day.date).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                })}
-              </span>
-              <span className="font-medium text-gray-900">
-                {formatCurrency(day.totalRevenue)}
-              </span>
-            </div>
-            <div className="h-6 bg-gray-200 rounded">
-              <div
-                className="h-6 bg-blue-600 rounded"
-                style={{
-                  width: `${(day.totalRevenue / maxRevenue) * 100}%`,
-                }}
-              ></div>
-            </div>
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">% of Total</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Transaction</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.map((store) => (
+                  <tr key={store.storeId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {store.storeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(store.totalRevenue)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-2 bg-gray-200 rounded">
+                          <div
+                            className="h-2 bg-primary-600 rounded"
+                            style={{ width: `${totalRevenue > 0 ? (store.totalRevenue / totalRevenue) * 100 : 0}%` }}
+                          />
+                        </div>
+                        <span className="text-xs">{totalRevenue > 0 ? ((store.totalRevenue / totalRevenue) * 100).toFixed(1) : 0}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {store.transactionCount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(store.transactionCount > 0 ? store.totalRevenue / store.transactionCount : 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-gray-50">
+                <tr>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">Total</td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">{formatCurrency(totalRevenue)}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">100%</td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                    {data.reduce((sum, s) => sum + s.transactionCount, 0).toLocaleString()}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-bold text-gray-900">
+                    {formatCurrency(data.reduce((sum, s) => sum + s.transactionCount, 0) > 0
+                      ? totalRevenue / data.reduce((sum, s) => sum + s.transactionCount, 0)
+                      : 0)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        ))}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
 
-function TopStoresTable({ data }: { data: StoreStats[] }) {
+function SalesByStoreView({ data }: { data: SalesData[] }) {
   if (data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center">
-        <p className="text-gray-500">No data available for selected date range</p>
-      </div>
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-gray-500">No data available for selected date range</p>
+        </CardContent>
+      </Card>
     );
   }
 
+  const chartData = data.map(day => ({
+    date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    revenue: day.totalRevenue,
+    transactions: day.transactionCount,
+  }));
+
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Rank
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Store
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Revenue
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Transactions
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Avg Transaction
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {data.map((store, index) => (
-            <tr key={store.storeId} className="hover:bg-gray-50">
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900">
-                #{index + 1}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                {store.storeName}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatCurrency(store.totalRevenue)}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {store.transactionCount.toLocaleString()}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {formatCurrency(store.totalRevenue / store.transactionCount)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <Card>
+      <CardContent className="pt-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Sales Trend</h3>
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+              <YAxis yAxisId="left" tickFormatter={formatCompactValue} />
+              <YAxis yAxisId="right" orientation="right" />
+              <Tooltip formatter={(value: any, name?: string) => [
+                name === 'revenue' ? formatChartValue(value) : value?.toLocaleString(),
+                name === 'revenue' ? 'Revenue' : 'Transactions'
+              ]} />
+              <Legend />
+              <Line yAxisId="left" type="monotone" dataKey="revenue" stroke="#3b82f6" strokeWidth={2} dot={false} />
+              <Line yAxisId="right" type="monotone" dataKey="transactions" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TopStoresView({ data }: { data: StoreStats[] }) {
+  if (data.length === 0) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-gray-500">No data available for selected date range</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const chartData = data.map((store, index) => ({
+    name: store.storeName.length > 15 ? store.storeName.substring(0, 15) + '...' : store.storeName,
+    fullName: store.storeName,
+    revenue: store.totalRevenue,
+    transactions: store.transactionCount,
+    avgTransaction: store.transactionCount > 0 ? store.totalRevenue / store.transactionCount : 0,
+    fill: COLORS[index % COLORS.length],
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-green-600" />
+              <h3 className="text-lg font-semibold text-gray-900">Top Stores by Revenue</h3>
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.slice(0, 5)} margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={formatCompactValue} />
+                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Transaction Value</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData.slice(0, 5)} margin={{ left: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tickFormatter={formatCompactValue} />
+                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <Bar dataKey="avgTransaction" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rank</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Store</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Transaction</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.map((store, index) => (
+                  <tr key={store.storeId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <Badge variant={index === 0 ? 'success' : index === 1 ? 'secondary' : index === 2 ? 'warning' : 'outline'}>
+                        #{index + 1}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {store.storeName}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(store.totalRevenue)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {store.transactionCount.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(store.transactionCount > 0 ? store.totalRevenue / store.transactionCount : 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

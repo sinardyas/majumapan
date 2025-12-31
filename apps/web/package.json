@@ -11,6 +11,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
+    "@pos/api-client": "*",
     "@pos/shared": "*",
     "@pos/ui": "*",
     "date-fns": "^4.1.0",

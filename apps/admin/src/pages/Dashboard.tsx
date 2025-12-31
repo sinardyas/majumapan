@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
-import { useToast } from '@pos/ui';
 import { dashboardApi } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton } from '@/components/ui';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { RefreshCw, TrendingUp, TrendingDown, DollarSign, ShoppingCart, Store, Users, AlertTriangle } from 'lucide-react';
 
 interface SystemOverview {
   today: {
@@ -32,12 +34,31 @@ interface AuditLog {
   createdAt: string;
 }
 
+const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
+
+const formatChartValue = (value: number | string) => {
+  if (typeof value === 'string') value = parseFloat(value);
+  return new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+const formatCompactValue = (value: number | string) => {
+  if (typeof value === 'string') value = parseFloat(value);
+  if (value >= 1000000000) return `Rp ${(value / 1000000000).toFixed(1)}B`;
+  if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `Rp ${(value / 1000).toFixed(1)}K`;
+  return formatCurrency(value);
+};
+
 export default function Dashboard() {
   const [overview, setOverview] = useState<SystemOverview | null>(null);
   const [topStores, setTopStores] = useState<StoreStats[]>([]);
   const [recentActivity, setRecentActivity] = useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { error } = useToast();
 
   useEffect(() => {
     loadData();
@@ -64,7 +85,7 @@ export default function Dashboard() {
         setRecentActivity(logsRes.data);
       }
     } catch {
-      error('Error', 'Failed to load dashboard data');
+      console.error('Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
@@ -72,14 +93,24 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
-          </div>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-24" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-32 rounded-lg" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-80 rounded-lg" />
+          <Skeleton className="h-80 rounded-lg" />
         </div>
       </div>
     );
@@ -90,53 +121,81 @@ export default function Dashboard() {
       <div className="p-6">
         <div className="text-center py-12">
           <p className="text-gray-500">Failed to load dashboard data</p>
-          <button
-            onClick={loadData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
+          <Button onClick={loadData} className="mt-4">
             Retry
-          </button>
+          </Button>
         </div>
       </div>
     );
   }
 
+  const storeChartData = topStores.slice(0, 5).map((store, index) => ({
+    name: store.storeName.length > 15 ? store.storeName.substring(0, 15) + '...' : store.storeName,
+    fullName: store.storeName,
+    revenue: store.totalRevenue,
+    transactions: store.transactionCount,
+    fill: COLORS[index % COLORS.length],
+  }));
+
+  const syncStatusData = [
+    { name: 'Synced', value: overview.activeStores - overview.pendingSyncs },
+    { name: 'Pending', value: overview.pendingSyncs },
+  ].filter(d => d.value > 0);
+
+  const getActionBadgeVariant = (action: string): 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' => {
+    switch (action) {
+      case 'create':
+        return 'success';
+      case 'update':
+        return 'default';
+      case 'delete':
+        return 'destructive';
+      case 'login':
+        return 'secondary';
+      default:
+        return 'outline';
+    }
+  };
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <button
-          onClick={loadData}
-          className="px-4 py-2 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
+        <Button onClick={loadData} variant="outline" size="sm">
+          <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
-        </button>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard
           title="Total Revenue Today"
           value={formatCurrency(overview.today.totalRevenue)}
-          icon="💰"
-          color="bg-green-500"
+          icon={<DollarSign className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-50"
+          trend={overview.today.totalRevenue > 0 ? 'up' : null}
         />
         <MetricCard
-          title="Total Transactions Today"
+          title="Total Transactions"
           value={overview.today.totalTransactions.toLocaleString()}
-          icon="📊"
-          color="bg-blue-500"
+          icon={<ShoppingCart className="w-6 h-6" />}
+          color="text-blue-600"
+          bgColor="bg-blue-50"
         />
         <MetricCard
           title="Active Stores"
           value={overview.activeStores.toLocaleString()}
-          icon="🏪"
-          color="bg-purple-500"
+          icon={<Store className="w-6 h-6" />}
+          color="text-purple-600"
+          bgColor="bg-purple-50"
         />
         <MetricCard
           title="Pending Syncs"
           value={overview.pendingSyncs.toLocaleString()}
-          icon="🔄"
-          color={overview.pendingSyncs > 0 ? 'bg-yellow-500' : 'bg-gray-500'}
+          icon={<RefreshCw className="w-6 h-6" />}
+          color={overview.pendingSyncs > 0 ? 'text-yellow-600' : 'text-gray-600'}
+          bgColor={overview.pendingSyncs > 0 ? 'bg-yellow-50' : 'bg-gray-50'}
         />
       </div>
 
@@ -144,71 +203,105 @@ export default function Dashboard() {
         <MetricCard
           title="Low Stock Alerts"
           value={overview.lowStockAlerts.toLocaleString()}
-          icon="⚠️"
-          color={overview.lowStockAlerts > 0 ? 'bg-red-500' : 'bg-gray-500'}
+          icon={<AlertTriangle className="w-6 h-6" />}
+          color={overview.lowStockAlerts > 0 ? 'text-red-600' : 'text-gray-600'}
+          bgColor={overview.lowStockAlerts > 0 ? 'bg-red-50' : 'bg-gray-50'}
         />
         <MetricCard
           title="Active Users Today"
           value={overview.activeUsersToday.toLocaleString()}
-          icon="👥"
-          color="bg-blue-500"
+          icon={<Users className="w-6 h-6" />}
+          color="text-blue-600"
+          bgColor="bg-blue-50"
         />
         <MetricCard
           title="New Users This Week"
           value={overview.newUsersThisWeek.toLocaleString()}
-          icon="🆕"
-          color="bg-green-500"
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="text-green-600"
+          bgColor="bg-green-50"
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Top Performing Stores (This Month)
-          </h2>
-          {topStores.length === 0 ? (
-            <p className="text-gray-500 text-sm">No data available</p>
-          ) : (
-            <div className="space-y-3">
-              {topStores.map((store, index) => (
-                <div key={store.storeId} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg font-bold text-gray-500">#{index + 1}</span>
-                    <span className="font-medium text-gray-900">{store.storeName}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-semibold text-gray-900">
-                      {formatCurrency(store.totalRevenue)}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {store.transactionCount} transactions
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Performing Stores</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {topStores.length === 0 ? (
+              <p className="text-gray-500 text-sm">No data available</p>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={storeChartData} layout="vertical" margin={{ left: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                    <XAxis type="number" tickFormatter={formatCompactValue} />
+                    <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
+                    <Tooltip
+                      formatter={(value: any) => formatChartValue(value)}
+                      labelFormatter={(label: any) => label}
+                    />
+                    <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
+                      {storeChartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
-            Recent Activity
-          </h2>
+        <Card>
+          <CardHeader>
+            <CardTitle>Sync Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {syncStatusData.length === 0 ? (
+              <p className="text-gray-500 text-sm">No stores available</p>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={syncStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }: any) => `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                    >
+                      {syncStatusData.map((_, index) => (
+                        <Cell key={`cell-${index}`} fill={index === 0 ? '#10b981' : '#f59e0b'} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: any) => value?.toLocaleString() ?? '0'} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Activity</CardTitle>
+        </CardHeader>
+        <CardContent>
           {recentActivity.length === 0 ? (
             <p className="text-gray-500 text-sm">No activity yet</p>
           ) : (
             <div className="space-y-3">
               {recentActivity.map((log) => (
                 <div key={log.id} className="flex items-start gap-3 text-sm">
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${
-                    log.action === 'create' ? 'bg-green-100 text-green-800' :
-                    log.action === 'update' ? 'bg-blue-100 text-blue-800' :
-                    log.action === 'delete' ? 'bg-red-100 text-red-800' :
-                    log.action === 'login' ? 'bg-purple-100 text-purple-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
+                  <Badge variant={getActionBadgeVariant(log.action)}>
                     {log.action}
-                  </span>
+                  </Badge>
                   <div className="flex-1 min-w-0">
                     <p className="text-gray-900 truncate">
                       <span className="font-medium">{log.userEmail}</span> {log.action}ed{' '}
@@ -225,8 +318,8 @@ export default function Dashboard() {
               ))}
             </div>
           )}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -234,22 +327,31 @@ export default function Dashboard() {
 interface MetricCardProps {
   title: string;
   value: string;
-  icon: string;
+  icon: React.ReactNode;
   color: string;
+  bgColor: string;
+  trend?: 'up' | 'down' | null;
 }
 
-function MetricCard({ title, value, icon, color }: MetricCardProps) {
+function MetricCard({ title, value, icon, color, bgColor, trend }: MetricCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-500">{title}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-2">{value}</p>
+            {trend && (
+              <div className={`flex items-center mt-1 ${trend === 'up' ? 'text-green-600' : 'text-red-600'}`}>
+                {trend === 'up' ? <TrendingUp className="w-4 h-4 mr-1" /> : <TrendingDown className="w-4 h-4 mr-1" />}
+              </div>
+            )}
+          </div>
+          <div className={`${bgColor} rounded-full p-3`}>
+            <span className={color}>{icon}</span>
+          </div>
         </div>
-        <span className={`text-3xl ${color} bg-opacity-20 rounded-full p-3`}>
-          {icon}
-        </span>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

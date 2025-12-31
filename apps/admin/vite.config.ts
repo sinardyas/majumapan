@@ -12,6 +12,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
       '@pos/ui': path.resolve(__dirname, '../../packages/ui/src'),
       '@pos/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@pos/api-client': path.resolve(__dirname, '../../packages/api/src'),
     },
   },
   server: {
@@ -26,5 +27,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['@pos/ui', 'class-variance-authority', 'clsx', 'tailwind-merge'],
+          charts: ['recharts'],
+        },
+      },
+    },
   },
 });

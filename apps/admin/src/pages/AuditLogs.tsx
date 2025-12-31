@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useToast } from '@pos/ui';
 import { dashboardApi } from '@/services/api';
+import { Card, CardContent, Badge, Button, Skeleton } from '@/components/ui';
+import { Search, Filter, X, ChevronLeft, ChevronRight, Calendar, User, Activity, Globe } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface AuditLog {
   id: string;
@@ -23,6 +25,52 @@ interface PaginationInfo {
   totalPages: number;
 }
 
+type ActionType = 'create' | 'update' | 'delete' | 'login' | 'logout' | '';
+type EntityType = 'user' | 'store' | 'product' | 'category' | 'discount' | 'transaction' | 'settings' | '';
+
+interface Filters {
+  action: ActionType;
+  entityType: EntityType;
+  search: string;
+}
+
+const ACTIONS: { value: ActionType; label: string }[] = [
+  { value: '', label: 'All Actions' },
+  { value: 'create', label: 'Create' },
+  { value: 'update', label: 'Update' },
+  { value: 'delete', label: 'Delete' },
+  { value: 'login', label: 'Login' },
+  { value: 'logout', label: 'Logout' },
+];
+
+const ENTITY_TYPES: { value: EntityType; label: string }[] = [
+  { value: '', label: 'All Entities' },
+  { value: 'user', label: 'User' },
+  { value: 'store', label: 'Store' },
+  { value: 'product', label: 'Product' },
+  { value: 'category', label: 'Category' },
+  { value: 'discount', label: 'Discount' },
+  { value: 'transaction', label: 'Transaction' },
+  { value: 'settings', label: 'Settings' },
+];
+
+const getActionBadgeVariant = (action: string): 'default' | 'destructive' | 'outline' | 'secondary' | 'success' | 'warning' => {
+  switch (action) {
+    case 'create':
+      return 'success';
+    case 'update':
+      return 'default';
+    case 'delete':
+      return 'destructive';
+    case 'login':
+      return 'secondary';
+    case 'logout':
+      return 'outline';
+    default:
+      return 'outline';
+  }
+};
+
 export default function AuditLogs() {
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -33,13 +81,11 @@ export default function AuditLogs() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     action: '',
     entityType: '',
     search: '',
   });
-
-  const { error } = useToast();
 
   useEffect(() => {
     loadLogs(1);
@@ -63,7 +109,7 @@ export default function AuditLogs() {
         }
       }
     } catch {
-      error('Error', 'Failed to load audit logs');
+      console.error('Failed to load audit logs');
     } finally {
       setIsLoading(false);
     }
@@ -78,19 +124,12 @@ export default function AuditLogs() {
     loadLogs(1);
   };
 
-  const getActionBadge = (action: string) => {
-    const colors: Record<string, string> = {
-      create: 'bg-green-100 text-green-800',
-      update: 'bg-blue-100 text-blue-800',
-      delete: 'bg-red-100 text-red-800',
-      login: 'bg-purple-100 text-purple-800',
-      logout: 'bg-gray-100 text-gray-800',
-    };
-    return colors[action] || 'bg-gray-100 text-gray-800';
+  const handlePageChange = (newPage: number) => {
+    loadLogs(newPage);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+  const updateFilter = (key: keyof Filters, value: string) => {
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   return (
@@ -102,169 +141,189 @@ export default function AuditLogs() {
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-4 space-y-4">
-        <div className="flex gap-4 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Action
-            </label>
-            <select
-              value={filters.action}
-              onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">All Actions</option>
-              <option value="create">Create</option>
-              <option value="update">Update</option>
-              <option value="delete">Delete</option>
-              <option value="login">Login</option>
-              <option value="logout">Logout</option>
-            </select>
-          </div>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-wrap gap-4">
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                Action
+              </label>
+              <select
+                value={filters.action}
+                onChange={(e) => updateFilter('action', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {ACTIONS.map(action => (
+                  <option key={action.value} value={action.value}>{action.label}</option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Entity Type
-            </label>
-            <select
-              value={filters.entityType}
-              onChange={(e) => setFilters({ ...filters, entityType: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-            >
-              <option value="">All Entities</option>
-              <option value="user">User</option>
-              <option value="store">Store</option>
-              <option value="product">Product</option>
-              <option value="category">Category</option>
-              <option value="discount">Discount</option>
-              <option value="transaction">Transaction</option>
-              <option value="settings">Settings</option>
-            </select>
-          </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                Entity Type
+              </label>
+              <select
+                value={filters.entityType}
+                onChange={(e) => updateFilter('entityType', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {ENTITY_TYPES.map(entity => (
+                  <option key={entity.value} value={entity.value}>{entity.label}</option>
+                ))}
+              </select>
+            </div>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Search
-            </label>
-            <input
-              type="text"
-              placeholder="Search by user or entity..."
-              value={filters.search}
-              onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-              className="w-full border border-gray-300 rounded px-3 py-2"
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            />
-          </div>
+            <div className="flex-1 min-w-[200px]">
+              <label className="text-sm font-medium text-gray-700 mb-1.5 block">
+                Search
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search by user or entity..."
+                  value={filters.search}
+                  onChange={(e) => updateFilter('search', e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+              </div>
+            </div>
 
-          <div className="flex items-end gap-2">
-            <button
-              onClick={handleSearch}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Search
-            </button>
-            <button
-              onClick={handleClearFilters}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-            >
-              Clear
-            </button>
+            <div className="flex items-end gap-2">
+              <Button onClick={handleSearch}>
+                <Filter className="w-4 h-4 mr-2" />
+                Search
+              </Button>
+              {(filters.action || filters.entityType || filters.search) && (
+                <Button variant="outline" onClick={handleClearFilters}>
+                  <X className="w-4 h-4 mr-2" />
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {isLoading && (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
         </div>
       )}
 
       {!isLoading && logs.length === 0 && (
-        <div className="bg-white rounded-lg shadow p-12 text-center">
-          <p className="text-gray-500">No audit logs found</p>
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500">No audit logs found</p>
+          </CardContent>
+        </Card>
       )}
 
       {!isLoading && logs.length > 0 && (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Timestamp
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  User
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Action
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  Entity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                  IP Address
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {formatDate(log.createdAt)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div>
-                      <div className="font-medium text-gray-900">{log.userEmail}</div>
-                      <div className="text-xs text-gray-500">ID: {log.userId}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${getActionBadge(log.action)}`}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <div>
-                      <span className="font-medium text-gray-900">{log.entityType}</span>
-                      {log.entityName && (
-                        <span className="text-gray-600">: {log.entityName}</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {log.ipAddress || '-'}
-                  </td>
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Timestamp
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    User
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Action
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    Entity
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    IP Address
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-2 text-gray-900">
+                        <Calendar className="w-4 h-4 text-gray-400" />
+                        {format(new Date(log.createdAt), 'MMM d, yyyy HH:mm:ss')}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-2">
+                        <User className="w-4 h-4 text-gray-400" />
+                        <div>
+                          <div className="font-medium text-gray-900">{log.userEmail}</div>
+                          <div className="text-xs text-gray-500 font-mono">{log.userId}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge variant={getActionBadgeVariant(log.action)}>
+                        {log.action}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-4 h-4 text-gray-400" />
+                        <div>
+                          <span className="font-medium text-gray-900 capitalize">{log.entityType}</span>
+                          {log.entityName && (
+                            <span className="text-gray-600 ml-1">: {log.entityName}</span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      <div className="flex items-center gap-2 text-gray-600">
+                        <Globe className="w-4 h-4 text-gray-400" />
+                        <span className="font-mono">{log.ipAddress || '-'}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-          <div className="bg-gray-50 px-6 py-3 flex items-center justify-between">
-            <div className="text-sm text-gray-700">
-              Showing {logs.length} of {pagination.total} entries
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => loadLogs(pagination.page - 1)}
-                disabled={pagination.page === 1}
-                className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1">
-                Page {pagination.page} of {pagination.totalPages}
-              </span>
-              <button
-                onClick={() => loadLogs(pagination.page + 1)}
-                disabled={pagination.page >= pagination.totalPages}
-                className="px-3 py-1 border rounded disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+          <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="text-sm text-gray-700">
+                Showing <span className="font-medium">{logs.length}</span> of <span className="font-medium">{pagination.total}</span> entries
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Previous
+                </Button>
+                <span className="px-3 py-1 text-sm text-gray-600">
+                  Page <span className="font-medium">{pagination.page}</span> of <span className="font-medium">{pagination.totalPages}</span>
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page >= pagination.totalPages}
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
     </div>
   );

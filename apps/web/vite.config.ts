@@ -85,6 +85,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@pos/ui': path.resolve(__dirname, '../../packages/ui/src'),
+      '@pos/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@pos/api-client': path.resolve(__dirname, '../../packages/api/src'),
     },
   },
   server: {

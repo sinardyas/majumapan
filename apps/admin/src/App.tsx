@@ -1,17 +1,22 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import type { ReactNode } from 'react';
+import { lazy, Suspense, type ReactNode } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { ToastProvider } from '@pos/ui';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 
-import Login from '@/pages/Login';
-import Dashboard from '@/pages/Dashboard';
-import Stores from '@/pages/Stores';
-import Users from '@/pages/Users';
-import Reports from '@/pages/Reports';
-import AuditLogs from '@/pages/AuditLogs';
-// import DataManagement from '@/pages/DataManagement';
-import Settings from '@/pages/Settings';
+const Login = lazy(() => import('@/pages/Login'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Stores = lazy(() => import('@/pages/Stores'));
+const Users = lazy(() => import('@/pages/Users'));
+const Reports = lazy(() => import('@/pages/Reports'));
+const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
+const Settings = lazy(() => import('@/pages/Settings'));
+const DataManagement = lazy(() => import('@/pages/DataManagement'));
+
+
+function Loading({ children }: { children: ReactNode }) {
+  return <Suspense fallback={<div className="flex items-center justify-center h-screen">Loading...</div>}>{children}</Suspense>;
+}
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuthStore();
@@ -32,7 +37,7 @@ export default function App() {
         <Route
           path="/login"
           element={
-            isAuthenticated ? <Navigate to="/" replace /> : <Login />
+            isAuthenticated ? <Navigate to="/" replace /> : <Loading><Login /></Loading>
           }
         />
 
@@ -40,9 +45,7 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <Dashboard />
-              </AdminLayout>
+              <Loading><AdminLayout><Dashboard /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
@@ -51,9 +54,7 @@ export default function App() {
           path="/stores"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <Stores />
-              </AdminLayout>
+              <Loading><AdminLayout><Stores /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
@@ -62,9 +63,7 @@ export default function App() {
           path="/users"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <Users />
-              </AdminLayout>
+              <Loading><AdminLayout><Users /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
@@ -73,9 +72,7 @@ export default function App() {
           path="/reports"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <Reports />
-              </AdminLayout>
+              <Loading><AdminLayout><Reports /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
@@ -84,31 +81,25 @@ export default function App() {
           path="/audit-logs"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <AuditLogs />
-              </AdminLayout>
+              <Loading><AdminLayout><AuditLogs /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
 
-        {/* <Route
+        <Route
           path="/data"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <DataManagement />
-              </AdminLayout>
+              <Loading><AdminLayout><DataManagement /></AdminLayout></Loading>
             </ProtectedRoute>
           }
-        /> */}
+        />
 
         <Route
           path="/settings"
           element={
             <ProtectedRoute>
-              <AdminLayout>
-                <Settings />
-              </AdminLayout>
+              <Loading><AdminLayout><Settings /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
