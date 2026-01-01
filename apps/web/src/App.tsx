@@ -12,15 +12,31 @@ import Transactions from '@/pages/Transactions';
 import Products from '@/pages/Products';
 import Categories from '@/pages/Categories';
 import Discounts from '@/pages/Discounts';
+import SyncStatus from '@/pages/SyncStatus';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
+  return <>{children}</>;
+}
+
+// Manager-only route wrapper
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'manager' && user?.role !== 'admin') {
+    return <Navigate to="/pos" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -115,6 +131,18 @@ export default function App() {
               <Discounts />
             </AuthenticatedLayout>
           </ProtectedRoute>
+        }
+      />
+
+      {/* Manager-only routes */}
+      <Route
+        path="/sync-status"
+        element={
+          <ManagerRoute>
+            <AuthenticatedLayout>
+              <SyncStatus />
+            </AuthenticatedLayout>
+          </ManagerRoute>
         }
       />
 
