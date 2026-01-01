@@ -9,8 +9,8 @@ import {
   deleteExpiredHeldOrders,
   deleteHeldOrder,
 } from '@/db';
-import { Button } from '@/components/ui/Button';
-import { useToast } from '@/components/ui/Toast';
+import { Button } from '@pos/ui';
+import { useToast } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
 import { PaymentModal } from '@/components/pos/PaymentModal';
@@ -117,7 +117,10 @@ export default function POS() {
   // Load products from IndexedDB
   useEffect(() => {
     const loadData = async () => {
-      if (!user?.storeId) return;
+      if (!user?.storeId) {
+        setIsLoading(false);
+        return;
+      }
 
       try {
 	console.log('>>>>> user.storeId ', user.storeId);
@@ -579,6 +582,27 @@ export default function POS() {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
           <p className="mt-4 text-gray-600">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show message for admin users without a store assigned
+  if (!user?.storeId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-center px-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 max-w-md">
+          <svg className="h-16 w-16 text-amber-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Store Assigned</h2>
+          <p className="text-gray-600 mb-4">
+            Your admin account is not assigned to a specific store. 
+            Please use the store selector feature (coming soon) or contact the system administrator.
+          </p>
+          <p className="text-sm text-amber-600">
+            Tip: Login with a manager or cashier account to access store data.
+          </p>
         </div>
       </div>
     );

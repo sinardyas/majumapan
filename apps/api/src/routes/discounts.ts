@@ -3,6 +3,7 @@ import { eq, and, or, sql } from 'drizzle-orm';
 import { db, discounts, productDiscounts, syncLog } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 import { createDiscountSchema, updateDiscountSchema } from '@pos/shared';
 
 const discountsRouter = new Hono();
@@ -165,6 +166,16 @@ discountsRouter.post('/', requirePermission('discounts:create'), async (c) => {
       action: 'create',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'create',
+      entityType: 'discount',
+      entityId: newDiscount.id,
+      entityName: newDiscount.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: newDiscount,
@@ -273,6 +284,16 @@ discountsRouter.put('/:id', requirePermission('discounts:update'), async (c) => 
       action: 'update',
     });
 
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'update',
+      entityType: 'discount',
+      entityId: id,
+      entityName: existingDiscount.name,
+      c,
+    });
+
     return c.json({
       success: true,
       data: updatedDiscount,
@@ -317,6 +338,16 @@ discountsRouter.delete('/:id', requirePermission('discounts:delete'), async (c) 
       entityType: 'discount',
       entityId: id,
       action: 'delete',
+    });
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'delete',
+      entityType: 'discount',
+      entityId: id,
+      entityName: existingDiscount.name,
+      c,
     });
 
     return c.json({

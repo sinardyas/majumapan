@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSync } from '@/hooks/useSync';
 import { db, type LocalTransaction } from '@/db';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 
 interface RejectedTransactionsProps {
   isOpen: boolean;

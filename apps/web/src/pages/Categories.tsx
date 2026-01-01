@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalCategory } from '@/db';
 import { api } from '@/services/api';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
 
@@ -39,7 +39,10 @@ export default function Categories() {
   }, [user?.storeId]);
 
   const loadData = async () => {
-    if (!user?.storeId) return;
+    if (!user?.storeId) {
+      setIsLoading(false);
+      return;
+    }
 
     try {
       const cats = await db.categories
@@ -168,6 +171,27 @@ export default function Categories() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  // Show message for admin users without a store assigned
+  if (!user?.storeId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen text-center px-4">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 max-w-md">
+          <svg className="h-16 w-16 text-amber-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">No Store Assigned</h2>
+          <p className="text-gray-600 mb-4">
+            Your admin account is not assigned to a specific store. 
+            Please use the store selector feature (coming soon) or contact the system administrator.
+          </p>
+          <p className="text-sm text-amber-600">
+            Tip: Login with a manager or cashier account to access store data.
+          </p>
+        </div>
       </div>
     );
   }

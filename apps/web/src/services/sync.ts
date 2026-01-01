@@ -1,8 +1,9 @@
 import { api } from './api';
-import { 
-  db, 
-  getLastSyncTimestamp, 
-  setLastSyncTimestamp, 
+import type { ApiResponse } from '@pos/api-client';
+import {
+  db,
+  getLastSyncTimestamp,
+  setLastSyncTimestamp,
   getPendingTransactions,
   clearOldTransactions,
   type LocalCategory,
@@ -128,14 +129,20 @@ interface PushSyncResponse {
 
 interface SyncStatusResponse {
   storeId: string;
-  counts: {
-    categories: number;
-    products: number;
-    transactions: number;
-    pendingSync: number;
+  entities: {
+    categories: { synced: number; pending: number };
+    products: { synced: number; pending: number };
+    transactions: { synced: number; pending: number; rejected: number };
   };
   lastSyncTimestamp: string | null;
   serverTime: string;
+}
+
+interface PendingTransactionsResponse {
+  items: LocalTransaction[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface SyncResult {
@@ -153,7 +160,7 @@ class SyncService {
    * Perform a full sync - downloads all data for the user's store
    * Used on initial login or when local data is corrupted
    */
-  async fullSync(): Promise<SyncResult> {
+  async fullSync(entities?: Array<'products' | 'categories' | 'transactions'>): Promise<SyncResult> {
     if (this.isSyncing) {
       return { success: false, error: 'Sync already in progress' };
     }
@@ -161,7 +168,8 @@ class SyncService {
     this.isSyncing = true;
 
     try {
-      const response = await api.get<FullSyncResponse>('/sync/full');
+      const entityParam = entities?.join(',') || '';
+      const response = await api.get<FullSyncResponse>(`/sync/full${entityParam ? `?entities=${entityParam}` : ''}`);
 
       if (!response.success || !response.data) {
         return { success: false, error: response.error || 'Failed to fetch data' };
@@ -170,8 +178,8 @@ class SyncService {
       const { store, categories, products, stock, discounts, lastSyncTimestamp } = response.data;
 
       // Clear existing data and insert new data in a transaction
-      await db.transaction('rw', 
-        [db.store, db.categories, db.products, db.stock, db.discounts], 
+      await db.transaction('rw',
+        [db.store, db.categories, db.products, db.stock, db.discounts],
         async () => {
           // Clear existing data
           await db.store.clear();
@@ -522,6 +530,62 @@ class SyncService {
       return true;
     } catch (error) {
       console.error('Delete rejected transaction error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get entity sync status from server
+   */
+  async getEntitySyncStatus(): Promise<ApiResponse<SyncStatusResponse>> {
+    return api.get<SyncStatusResponse>('/sync/status');
+  }
+
+  /**
+   * Get pending transactions from server
+   */
+  async getPendingTransactions(limit = 20, offset = 0): Promise<PendingTransactionsResponse> {
+    const response = await api.get<PendingTransactionsResponse>(`/sync/pending?limit=${limit}&offset=${offset}`);
+
+    if (response.success && response.data) {
+      return response.data;
+    }
+
+    return { items: [], total: 0, limit, offset };
+  }
+
+  /**
+   * Retry a pending transaction
+   */
+  async retryPendingTransaction(clientId: string): Promise<boolean> {
+    try {
+      await db.transactions.update(clientId, {
+        syncStatus: 'pending',
+        rejectionReason: undefined,
+      });
+      return true;
+    } catch (error) {
+      console.error('Retry pending transaction error:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Clear pending transaction(s)
+   */
+  async clearPendingTransaction(clientId?: string): Promise<boolean> {
+    try {
+      if (clientId) {
+        await db.transactions.delete(clientId);
+      } else {
+        const pending = await getPendingTransactions();
+        for (const txn of pending) {
+          await db.transactions.delete(txn.clientId);
+        }
+      }
+      return true;
+    } catch (error) {
+      console.error('Clear pending transaction error:', error);
       return false;
     }
   }

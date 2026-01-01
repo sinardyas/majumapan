@@ -1,4 +1,4 @@
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 
 interface ResumeConfirmModalProps {
   isOpen: boolean;

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
-import { Button } from '@/components/ui/Button';
+import { Button } from '@pos/ui';
 import { getHeldOrdersForCashier, type HeldOrder } from '@/db';
 
 interface HeldOrdersListProps {

@@ -55,6 +55,7 @@ export const PERMISSIONS = {
   'sync:full': ['admin', 'manager', 'cashier'],
   'sync:pull': ['admin', 'manager', 'cashier'],
   'sync:push': ['admin', 'manager', 'cashier'],
+  'sync:status': ['admin', 'manager'],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

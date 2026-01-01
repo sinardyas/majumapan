@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, sql, desc } from 'drizzle-orm';
 import {
   db,
   stores,
@@ -7,14 +7,13 @@ import {
   products,
   stock,
   discounts,
-  productDiscounts,
   transactions,
   transactionItems,
   syncLog,
 } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
-import { syncPushSchema, TAX_RATE } from '@pos/shared';
+import { syncPushSchema } from '@pos/shared';
 
 const syncRouter = new Hono();
 
@@ -34,6 +33,7 @@ syncRouter.get('/full', requirePermission('sync:full'), async (c) => {
   try {
     const user = c.get('user');
     const storeId = user.storeId;
+    const entities = c.req.query('entities')?.split(',') || [];
 
     if (!storeId) {
       return c.json({ success: false, error: 'Store ID is required' }, 400);
@@ -48,62 +48,51 @@ syncRouter.get('/full', requirePermission('sync:full'), async (c) => {
       return c.json({ success: false, error: 'Store not found' }, 404);
     }
 
-    // Get all active categories
-    const allCategories = await db.query.categories.findMany({
-      where: and(eq(categories.storeId, storeId), eq(categories.isActive, true)),
-    });
-
-    // Get all active products
-    const allProducts = await db.query.products.findMany({
-      where: and(eq(products.storeId, storeId), eq(products.isActive, true)),
-    });
-
-    // Get all stock
-    const allStock = await db.query.stock.findMany({
-      where: eq(stock.storeId, storeId),
-    });
-
-    // Get all active discounts (both product and cart level)
-    const now = new Date();
-    const allDiscounts = await db.query.discounts.findMany({
-      where: and(
-        eq(discounts.storeId, storeId),
-        eq(discounts.isActive, true)
-      ),
-    });
-
-    // Filter discounts by date validity
-    const validDiscounts = allDiscounts.filter(d => {
-      if (d.startDate && d.startDate > now) return false;
-      if (d.endDate && d.endDate < now) return false;
-      return true;
-    });
-
-    // Get product discount links
-    const discountIds = validDiscounts.map(d => d.id);
-    const productDiscountLinks = await db.query.productDiscounts.findMany();
-    const relevantLinks = productDiscountLinks.filter(pd => discountIds.includes(pd.discountId));
-
-    // Add product IDs to product-level discounts
-    const discountsWithProducts = validDiscounts.map(d => ({
-      ...d,
-      productIds: relevantLinks
-        .filter(pd => pd.discountId === d.id)
-        .map(pd => pd.productId),
-    }));
-
+    const result: Record<string, unknown> = { store };
     const lastSyncTimestamp = new Date().toISOString();
+
+    // Only fetch requested entities
+    if (entities.length === 0 || entities.includes('categories')) {
+      result.categories = await db.query.categories.findMany({
+        where: and(eq(categories.storeId, storeId), eq(categories.isActive, true)),
+      });
+    }
+
+    if (entities.length === 0 || entities.includes('products')) {
+      result.products = await db.query.products.findMany({
+        where: and(eq(products.storeId, storeId), eq(products.isActive, true)),
+      });
+    }
+
+    if (entities.length === 0 || entities.includes('stock')) {
+      result.stock = await db.query.stock.findMany({
+        where: eq(stock.storeId, storeId),
+      });
+    }
+
+    if (entities.length === 0 || entities.includes('discounts')) {
+      const now = new Date();
+      const allDiscounts = await db.query.discounts.findMany({
+        where: and(
+          eq(discounts.storeId, storeId),
+          eq(discounts.isActive, true)
+        ),
+      });
+
+      const validDiscounts = allDiscounts.filter(d => {
+        if (d.startDate && d.startDate > now) return false;
+        if (d.endDate && d.endDate < now) return false;
+        return true;
+      });
+
+      result.discounts = validDiscounts;
+    }
+
+    result.lastSyncTimestamp = lastSyncTimestamp;
 
     return c.json({
       success: true,
-      data: {
-        store,
-        categories: allCategories,
-        products: allProducts,
-        stock: allStock,
-        discounts: discountsWithProducts,
-        lastSyncTimestamp,
-      },
+      data: result,
     });
   } catch (error) {
     console.error('Full sync error:', error);
@@ -422,8 +411,8 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
   }
 });
 
-// Get sync status
-syncRouter.get('/status', requirePermission('sync:pull'), async (c) => {
+// Get sync status with entity counts
+syncRouter.get('/status', requirePermission('sync:status'), async (c) => {
   try {
     const user = c.get('user');
     const storeId = user.storeId;
@@ -432,27 +421,40 @@ syncRouter.get('/status', requirePermission('sync:pull'), async (c) => {
       return c.json({ success: false, error: 'Store ID is required' }, 400);
     }
 
-    // Get counts
-    const [categoryCount] = await db.select({ count: sql<number>`count(*)` })
+    const [syncedCategoryCount] = await db.select({ count: sql<number>`count(*)` })
       .from(categories)
       .where(and(eq(categories.storeId, storeId), eq(categories.isActive, true)));
 
-    const [productCount] = await db.select({ count: sql<number>`count(*)` })
+    const [pendingCategoryCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(categories)
+      .where(and(eq(categories.storeId, storeId), eq(categories.isActive, false)));
+
+    const [syncedProductCount] = await db.select({ count: sql<number>`count(*)` })
       .from(products)
       .where(and(eq(products.storeId, storeId), eq(products.isActive, true)));
 
-    const [transactionCount] = await db.select({ count: sql<number>`count(*)` })
+    const [pendingProductCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(and(eq(products.storeId, storeId), eq(products.isActive, false)));
+
+    const [syncedTransactionCount] = await db.select({ count: sql<number>`count(*)` })
       .from(transactions)
       .where(eq(transactions.storeId, storeId));
 
-    const [pendingCount] = await db.select({ count: sql<number>`count(*)` })
+    const [pendingTransactionCount] = await db.select({ count: sql<number>`count(*)` })
       .from(transactions)
       .where(and(
         eq(transactions.storeId, storeId),
         eq(transactions.syncStatus, 'pending')
       ));
 
-    // Get last sync log entry
+    const [rejectedTransactionCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(transactions)
+      .where(and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'rejected')
+      ));
+
     const lastSync = await db.query.syncLog.findFirst({
       where: eq(syncLog.storeId, storeId),
       orderBy: (syncLog, { desc }) => [desc(syncLog.timestamp)],
@@ -462,11 +464,20 @@ syncRouter.get('/status', requirePermission('sync:pull'), async (c) => {
       success: true,
       data: {
         storeId,
-        counts: {
-          categories: Number(categoryCount.count),
-          products: Number(productCount.count),
-          transactions: Number(transactionCount.count),
-          pendingSync: Number(pendingCount.count),
+        entities: {
+          categories: {
+            synced: Number(syncedCategoryCount.count),
+            pending: Number(pendingCategoryCount.count),
+          },
+          products: {
+            synced: Number(syncedProductCount.count),
+            pending: Number(pendingProductCount.count),
+          },
+          transactions: {
+            synced: Number(syncedTransactionCount.count),
+            pending: Number(pendingTransactionCount.count),
+            rejected: Number(rejectedTransactionCount.count),
+          },
         },
         lastSyncTimestamp: lastSync?.timestamp?.toISOString() || null,
         serverTime: new Date().toISOString(),
@@ -475,6 +486,158 @@ syncRouter.get('/status', requirePermission('sync:pull'), async (c) => {
   } catch (error) {
     console.error('Get sync status error:', error);
     return c.json({ success: false, error: 'Failed to get sync status' }, 500);
+  }
+});
+
+// Get pending transactions list
+syncRouter.get('/pending', requirePermission('sync:status'), async (c) => {
+  try {
+    const user = c.get('user');
+    const storeId = user.storeId;
+
+    if (!storeId) {
+      return c.json({ success: false, error: 'Store ID is required' }, 400);
+    }
+
+    const limit = Number(c.req.query('limit')) || 20;
+    const offset = Number(c.req.query('offset')) || 0;
+
+    const pendingTransactions = await db.query.transactions.findMany({
+      where: and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'pending')
+      ),
+      orderBy: (transactions, { desc }) => [desc(transactions.clientTimestamp)],
+      limit,
+      offset,
+    });
+
+    const [totalResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(transactions)
+      .where(and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'pending')
+      ));
+
+    return c.json({
+      success: true,
+      data: {
+        items: pendingTransactions,
+        total: Number(totalResult.count),
+        limit,
+        offset,
+      },
+    });
+  } catch (error) {
+    console.error('Get pending transactions error:', error);
+    return c.json({ success: false, error: 'Failed to get pending transactions' }, 500);
+  }
+});
+
+// Get rejected transactions list
+syncRouter.get('/rejected', requirePermission('sync:status'), async (c) => {
+  try {
+    const user = c.get('user');
+    const storeId = user.storeId;
+
+    if (!storeId) {
+      return c.json({ success: false, error: 'Store ID is required' }, 400);
+    }
+
+    const limit = Number(c.req.query('limit')) || 20;
+    const offset = Number(c.req.query('offset')) || 0;
+
+    const rejectedTransactions = await db.query.transactions.findMany({
+      where: and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'rejected')
+      ),
+      orderBy: (transactions, { desc }) => [desc(transactions.clientTimestamp)],
+      limit,
+      offset,
+    });
+
+    const [totalResult] = await db.select({ count: sql<number>`count(*)` })
+      .from(transactions)
+      .where(and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'rejected')
+      ));
+
+    return c.json({
+      success: true,
+      data: {
+        items: rejectedTransactions,
+        total: Number(totalResult.count),
+        limit,
+        offset,
+      },
+    });
+  } catch (error) {
+    console.error('Get rejected transactions error:', error);
+    return c.json({ success: false, error: 'Failed to get rejected transactions' }, 500);
+  }
+});
+
+// Clear all pending transactions
+syncRouter.delete('/pending', requirePermission('sync:status'), async (c) => {
+  try {
+    const user = c.get('user');
+    const storeId = user.storeId;
+
+    if (!storeId) {
+      return c.json({ success: false, error: 'Store ID is required' }, 400);
+    }
+
+    await db.delete(transactions)
+      .where(and(
+        eq(transactions.storeId, storeId),
+        eq(transactions.syncStatus, 'pending')
+      ));
+
+    return c.json({
+      success: true,
+      data: { deleted: true },
+    });
+  } catch (error) {
+    console.error('Clear pending transactions error:', error);
+    return c.json({ success: false, error: 'Failed to clear pending transactions' }, 500);
+  }
+});
+
+// Clear single pending transaction
+syncRouter.delete('/pending/:clientId', requirePermission('sync:status'), async (c) => {
+  try {
+    const user = c.get('user');
+    const storeId = user.storeId;
+    const clientId = c.req.param('clientId');
+
+    if (!storeId) {
+      return c.json({ success: false, error: 'Store ID is required' }, 400);
+    }
+
+    const existing = await db.query.transactions.findFirst({
+      where: and(
+        eq(transactions.clientId, clientId),
+        eq(transactions.storeId, storeId)
+      ),
+    });
+
+    if (existing) {
+      await db.delete(transactions)
+        .where(and(
+          eq(transactions.clientId, clientId),
+          eq(transactions.storeId, storeId)
+        ));
+    }
+
+    return c.json({
+      success: true,
+      data: { deleted: true },
+    });
+  } catch (error) {
+    console.error('Clear pending transaction error:', error);
+    return c.json({ success: false, error: 'Failed to clear pending transaction' }, 500);
   }
 });
 

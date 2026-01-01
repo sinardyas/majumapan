@@ -2,7 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from '@/stores/authStore';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { Sidebar } from '@/components/layout/Sidebar';
-import { ToastProvider } from '@/components/ui/Toast';
+import { ToastProvider } from '@pos/ui';
 
 // Pages
 import Login from '@/pages/Login';
@@ -11,17 +11,32 @@ import Dashboard from '@/pages/Dashboard';
 import Transactions from '@/pages/Transactions';
 import Products from '@/pages/Products';
 import Categories from '@/pages/Categories';
-import Users from '@/pages/Users';
 import Discounts from '@/pages/Discounts';
+import SyncStatus from '@/pages/SyncStatus';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
-  
+
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-  
+
+  return <>{children}</>;
+}
+
+// Manager-only route wrapper
+function ManagerRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user?.role !== 'manager' && user?.role !== 'admin') {
+    return <Navigate to="/pos" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -109,17 +124,6 @@ export default function App() {
       />
 
       <Route
-        path="/users"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
-              <Users />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
         path="/discounts"
         element={
           <ProtectedRoute>
@@ -127,6 +131,18 @@ export default function App() {
               <Discounts />
             </AuthenticatedLayout>
           </ProtectedRoute>
+        }
+      />
+
+      {/* Manager-only routes */}
+      <Route
+        path="/sync-status"
+        element={
+          <ManagerRoute>
+            <AuthenticatedLayout>
+              <SyncStatus />
+            </AuthenticatedLayout>
+          </ManagerRoute>
         }
       />
 
