@@ -13,6 +13,7 @@ export interface ApiResponse<T = unknown> {
 
 export interface RequestOptions extends Omit<RequestInit, 'headers'> {
   skipAuth?: boolean;
+  skipAuthHandling?: boolean;
   queryParams?: Record<string, string | number | boolean | undefined>;
   responseType?: 'json' | 'text';
 }

@@ -26,10 +26,10 @@ export class ApiClient {
     return headers;
   }
 
-  private async handleResponse<T>(response: Response, responseType?: 'json' | 'text'): Promise<ApiResponse<T>> {
+  private async handleResponse<T>(response: Response, responseType?: 'json' | 'text', skipAuthHandling = false): Promise<ApiResponse<T>> {
     if (responseType === 'text') {
       if (!response.ok) {
-        if (response.status === 401) {
+        if (response.status === 401 && !skipAuthHandling) {
           const refreshed = await this.refreshToken();
           if (!refreshed && this.actions?.logout) {
             this.actions.logout();
@@ -45,7 +45,7 @@ export class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 && !skipAuthHandling) {
         const refreshed = await this.refreshToken();
         if (!refreshed && this.actions?.logout) {
           this.actions.logout();
@@ -95,7 +95,7 @@ export class ApiClient {
   }
 
   async get<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-    const { skipAuth, queryParams, responseType, ...fetchOptions } = options;
+    const { skipAuth, skipAuthHandling, queryParams, responseType, ...fetchOptions } = options;
 
     let url = `${this.baseUrl}${endpoint}`;
     if (queryParams) {
@@ -118,7 +118,7 @@ export class ApiClient {
         ...fetchOptions,
       });
 
-      return this.handleResponse<T>(response, responseType);
+      return this.handleResponse<T>(response, responseType, skipAuthHandling);
     } catch (error) {
       console.error('API GET error:', error);
       return { success: false, error: 'Network error' };
@@ -126,7 +126,7 @@ export class ApiClient {
   }
 
   async post<T>(endpoint: string, body?: unknown, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-    const { skipAuth, responseType, ...fetchOptions } = options;
+    const { skipAuth, skipAuthHandling, responseType, ...fetchOptions } = options;
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -136,7 +136,7 @@ export class ApiClient {
         ...fetchOptions,
       });
 
-      return this.handleResponse<T>(response, responseType);
+      return this.handleResponse<T>(response, responseType, skipAuthHandling);
     } catch (error) {
       console.error('API POST error:', error);
       return { success: false, error: 'Network error' };
@@ -144,7 +144,7 @@ export class ApiClient {
   }
 
   async put<T>(endpoint: string, body?: unknown, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-    const { skipAuth, responseType, ...fetchOptions } = options;
+    const { skipAuth, skipAuthHandling, responseType, ...fetchOptions } = options;
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -154,7 +154,7 @@ export class ApiClient {
         ...fetchOptions,
       });
 
-      return this.handleResponse<T>(response, responseType);
+      return this.handleResponse<T>(response, responseType, skipAuthHandling);
     } catch (error) {
       console.error('API PUT error:', error);
       return { success: false, error: 'Network error' };
@@ -162,7 +162,7 @@ export class ApiClient {
   }
 
   async delete<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
-    const { skipAuth, responseType, ...fetchOptions } = options;
+    const { skipAuth, skipAuthHandling, responseType, ...fetchOptions } = options;
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -171,7 +171,7 @@ export class ApiClient {
         ...fetchOptions,
       });
 
-      return this.handleResponse<T>(response, responseType);
+      return this.handleResponse<T>(response, responseType, skipAuthHandling);
     } catch (error) {
       console.error('API DELETE error:', error);
       return { success: false, error: 'Network error' };

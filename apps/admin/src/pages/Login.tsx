@@ -1,6 +1,7 @@
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
 import { Button, Card, CardContent, Input } from '@/components/ui';
+import { useToast } from '@pos/ui';
 import { useState } from 'react';
 import { z } from 'zod';
 
@@ -31,6 +32,7 @@ interface FieldErrors {
 
 export default function Login() {
   const { setAuth, setLoading, isLoading } = useAuthStore();
+  const { error: showToast } = useToast();
 
   const [formData, setFormData] = useState<LoginFormData>({
     email: '',
@@ -70,13 +72,15 @@ export default function Login() {
       const response = await api.post<LoginResponse>('/auth/login', {
         email: formData.email,
         password: formData.password,
-      }, { skipAuth: true });
+      }, { skipAuth: true, skipAuthHandling: true });
 
       if (response.success && response.data) {
         const { user, accessToken, refreshToken } = response.data;
 
         if (user.role !== 'admin') {
-          setError('Access denied. This panel is for administrators only. Please use the POS web application.');
+          const accessError = 'Access denied. This panel is for administrators only. Please use the POS web application.';
+          setError(accessError);
+          showToast('Access Denied', accessError);
           setLoading(false);
           return;
         }
@@ -97,10 +101,14 @@ export default function Login() {
           refreshToken
         );
       } else {
-        setError(response.error || 'Login failed');
+        const errorMessage = response.error || 'Login failed';
+        setError(errorMessage);
+        showToast('Login Failed', errorMessage);
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      const errorMessage = 'An unexpected error occurred';
+      setError(errorMessage);
+      showToast('Error', errorMessage);
       console.error('Login error:', err);
     } finally {
       setLoading(false);

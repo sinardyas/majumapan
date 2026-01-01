@@ -5,6 +5,7 @@ import { useSyncStore } from '@/stores/syncStore';
 import { api } from '@/services/api';
 import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { useToast } from '@pos/ui';
 
 interface LoginResponse {
   accessToken: string;
@@ -24,7 +25,8 @@ export default function Login() {
   const { setAuth, setLoading, isLoading } = useAuthStore();
   const { fullSync } = useSyncStore();
   const { isOnline } = useOnlineStatus();
-  
+  const { error: showToast } = useToast();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -39,14 +41,15 @@ export default function Login() {
       const response = await api.post<LoginResponse>('/auth/login', {
         email,
         password,
-      }, { skipAuth: true });
+      }, { skipAuth: true, skipAuthHandling: true });
 
       if (response.success && response.data) {
         const { user, accessToken, refreshToken } = response.data;
 
-        // Reject admin users - they should use the Admin Panel
         if (user.role === 'admin') {
-          setError('Admin users must use the Admin Panel. Please navigate to the admin login URL.');
+          const adminError = 'Admin users must use the Admin Panel. Please navigate to the admin login URL.';
+          setError(adminError);
+          showToast('Access Denied', adminError);
           setLoading(false);
           return;
         }
@@ -67,14 +70,12 @@ export default function Login() {
           refreshToken
         );
 
-        // Perform initial full sync if online
         if (isOnline && user.storeId) {
           setSyncStatus('syncing');
           try {
             const syncResult = await fullSync();
             if (!syncResult.success) {
               console.warn('Initial sync failed:', syncResult.error);
-              // Don't block login, just warn
             }
           } catch (syncError) {
             console.error('Sync error:', syncError);
@@ -84,10 +85,14 @@ export default function Login() {
 
         navigate('/pos');
       } else {
-        setError(response.error || 'Login failed');
+        const errorMessage = response.error || 'Login failed';
+        setError(errorMessage);
+        showToast('Login Failed', errorMessage);
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      const errorMessage = 'An unexpected error occurred';
+      setError(errorMessage);
+      showToast('Error', errorMessage);
       console.error('Login error:', err);
     } finally {
       setLoading(false);
