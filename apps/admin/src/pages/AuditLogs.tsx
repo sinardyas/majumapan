@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi } from '@/services/api';
-import { Card, CardContent, Badge, Button, Skeleton } from '@/components/ui';
+import { Card, CardContent, Badge, Button, Skeleton } from '@pos/ui';
 import { Search, Filter, X, ChevronLeft, ChevronRight, Calendar, User, Activity, Globe } from 'lucide-react';
 import { format } from 'date-fns';
 

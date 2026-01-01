@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
-import { Button, Card, CardContent, Input } from '@/components/ui';
+import { Button, Card, CardContent, Input } from '@pos/ui';
 import { useToast } from '@pos/ui';
 import { useState } from 'react';
 import { z } from 'zod';

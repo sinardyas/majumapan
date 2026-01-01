@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
-import { Button, Card, CardContent, Input, Modal, Badge, Skeleton } from '@/components/ui';
+import { Button, Card, CardContent, Input, Modal, Badge, Skeleton } from '@pos/ui';
 import type { Store } from '@pos/shared';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, MapPin, Phone, Search } from 'lucide-react';

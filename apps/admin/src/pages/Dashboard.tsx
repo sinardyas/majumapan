@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton } from '@pos/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { RefreshCw, TrendingUp, TrendingDown, DollarSign, ShoppingCart, Store, Users, AlertTriangle } from 'lucide-react';
 

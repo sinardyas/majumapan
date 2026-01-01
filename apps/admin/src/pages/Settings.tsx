@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@/components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@pos/ui';
 import { z } from 'zod';
 import { Settings as SettingsIcon, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
