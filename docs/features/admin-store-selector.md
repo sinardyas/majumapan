@@ -1,6 +1,30 @@
 # Admin Store Selector Feature
 
-## Status: Planned
+## Status: Deprecated
+
+> **Deprecated on 2025-01-01**
+>
+> This feature specification is no longer being pursued. The Admin Panel is now implemented as a separate dedicated application (`apps/admin`), which eliminates the need for admin users to select stores within the POS web application. Admins should use the dedicated Admin Panel at `admin.example.com` for all administrative tasks.
+
+## Rationale
+
+This feature was planned as a solution to allow admin users to access store-scoped features within the POS web application. However, the team decided to pursue a cleaner architectural separation by implementing a **dedicated Admin Panel** (see [ADR-0005](adr/0005-admin-panel-separation.md) and [Feature Spec: Admin Panel](admin-panel.md)).
+
+**Why deprecate this feature:**
+
+| Issue | Resolution |
+|-------|------------|
+| Admin users had `storeId: null` causing loading issues | Admins now use the dedicated Admin Panel |
+| Complex "store selector" logic needed in POS web | Eliminated - POS web is for managers/cashiers only |
+| Offline-first features unnecessary for admins | Admin Panel is online-only, simplifying architecture |
+| Security surface reduced | Admin features isolated to separate app |
+| Better user experience | Admins have dedicated UI for all admin tasks |
+
+## Original Documentation (Archived)
+
+The original feature specification below is kept for historical reference only and will not be implemented.
+
+---
 
 ## Problem Statement
 
