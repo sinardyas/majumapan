@@ -5,6 +5,7 @@ import { api } from '@/services/api';
 import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
+import { AlertTriangle, X, Package } from 'lucide-react';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
@@ -240,9 +241,7 @@ export default function Products() {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center px-4">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 max-w-md">
-          <svg className="h-16 w-16 text-amber-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">No Store Assigned</h2>
           <p className="text-gray-600 mb-4">
             Your admin account is not assigned to a specific store. 
@@ -325,9 +324,7 @@ export default function Products() {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                            </svg>
+                            <Package className="h-5 w-5 text-gray-400" />
                           )}
                         </div>
                         <div>
@@ -404,9 +401,7 @@ export default function Products() {
                 onClick={handleCloseModal}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-6 w-6" />
               </button>
             </div>
 

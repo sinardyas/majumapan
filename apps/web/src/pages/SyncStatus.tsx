@@ -75,7 +75,7 @@ export default function SyncStatus() {
           </div>
           <Button
             onClick={handleToggleAutoRefresh}
-            variant={isAutoRefreshing ? 'primary' : 'outline'}
+            variant={isAutoRefreshing ? 'default' : 'outline'}
             size="sm"
           >
             {isAutoRefreshing ? 'Auto-refresh ON' : 'Auto-refresh OFF'}

@@ -19,6 +19,10 @@ import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
 import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
 import { ResumeConfirmModal } from '@/components/pos/ResumeConfirmModal';
 import type { PaymentMethod } from '@pos/shared';
+import { 
+  Search, ShoppingCart, Trash2, X, Printer, 
+  AlertTriangle, ClipboardList, Plus, Minus, Box
+} from 'lucide-react';
 
 export default function POS() {
   const { user } = useAuthStore();
@@ -592,9 +596,7 @@ export default function POS() {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center px-4">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 max-w-md">
-          <svg className="h-16 w-16 text-amber-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">No Store Assigned</h2>
           <p className="text-gray-600 mb-4">
             Your admin account is not assigned to a specific store. 
@@ -625,19 +627,7 @@ export default function POS() {
                 className="input pl-10"
                 autoFocus
               />
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
 
             {/* Online status indicator */}
@@ -710,9 +700,7 @@ export default function POS() {
                         className="w-full h-full object-cover rounded-lg"
                       />
                     ) : (
-                      <svg className="h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
+                      <Box className="h-12 w-12 text-gray-400" />
                     )}
                   </div>
                   <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
@@ -752,9 +740,7 @@ export default function POS() {
             className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Held Orders"
           >
-            <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <ClipboardList className="h-6 w-6 text-gray-600" />
             {heldOrdersCount > 0 && (
               <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
                 {heldOrdersCount}
@@ -767,19 +753,7 @@ export default function POS() {
         <div className="flex-1 overflow-y-auto p-4">
           {items.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
-              <svg
-                className="h-16 w-16 mx-auto text-gray-300 mb-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
+              <ShoppingCart className="h-16 w-16 mx-auto text-gray-300 mb-4" />
               <p>Cart is empty</p>
               <p className="text-sm mt-1">Add products to get started</p>
             </div>
@@ -800,9 +774,7 @@ export default function POS() {
                       onClick={() => removeItem(item.productId)}
                       className="text-red-500 hover:text-red-700 p-1"
                     >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
+                      <Trash2 className="h-5 w-5" />
                     </button>
                   </div>
                   <div className="flex items-center justify-between mt-2">
@@ -811,14 +783,14 @@ export default function POS() {
                         onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
                         className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
                       >
-                        -
+                        <Minus className="h-4 w-4" />
                       </button>
                       <span className="w-8 text-center font-medium">{item.quantity}</span>
                       <button
                         onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
                         className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
                       >
-                        +
+                        <Plus className="h-4 w-4" />
                       </button>
                     </div>
                     <span className="font-semibold">
@@ -851,9 +823,7 @@ export default function POS() {
                   onClick={removeDiscount}
                   className="text-green-700 hover:text-green-800 p-1"
                 >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <X className="h-5 w-5" />
                 </button>
               </div>
             ) : (
@@ -920,7 +890,6 @@ export default function POS() {
           <div className="space-y-2">
             <Button
               className="w-full"
-              size="lg"
               disabled={items.length === 0}
               onClick={() => setShowPaymentModal(true)}
             >
@@ -973,9 +942,7 @@ export default function POS() {
                 onClick={handleCloseReceipt}
                 className="p-2 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X className="h-5 w-5" />
               </button>
             </div>
 
@@ -994,19 +961,17 @@ export default function POS() {
             {/* Actions */}
             <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
               <Button
-                variant="outline"
                 className="flex-1"
-                onClick={handleCloseReceipt}
+                onClick={handlePrint}
               >
-                Close
+                <Printer className="h-5 w-5 mr-2" />
+                Print Receipt
               </Button>
               <Button
                 className="flex-1"
                 onClick={handlePrint}
               >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-                </svg>
+                <Printer className="h-5 w-5 mr-2" />
                 Print Receipt
               </Button>
             </div>

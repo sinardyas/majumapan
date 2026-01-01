@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi } from '@/services/api';
 import { formatCurrency } from '@/lib/utils';
-import { Card, CardContent, Button, Badge, Skeleton } from '@/components/ui';
+import { Card, CardContent, Button, Badge, Skeleton } from '@pos/ui';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { RefreshCw, Calendar, TrendingUp } from 'lucide-react';
 

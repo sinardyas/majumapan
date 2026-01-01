@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { dashboardApi, dataApi } from '@/services/api';
-import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
+import { Card, CardContent, CardHeader, CardTitle, Button } from '@pos/ui';
 import { Upload, Download, FileSpreadsheet, Package, FolderOpen, Users, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 

@@ -3,6 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Button } from '@pos/ui';
+import { DollarSign, Clipboard, RefreshCw, AlertTriangle } from 'lucide-react';
 
 interface DashboardStats {
   todaySales: number;
@@ -235,9 +236,7 @@ export default function Dashboard() {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center px-4">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-8 max-w-md">
-          <svg className="h-16 w-16 text-amber-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AlertTriangle className="h-16 w-16 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">No Store Assigned</h2>
           <p className="text-gray-600 mb-4">
             Your admin account is not assigned to a specific store. 
@@ -271,9 +270,7 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <DollarSign className="h-6 w-6 text-green-600" />
             </div>
           </div>
         </div>
@@ -288,9 +285,7 @@ export default function Dashboard() {
               </p>
             </div>
             <div className="h-12 w-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
+              <Clipboard className="h-6 w-6 text-blue-600" />
             </div>
           </div>
         </div>
@@ -307,9 +302,7 @@ export default function Dashboard() {
             <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
               stats.pendingSync > 0 ? 'bg-yellow-100' : 'bg-gray-100'
             }`}>
-              <svg className={`h-6 w-6 ${stats.pendingSync > 0 ? 'text-yellow-600' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw className={`h-6 w-6 ${stats.pendingSync > 0 ? 'text-yellow-600' : 'text-gray-600'}`} />
             </div>
           </div>
           {!isOnline && stats.pendingSync > 0 && (
@@ -329,9 +322,7 @@ export default function Dashboard() {
             <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
               stats.lowStockItems > 0 ? 'bg-red-100' : 'bg-gray-100'
             }`}>
-              <svg className={`h-6 w-6 ${stats.lowStockItems > 0 ? 'text-red-600' : 'text-gray-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+              <AlertTriangle className={`h-6 w-6 ${stats.lowStockItems > 0 ? 'text-red-600' : 'text-gray-600'}`} />
             </div>
           </div>
         </div>
