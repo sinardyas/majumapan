@@ -1,7 +1,7 @@
 import { RefreshCw } from 'lucide-react';
 
 interface EntityProgressCardProps {
-  entity: 'products' | 'categories' | 'transactions';
+  entity: 'products' | 'categories' | 'transactions' | 'stock';
   synced: number;
   pending: number;
   rejected?: number;
@@ -12,12 +12,14 @@ const entityLabels: Record<string, string> = {
   products: 'Products',
   categories: 'Categories',
   transactions: 'Transactions',
+  stock: 'Stock'
 };
 
 const entityColors: Record<string, string> = {
   products: 'bg-blue-500',
   categories: 'bg-green-500',
   transactions: 'bg-purple-500',
+  stock: 'bg-amber-500'
 };
 
 export function EntityProgressCard({

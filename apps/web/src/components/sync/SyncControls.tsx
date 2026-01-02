@@ -5,8 +5,7 @@ import { RefreshCw, CheckSquare, Square } from 'lucide-react';
 const entities = [
   { key: 'products', label: 'Products' },
   { key: 'categories', label: 'Categories' },
-  { key: 'transactions', label: 'Transactions' },
-  { key: 'stock', label: 'Stock' },
+  { key: 'transactions', label: 'Transactions' }
 ] as const;
 
 export function SyncControls() {

@@ -62,13 +62,18 @@ syncRouter.get('/full', requirePermission('sync:full'), async (c) => {
       result.products = await db.query.products.findMany({
         where: and(eq(products.storeId, storeId), eq(products.isActive, true)),
       });
-    }
 
-    if (entities.length === 0 || entities.includes('stock')) {
       result.stock = await db.query.stock.findMany({
         where: eq(stock.storeId, storeId),
       });
     }
+
+    // Products and stock will be binded and synced together
+    // if (entities.length === 0 || entities.includes('stock')) {
+    //   result.stock = await db.query.stock.findMany({
+    //     where: eq(stock.storeId, storeId),
+    //   });
+    // }
 
     if (entities.length === 0 || entities.includes('discounts')) {
       const now = new Date();
@@ -437,6 +442,14 @@ syncRouter.get('/status', requirePermission('sync:status'), async (c) => {
       .from(products)
       .where(and(eq(products.storeId, storeId), eq(products.isActive, false)));
 
+    const [syncedStockCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(stock)
+      .where(and(eq(stock.storeId, storeId)));
+
+    const [pendingStockCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(stock)
+      .where(and(eq(stock.storeId, storeId)));
+
     const [syncedTransactionCount] = await db.select({ count: sql<number>`count(*)` })
       .from(transactions)
       .where(eq(transactions.storeId, storeId));
@@ -472,6 +485,10 @@ syncRouter.get('/status', requirePermission('sync:status'), async (c) => {
           products: {
             synced: Number(syncedProductCount.count),
             pending: Number(pendingProductCount.count),
+          },
+	  stock: {
+            synced: Number(syncedStockCount.count),
+            pending: Number(pendingStockCount.count),
           },
           transactions: {
             synced: Number(syncedTransactionCount.count),
