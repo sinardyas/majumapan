@@ -7,6 +7,11 @@ import {
   type HeldOrder,
 } from '@/db';
 
+const CART_SYNC_CHANNEL = 'pos-cart-sync';
+const channel = typeof BroadcastChannel !== 'undefined' 
+  ? new BroadcastChannel(CART_SYNC_CHANNEL) 
+  : null;
+
 export interface CartItem {
   productId: string;
   productName: string;
@@ -76,9 +81,55 @@ interface CartState {
   clearResumedOrderInfo: () => void;
 }
 
+interface CartSyncMessage {
+  type: 'CART_SYNC';
+  payload: {
+    items: CartItem[];
+    cartDiscount: CartDiscount | null;
+    subtotal: number;
+    discountAmount: number;
+    taxAmount: number;
+    total: number;
+  };
+}
+
 const calculateItemSubtotal = (item: Omit<CartItem, 'subtotal'>): number => {
   return (item.unitPrice * item.quantity) - item.discountValue;
 };
+
+function broadcastCartState(state: CartState) {
+  if (!channel) return;
+  
+  const message: CartSyncMessage = {
+    type: 'CART_SYNC',
+    payload: {
+      items: state.items,
+      cartDiscount: state.cartDiscount,
+      subtotal: state.subtotal,
+      discountAmount: state.discountAmount,
+      taxAmount: state.taxAmount,
+      total: state.total,
+    },
+  };
+  
+  channel.postMessage(message);
+}
+
+if (channel) {
+  channel.onmessage = (event: MessageEvent<CartSyncMessage>) => {
+    if (event.data.type === 'CART_SYNC') {
+      const { payload } = event.data;
+      useCartStore.setState({
+        items: payload.items,
+        cartDiscount: payload.cartDiscount,
+        subtotal: payload.subtotal,
+        discountAmount: payload.discountAmount,
+        taxAmount: payload.taxAmount,
+        total: payload.total,
+      });
+    }
+  };
+}
 
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
@@ -94,7 +145,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     const existingIndex = items.findIndex(item => item.productId === newItem.productId);
 
     if (existingIndex >= 0) {
-      // Update quantity if item exists
       const updatedItems = [...items];
       const existingItem = updatedItems[existingIndex];
       const updatedQuantity = existingItem.quantity + newItem.quantity;
@@ -105,12 +155,12 @@ export const useCartStore = create<CartState>((set, get) => ({
       };
       set({ items: updatedItems });
     } else {
-      // Add new item
       const subtotal = calculateItemSubtotal(newItem);
       set({ items: [...items, { ...newItem, subtotal }] });
     }
 
     get().calculateTotals();
+    broadcastCartState(get());
   },
 
   updateItemQuantity: (productId, quantity) => {
@@ -132,21 +182,25 @@ export const useCartStore = create<CartState>((set, get) => ({
 
     set({ items });
     get().calculateTotals();
+    broadcastCartState(get());
   },
 
   removeItem: (productId) => {
     set({ items: get().items.filter(item => item.productId !== productId) });
     get().calculateTotals();
+    broadcastCartState(get());
   },
 
   applyDiscount: (discount) => {
     set({ cartDiscount: discount });
     get().calculateTotals();
+    broadcastCartState(get());
   },
 
   removeDiscount: () => {
     set({ cartDiscount: null });
     get().calculateTotals();
+    broadcastCartState(get());
   },
 
   clearCart: () => {
@@ -159,22 +213,16 @@ export const useCartStore = create<CartState>((set, get) => ({
       total: 0,
       resumedOrderInfo: null,
     });
+    broadcastCartState(get());
   },
 
   calculateTotals: () => {
     const { items, cartDiscount } = get();
     
-    // Calculate subtotal from items
     const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    
-    // Calculate cart discount amount
     const discountAmount = cartDiscount?.amount ?? 0;
-    
-    // Calculate tax on discounted subtotal
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = Math.round(taxableAmount * TAX_RATE * 100) / 100;
-    
-    // Calculate total
     const total = Math.round((taxableAmount + taxAmount) * 100) / 100;
 
     set({
@@ -185,11 +233,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
 
-  // ==========================================================================
-  // Hold Order Actions
-  // See docs/features/hold-order.md and ADR-0004
-  // ==========================================================================
-
   holdOrder: async (storeId, cashierId, customerName, note) => {
     const { items, cartDiscount, subtotal, discountAmount, taxAmount, total } = get();
     
@@ -198,7 +241,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
 
     const now = new Date();
-    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000); // 24 hours from now
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
     const heldOrder: HeldOrder = {
       id: crypto.randomUUID(),
@@ -233,10 +276,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       expiresAt: expiresAt.toISOString(),
     };
 
-    // Save to IndexedDB
     await saveHeldOrder(heldOrder);
-
-    // Clear the cart
     get().clearCart();
 
     return heldOrder.id;
@@ -249,7 +289,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       return { success: false, error: 'Held order not found' };
     }
 
-    // Check if order has expired
     if (new Date(heldOrder.expiresAt) < new Date()) {
       await deleteHeldOrderFromDb(heldOrderId);
       return { success: false, error: 'Held order has expired' };
@@ -259,7 +298,6 @@ export const useCartStore = create<CartState>((set, get) => ({
     let discountName: string | undefined;
     let validatedDiscount: CartDiscount | null = null;
 
-    // Re-validate discount if one was applied
     if (heldOrder.cartDiscount) {
       const cartDiscount: CartDiscount = {
         id: heldOrder.cartDiscount.id,
@@ -280,7 +318,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       }
     }
 
-    // Load items into cart
     const items: CartItem[] = heldOrder.items.map(item => ({
       productId: item.productId,
       productName: item.productName,
@@ -293,7 +330,6 @@ export const useCartStore = create<CartState>((set, get) => ({
       subtotal: item.subtotal,
     }));
 
-    // Set cart state
     set({
       items,
       cartDiscount: validatedDiscount,
@@ -303,10 +339,8 @@ export const useCartStore = create<CartState>((set, get) => ({
       },
     });
 
-    // Recalculate totals (especially if discount was removed)
     get().calculateTotals();
-
-    // Delete held order from IndexedDB
+    broadcastCartState(get());
     await deleteHeldOrderFromDb(heldOrderId);
 
     return {
@@ -318,5 +352,6 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearResumedOrderInfo: () => {
     set({ resumedOrderInfo: null });
+    broadcastCartState(get());
   },
 }));

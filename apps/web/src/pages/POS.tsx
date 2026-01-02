@@ -21,7 +21,7 @@ import { ResumeConfirmModal } from '@/components/pos/ResumeConfirmModal';
 import type { PaymentMethod } from '@pos/shared';
 import { 
   Search, ShoppingCart, Trash2, X, Printer, 
-  AlertTriangle, ClipboardList, Plus, Minus, Box
+  AlertTriangle, ClipboardList, Plus, Minus, Box, Monitor
 } from 'lucide-react';
 
 export default function POS() {
@@ -639,6 +639,17 @@ export default function POS() {
               }`}></span>
               {isOnline ? 'Online' : 'Offline'}
             </div>
+
+            {/* Customer Display Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.open('/customer-display', '_blank', 'width=1024,height=768')}
+              className="flex items-center gap-2"
+            >
+              <Monitor className="h-4 w-4" />
+              Customer Display
+            </Button>
           </div>
 
           {/* Categories */}
@@ -960,13 +971,6 @@ export default function POS() {
 
             {/* Actions */}
             <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <Button
-                className="flex-1"
-                onClick={handlePrint}
-              >
-                <Printer className="h-5 w-5 mr-2" />
-                Print Receipt
-              </Button>
               <Button
                 className="flex-1"
                 onClick={handlePrint}

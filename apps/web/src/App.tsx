@@ -7,6 +7,7 @@ import { ToastProvider } from '@pos/ui';
 // Pages
 import Login from '@/pages/Login';
 import POS from '@/pages/POS';
+import CustomerDisplay from '@/pages/CustomerDisplay';
 import Dashboard from '@/pages/Dashboard';
 import Transactions from '@/pages/Transactions';
 import Products from '@/pages/Products';
@@ -75,6 +76,15 @@ export default function App() {
             <AuthenticatedLayout>
               <POS />
             </AuthenticatedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/customer-display"
+        element={
+          <ProtectedRoute>
+            <CustomerDisplay />
           </ProtectedRoute>
         }
       />
