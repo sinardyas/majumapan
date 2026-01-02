@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export function useOnlineStatus() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [wasOffline, setWasOffline] = useState(false);
+  const [isSyncingAfterReconnect, setIsSyncingAfterReconnect] = useState(false);
 
   const handleOnline = useCallback(() => {
     setIsOnline(true);
@@ -32,7 +33,18 @@ export function useOnlineStatus() {
     };
   }, [handleOnline, handleOffline]);
 
-  // Reset wasOffline flag when acknowledged
+  // Called when sync starts after reconnection
+  const startSyncingAfterReconnect = useCallback(() => {
+    setIsSyncingAfterReconnect(true);
+  }, []);
+
+  // Called when sync completes after reconnection
+  const finishSyncingAfterReconnect = useCallback(() => {
+    setIsSyncingAfterReconnect(false);
+    // Note: wasOffline will be reset by OfflineBanner after showing success (auto-dismiss)
+  }, []);
+
+  // Reset wasOffline flag (for manual dismiss or after auto-dismiss timer)
   const acknowledgeReconnection = useCallback(() => {
     setWasOffline(false);
   }, []);
@@ -40,6 +52,9 @@ export function useOnlineStatus() {
   return {
     isOnline,
     wasOffline,
+    isSyncingAfterReconnect,
+    startSyncingAfterReconnect,
+    finishSyncingAfterReconnect,
     acknowledgeReconnection,
   };
 }

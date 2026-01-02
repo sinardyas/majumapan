@@ -22,7 +22,12 @@ export function useSync(options: UseSyncOptions = {}) {
     enableBackgroundSync = true,
   } = options;
 
-  const { isOnline, wasOffline } = useOnlineStatus();
+  const { 
+    isOnline, 
+    wasOffline,
+    startSyncingAfterReconnect,
+    finishSyncingAfterReconnect,
+  } = useOnlineStatus();
   const { isAuthenticated } = useAuthStore();
   const {
     isSyncing,
@@ -44,14 +49,57 @@ export function useSync(options: UseSyncOptions = {}) {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasInitialSyncRef = useRef(false);
+  
+  // Refs for reconnect sync protection (prevents infinite loop)
+  const reconnectSyncTriggeredRef = useRef(false);
+  const reconnectDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Sync when coming back online
+  // Sync when coming back online (with debounce and re-trigger protection)
+  // FIX: Removed isSyncing from dependencies to prevent infinite loop
+  // See: The effect was re-triggering every time isSyncing changed from true->false
+  // because wasOffline was never being reset after sync completed.
   useEffect(() => {
-    if (isOnline && wasOffline && syncOnReconnect && isAuthenticated && !isSyncing) {
-      console.log('Back online, triggering sync...');
-      sync();
+    // Reset the triggered flag when going offline
+    if (!isOnline) {
+      reconnectSyncTriggeredRef.current = false;
+      if (reconnectDebounceRef.current) {
+        clearTimeout(reconnectDebounceRef.current);
+        reconnectDebounceRef.current = null;
+      }
+      return;
     }
-  }, [isOnline, wasOffline, syncOnReconnect, isAuthenticated, isSyncing, sync]);
+
+    // Trigger sync when coming back online (with debounce)
+    if (isOnline && wasOffline && syncOnReconnect && isAuthenticated && !reconnectSyncTriggeredRef.current) {
+      // Clear any pending debounce
+      if (reconnectDebounceRef.current) {
+        clearTimeout(reconnectDebounceRef.current);
+      }
+
+      // Debounce the sync trigger by 300ms to prevent rapid reconnection events
+      reconnectDebounceRef.current = setTimeout(async () => {
+        // Double-check the flag inside the timeout (in case it was set by another call)
+        if (!reconnectSyncTriggeredRef.current) {
+          reconnectSyncTriggeredRef.current = true;
+          console.log('Back online, triggering sync...');
+          
+          startSyncingAfterReconnect();
+          try {
+            await sync();
+          } finally {
+            finishSyncingAfterReconnect();
+          }
+        }
+      }, 300);
+    }
+
+    return () => {
+      if (reconnectDebounceRef.current) {
+        clearTimeout(reconnectDebounceRef.current);
+      }
+    };
+  }, [isOnline, wasOffline, syncOnReconnect, isAuthenticated, sync, startSyncingAfterReconnect, finishSyncingAfterReconnect]);
+  // NOTE: Removed isSyncing from dependencies - we use reconnectSyncTriggeredRef to prevent re-triggers
 
   // Auto sync interval
   useEffect(() => {
