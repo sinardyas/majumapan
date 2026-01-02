@@ -68,6 +68,21 @@ services:
     networks:
       - pos-network
 
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+      args:
+        VITE_API_URL: /api/v1
+    container_name: pos-admin
+    restart: always
+    ports:
+      - "${ADMIN_PORT:-8081}:80"
+    depends_on:
+      - api
+    networks:
+      - pos-network
+
 volumes:
   postgres_data:
     driver: local
