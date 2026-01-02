@@ -1,12 +1,44 @@
+import { useEffect, useRef } from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 export function OfflineBanner() {
-  const { isOnline, wasOffline, acknowledgeReconnection } = useOnlineStatus();
+  const { 
+    isOnline, 
+    wasOffline, 
+    isSyncingAfterReconnect, 
+    acknowledgeReconnection 
+  } = useOnlineStatus();
+  
+  const autoDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (isOnline && !wasOffline) {
+  // Auto-dismiss success banner after 2.5 seconds
+  useEffect(() => {
+    // Clear any existing timer
+    if (autoDismissRef.current) {
+      clearTimeout(autoDismissRef.current);
+      autoDismissRef.current = null;
+    }
+
+    // When sync completes (online, was offline, not syncing anymore)
+    if (isOnline && wasOffline && !isSyncingAfterReconnect) {
+      autoDismissRef.current = setTimeout(() => {
+        acknowledgeReconnection();
+      }, 2500); // 2.5 seconds
+    }
+
+    return () => {
+      if (autoDismissRef.current) {
+        clearTimeout(autoDismissRef.current);
+      }
+    };
+  }, [isOnline, wasOffline, isSyncingAfterReconnect, acknowledgeReconnection]);
+
+  // Don't show banner if online, not recently offline, and not syncing
+  if (isOnline && !wasOffline && !isSyncingAfterReconnect) {
     return null;
   }
 
+  // Offline banner (yellow)
   if (!isOnline) {
     return (
       <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-yellow-900 px-4 py-2 text-center font-medium">
@@ -30,7 +62,38 @@ export function OfflineBanner() {
     );
   }
 
-  // Just came back online
+  // Syncing after reconnection (blue with spinner)
+  if (isSyncingAfterReconnect) {
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-2 text-center font-medium">
+        <span className="inline-flex items-center gap-2">
+          <svg 
+            className="animate-spin h-5 w-5" 
+            xmlns="http://www.w3.org/2000/svg" 
+            fill="none" 
+            viewBox="0 0 24 24"
+          >
+            <circle 
+              className="opacity-25" 
+              cx="12" 
+              cy="12" 
+              r="10" 
+              stroke="currentColor" 
+              strokeWidth="4"
+            />
+            <path 
+              className="opacity-75" 
+              fill="currentColor" 
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            />
+          </svg>
+          Back online! Syncing your data...
+        </span>
+      </div>
+    );
+  }
+
+  // Sync complete (green, auto-dismisses after 2.5s)
   return (
     <div className="fixed top-0 left-0 right-0 z-50 bg-green-500 text-white px-4 py-2 text-center font-medium">
       <span className="inline-flex items-center gap-2">
@@ -47,7 +110,7 @@ export function OfflineBanner() {
             d="M5 13l4 4L19 7"
           />
         </svg>
-        Back online! Syncing your data...
+        Back online! Sync complete.
         <button
           onClick={acknowledgeReconnection}
           className="ml-4 underline hover:no-underline"
