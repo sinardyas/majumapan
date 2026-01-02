@@ -57,7 +57,18 @@ services:
     container_name: pos-web
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "8080:80"
+    depends_on:
+      - api
+
+  admin:
+    build:
+      context: .
+      dockerfile: Dockerfile.admin
+    container_name: pos-admin
+    restart: unless-stopped
+    ports:
+      - "8081:80"
     depends_on:
       - api
 
