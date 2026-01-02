@@ -194,7 +194,7 @@ class SyncService {
           }
 
           // Insert categories
-          if (categories.length > 0) {
+          if (categories?.length > 0) {
             await db.categories.bulkPut(categories.map(c => ({
               ...c,
               isActive: c.isActive ?? true,
@@ -202,19 +202,19 @@ class SyncService {
           }
 
           // Insert products (with decimal string to number conversion)
-          if (products.length > 0) {
+          if (products?.length > 0) {
             await db.products.bulkPut(
               products.map(p => transformProduct(p as unknown as Record<string, unknown>))
             );
           }
 
           // Insert stock
-          if (stock.length > 0) {
+          if (stock?.length > 0) {
             await db.stock.bulkPut(stock);
           }
 
           // Insert discounts (with decimal string to number conversion)
-          if (discounts.length > 0) {
+          if (discounts?.length > 0) {
             await db.discounts.bulkPut(
               discounts.map(d => transformDiscount(d as unknown as Record<string, unknown>))
             );
