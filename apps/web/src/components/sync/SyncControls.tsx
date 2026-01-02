@@ -6,6 +6,7 @@ const entities = [
   { key: 'products', label: 'Products' },
   { key: 'categories', label: 'Categories' },
   { key: 'transactions', label: 'Transactions' },
+  { key: 'stock', label: 'Stock' },
 ] as const;
 
 export function SyncControls() {

@@ -132,6 +132,7 @@ interface SyncStatusResponse {
   entities: {
     categories: { synced: number; pending: number };
     products: { synced: number; pending: number };
+    stock: { synced: number; pending: number };
     transactions: { synced: number; pending: number; rejected: number };
   };
   lastSyncTimestamp: string | null;
@@ -160,7 +161,7 @@ class SyncService {
    * Perform a full sync - downloads all data for the user's store
    * Used on initial login or when local data is corrupted
    */
-  async fullSync(entities?: Array<'products' | 'categories' | 'transactions'>): Promise<SyncResult> {
+  async fullSync(entities?: Array<'products' | 'categories' | 'transactions' | 'stock'>): Promise<SyncResult> {
     if (this.isSyncing) {
       return { success: false, error: 'Sync already in progress' };
     }

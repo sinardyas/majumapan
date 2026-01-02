@@ -27,6 +27,7 @@ interface PendingTransaction {
 interface EntityCounts {
   categories: { synced: number; pending: number };
   products: { synced: number; pending: number };
+  stock: { synced: number; pending: number };
   transactions: { synced: number; pending: number; rejected: number };
 }
 
@@ -37,14 +38,14 @@ interface SyncState {
   rejectedTransactions: RejectedTransaction[];
 
   entityCounts: EntityCounts;
-  selectedEntities: Set<'products' | 'categories' | 'transactions'>;
+  selectedEntities: Set<'products' | 'categories' | 'transactions' | 'stock'>;
   isAutoRefreshing: boolean;
   pendingTransactions: PendingTransaction[];
   pendingTotal: number;
 
   lastError: string | null;
 
-  fullSync: (entities?: Array<'products' | 'categories' | 'transactions'>) => Promise<SyncResult>;
+  fullSync: (entities?: Array<'products' | 'categories' | 'transactions' | 'stock'>) => Promise<SyncResult>;
   pullChanges: () => Promise<SyncResult>;
   pushTransactions: () => Promise<SyncResult>;
   sync: () => Promise<SyncResult>;
@@ -58,7 +59,7 @@ interface SyncState {
   retryPending: (clientId: string) => Promise<boolean>;
   clearPending: (clientId?: string) => Promise<boolean>;
   clearError: () => void;
-  toggleEntity: (entity: 'products' | 'categories' | 'transactions') => void;
+  toggleEntity: (entity: 'products' | 'categories' | 'transactions' | 'stock') => void;
   selectAllEntities: () => void;
   clearEntitySelection: () => void;
   setAutoRefreshing: (enabled: boolean) => void;
@@ -74,6 +75,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
   entityCounts: {
     categories: { synced: 0, pending: 0 },
     products: { synced: 0, pending: 0 },
+    stock: { synced: 0, pending: 0 },
     transactions: { synced: 0, pending: 0, rejected: 0 },
   },
   selectedEntities: new Set(['products', 'categories', 'transactions']),
