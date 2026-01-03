@@ -4,6 +4,8 @@
 
 **Implemented** - Completed on 2026-01-02
 
+> **Business Context**: See [Customer Display PRD](../prd/customer-display-prd.md) for product requirements, user personas, goals, and success metrics. This document covers technical implementation details.
+
 ## Overview
 
 The Customer Display feature provides a read-only, customer-facing view of the current order. It mirrors the cart in real-time and displays promotional banners, allowing customers to verify their order items and see running totals during the checkout process.
@@ -87,6 +89,17 @@ The Customer Display feature provides a read-only, customer-facing view of the c
   - Discount (if any)
   - Tax
   - TOTAL (large, green, prominent)
+
+## Technical Quick Reference
+
+| Category | Details |
+|----------|---------|
+| Architecture | BroadcastChannel API for cross-tab sync |
+| State Management | Zustand with full cart state |
+| Local Storage | IndexedDB (Dexie.js) for promotions |
+| Route | `/customer-display` (protected) |
+| Sync Triggers | 8 cart mutation events |
+| File Changes | 4 files (see Section 4) |
 
 ## Data Model
 
@@ -374,7 +387,6 @@ See **ADR-0011** for additional implementation notes:
 
 ## Related Documents
 
+- **PRD**: [Customer Display PRD](../prd/customer-display-prd.md) - Product requirements, user personas, goals, success metrics
 - **ADR-0011**: Cross-Tab Cart Synchronization using BroadcastChannel
 - **docs/features/hold-order.md**: Hold Order feature (similar architecture)
-- **apps/web/src/stores/cartStore.ts**: Cart state management
-- **apps/web/src/pages/CustomerDisplay.tsx**: Customer Display component
