@@ -4,6 +4,8 @@
 
 **Implemented** - Completed on 2024-12-31
 
+> **Business Context**: See [Admin Panel PRD](../prd/admin-panel-prd.md) for product requirements, user personas, goals, and success metrics. This document covers technical implementation details.
+
 ## Overview
 
 The Admin Panel is a dedicated web application for system administrators to manage the POS system. It provides centralized control over stores, users, system settings, and cross-store reporting. This separation of concerns keeps the POS web app focused on point-of-sale operations for cashiers and managers.
@@ -436,6 +438,7 @@ CREATE INDEX idx_audit_logs_date ON audit_logs(created_at);
 
 ## Related Documents
 
+- **PRD**: [Admin Panel PRD](../prd/admin-panel-prd.md) - Product requirements, user personas, goals, success metrics
 - **ADR-0005**: Admin Panel Separation (architectural decision)
 - **ADR-0006**: UI Component Sharing Strategy
 - **ADR-0007**: Shared API Client Package
