@@ -4,6 +4,8 @@
 
 **Implemented** - 2025-01-01
 
+> **Business Context**: See [Sync Status Page PRD](../prd/sync-status-page-prd.md) for product requirements, user personas, goals, and success metrics. This document covers technical implementation details.
+
 ## Overview
 
 A dedicated Sync Status page for store managers to monitor and control the offline-first synchronization process. The page displays real-time sync progress per entity (Products, Categories, Transactions) with individual progress bars, entity selection for manual sync operations, and bulk actions for pending/rejected transactions.
@@ -414,6 +416,7 @@ Add new permission:
 
 ## Related Documents
 
+- **PRD**: [Sync Status Page PRD](../prd/sync-status-page-prd.md) - Product requirements, user personas, goals, success metrics
 - **PLAN.md**: Original system plan
 - **docs/adr/0003-browser-compatible-timer-types.md**: Timer types for auto-refresh
 - Sync service implementation: `apps/web/src/services/sync.ts`
