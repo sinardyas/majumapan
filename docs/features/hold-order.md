@@ -4,6 +4,8 @@
 
 **Implemented** - Completed on 2024-12-29
 
+> **Business Context**: See [Hold Order PRD](../prd/hold-order-prd.md) for product requirements, user personas, goals, and success metrics. This document covers technical implementation details.
+
 ## Overview
 
 The Hold Order feature allows cashiers to temporarily save an in-progress order and serve other customers. This is useful when a customer needs to step away (e.g., forgot wallet, needs to get more items) but intends to return and complete their purchase.
@@ -467,4 +469,5 @@ Used for:
 
 ## Related Documents
 
+- **PRD**: [Hold Order PRD](../prd/hold-order-prd.md) - Product requirements, user personas, goals, success metrics
 - **ADR-0004**: Hold Order IndexedDB Persistence (architectural decision)
