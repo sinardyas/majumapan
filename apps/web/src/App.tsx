@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { OfflineBanner } from '@/components/shared/OfflineBanner';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -43,11 +44,34 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
 
 // Layout for authenticated pages
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    const saved = localStorage.getItem('sidebar-collapsed');
+    if (saved !== null) {
+      return JSON.parse(saved);
+    }
+    return window.matchMedia('(max-width: 1279px)').matches;
+  });
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 1279px)');
+    const handler = (e: MediaQueryListEvent) => {
+      setIsCollapsed(e.matches);
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
+
+  const handleToggle = () => {
+    const newState = !isCollapsed;
+    setIsCollapsed(newState);
+    localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <OfflineBanner />
-      <Sidebar />
-      <main className="ml-64 min-h-screen">
+      <Sidebar isCollapsed={isCollapsed} onToggle={handleToggle} />
+      <main className={`min-h-screen transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
         {children}
       </main>
     </div>
