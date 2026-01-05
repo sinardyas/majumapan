@@ -41,7 +41,7 @@ export function OfflineBanner() {
   // Offline banner (yellow)
   if (!isOnline) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-yellow-900 px-4 py-2 text-center font-medium">
+      <div className="sticky top-0 left-0 right-0 z-40 bg-yellow-500 text-yellow-900 px-4 py-2 text-center font-medium">
         <span className="inline-flex items-center gap-2">
           <svg
             className="h-5 w-5"
@@ -65,7 +65,7 @@ export function OfflineBanner() {
   // Syncing after reconnection (blue with spinner)
   if (isSyncingAfterReconnect) {
     return (
-      <div className="fixed top-0 left-0 right-0 z-50 bg-blue-500 text-white px-4 py-2 text-center font-medium">
+      <div className="sticky top-0 left-0 right-0 z-40 bg-blue-500 text-white px-4 py-2 text-center font-medium">
         <span className="inline-flex items-center gap-2">
           <svg 
             className="animate-spin h-5 w-5" 
@@ -95,7 +95,7 @@ export function OfflineBanner() {
 
   // Sync complete (green, auto-dismisses after 2.5s)
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-green-500 text-white px-4 py-2 text-center font-medium">
+    <div className="sticky top-0 left-0 right-0 z-40 bg-green-500 text-white px-4 py-2 text-center font-medium">
       <span className="inline-flex items-center gap-2">
         <svg
           className="h-5 w-5"

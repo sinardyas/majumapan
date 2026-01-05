@@ -60,6 +60,12 @@ function transformProduct(p: Record<string, unknown>): LocalProduct {
     imageUrl: (p.imageUrl as string) || null,
     imageBase64: (p.imageBase64 as string) || null,
     isActive: (p.isActive as boolean) ?? true,
+    hasPromo: (p.hasPromo as boolean) ?? false,
+    promoType: (p.promoType as 'percentage' | 'fixed') || null,
+    promoValue: toNumber(p.promoValue as string | number | null),
+    promoMinQty: (p.promoMinQty as number) ?? 1,
+    promoStartDate: (p.promoStartDate as string) || null,
+    promoEndDate: (p.promoEndDate as string) || null,
     createdAt: p.createdAt as string,
     updatedAt: p.updatedAt as string,
   };

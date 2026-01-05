@@ -25,7 +25,7 @@ import { CartView } from '@/components/pos/CartView';
 import type { PaymentMethod } from '@pos/shared';
 import { 
   Search, ShoppingCart, Trash2, X, Printer, 
-  AlertTriangle, ClipboardList, Plus, Minus, Box, Monitor
+  AlertTriangle, ClipboardList, Plus, Minus, Box, Monitor, Wifi
 } from 'lucide-react';
 
 export default function POS() {
@@ -36,6 +36,7 @@ export default function POS() {
     discountAmount, 
     taxAmount, 
     total, 
+    totalPromoDiscount,
     cartDiscount,
     addItem, 
     updateItemQuantity, 
@@ -89,6 +90,25 @@ export default function POS() {
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
+  // Helper to check if promo is active
+  const isPromoActive = (product: LocalProduct): boolean => {
+    if (!product.hasPromo) return false;
+    const now = new Date();
+    if (product.promoStartDate && new Date(product.promoStartDate) > now) return false;
+    if (product.promoEndDate && new Date(product.promoEndDate) < now) return false;
+    return true;
+  };
+
+  // Helper to get promo label
+  const getPromoLabel = (product: LocalProduct): string | null => {
+    if (!isPromoActive(product) || !product.promoType || !product.promoValue) {
+      return null;
+    }
+    return product.promoType === 'percentage'
+      ? `${product.promoValue}% OFF`
+      : `${formatCurrency(product.promoValue)} OFF`;
+  };
+
   // Barcode scanner handler
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     if (!user?.storeId) return;
@@ -114,6 +134,8 @@ export default function POS() {
         return;
       }
       
+      const hasActivePromo = isPromoActive(product);
+      
       addItem({
         productId: product.id,
         productName: product.name,
@@ -121,6 +143,9 @@ export default function POS() {
         quantity: 1,
         unitPrice: product.price,
         discountValue: 0,
+        promoType: hasActivePromo ? product.promoType ?? undefined : undefined,
+        promoValue: hasActivePromo ? product.promoValue ?? undefined : undefined,
+        promoMinQty: hasActivePromo ? product.promoMinQty : undefined,
       });
     } else {
       console.warn('Product not found for barcode:', barcode);
@@ -139,12 +164,8 @@ export default function POS() {
       }
 
       try {
-	console.log('>>>>> user.storeId ', user.storeId);
         // Load store info
         const store = await db.store.get(user.storeId);
-
-
-	console.log('>>>>> store ', store);
 
         if (store) {
           setStoreName(store.name);
@@ -158,7 +179,6 @@ export default function POS() {
           .equals(user.storeId)
           .filter(c => c.isActive === true)
           .toArray();
-	console.log('localCategories', localCategories);
 
         setCategories(localCategories.map(c => ({ id: c.id, name: c.name })));
 
@@ -168,8 +188,6 @@ export default function POS() {
           .equals(user.storeId)
           .filter(p => p.isActive === true)
           .toArray();
-
-	console.log('localProducts', localProducts);
 
         const productsWithStock = await Promise.all(
           localProducts.map(async (product) => {
@@ -183,7 +201,6 @@ export default function POS() {
             };
           })
         );
-	console.log('productsWithStock', productsWithStock);
 
         setProducts(productsWithStock);
       } catch (error) {
@@ -295,6 +312,8 @@ export default function POS() {
   const handleProductClick = (product: LocalProduct & { stockQuantity: number }) => {
     if (product.stockQuantity <= 0) return;
 
+    const hasActivePromo = isPromoActive(product);
+
     addItem({
       productId: product.id,
       productName: product.name,
@@ -302,6 +321,9 @@ export default function POS() {
       quantity: 1,
       unitPrice: product.price,
       discountValue: 0,
+      promoType: hasActivePromo ? product.promoType ?? undefined : undefined,
+      promoValue: hasActivePromo ? product.promoValue ?? undefined : undefined,
+      promoMinQty: hasActivePromo ? product.promoMinQty : undefined,
     });
   };
 
@@ -334,8 +356,9 @@ export default function POS() {
     }
   };
 
-  const handleApplyDiscount = async () => {
-    if (!discountCode.trim() || !user?.storeId) return;
+  const handleApplyDiscount = async (code?: string) => {
+    const codeToUse = code ?? discountCode;
+    if (!codeToUse.trim() || !user?.storeId) return;
     
     setIsApplyingDiscount(true);
     setDiscountError('');
@@ -344,7 +367,7 @@ export default function POS() {
       // Search for discount by code in local DB
       const discount = await db.discounts
         .where('code')
-        .equals(discountCode.toUpperCase())
+        .equals(codeToUse.toUpperCase())
         .filter(d => d.isActive === true)
         .first();
       
@@ -414,7 +437,9 @@ export default function POS() {
         amount: discountValue,
       });
       
-      setDiscountCode('');
+      if (!code) {
+        setDiscountCode('');
+      }
     } catch (error) {
       console.error('Error applying discount:', error);
       setDiscountError('Failed to apply discount');
@@ -779,54 +804,59 @@ export default function POS() {
               </div>
             )}
 
-            {/* Online status indicator */}
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
-              isOnline ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-            }`}>
-              <span className={`h-2 w-2 rounded-full ${
-                isOnline ? 'bg-green-500' : 'bg-yellow-500'
-              }`}></span>
-              {isOnline ? 'Online' : 'Offline'}
-            </div>
+            {/* Right-aligned status elements */}
+            <div className="ml-auto flex items-center gap-2">
+              {/* Online Status Icon */}
+              <div
+                className={`flex items-center justify-center w-10 h-10 rounded-lg cursor-help ${
+                  isOnline ? 'bg-green-100' : 'bg-yellow-100'
+                }`}
+                title={isOnline ? 'Online' : 'Offline'}
+              >
+                <Wifi className={`h-5 w-5 ${isOnline ? 'text-green-600' : 'text-yellow-600'}`} />
+              </div>
 
-            {/* Customer Display Button */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open('/customer-display', '_blank', 'width=1024,height=768')}
-              className="flex items-center gap-2"
-            >
-              <Monitor className="h-4 w-4" />
-              Customer Display
-            </Button>
+              {/* Customer Display Button */}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => window.open('/customer-display', '_blank', 'width=1024,height=768')}
+                title="Customer Display"
+                className="w-10 h-10"
+              >
+                <Monitor className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
-          {/* Categories */}
-          <div className="flex gap-2 overflow-x-auto pb-2">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                !selectedCategory
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-            {categories.map((category) => (
+          {/* Categories - Hidden in Cart View */}
+          {viewMode !== 'cart' && (
+            <div className="flex gap-2 overflow-x-auto pb-2">
               <button
-                key={category.id}
-                onClick={() => setSelectedCategory(category.id)}
+                onClick={() => setSelectedCategory(null)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category.id
+                  !selectedCategory
                     ? 'bg-primary-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                {category.name}
+                All
               </button>
-            ))}
-          </div>
+              {categories.map((category) => (
+                <button
+                  key={category.id}
+                  onClick={() => setSelectedCategory(category.id)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                    selectedCategory === category.id
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category.name}
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         {/* Products Area */}
@@ -856,6 +886,9 @@ export default function POS() {
               onProductSelect={handleProductClick}
               skuInputRef={skuInputRef}
               cashierName={user?.name || 'Unknown'}
+              heldOrdersCount={heldOrdersCount}
+              onOpenHeldOrders={() => setShowHeldOrdersList(true)}
+              totalPromoDiscount={totalPromoDiscount}
             />
           ) : (
             <div className="flex-1 overflow-y-auto p-6">
@@ -875,43 +908,51 @@ export default function POS() {
                 />
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {filteredProducts.map((product) => (
-                    <button
-                      key={product.id}
-                      onClick={() => handleProductClick(product)}
-                      disabled={product.stockQuantity <= 0}
-                      className={`bg-white rounded-xl p-4 text-left transition-all ${
-                        product.stockQuantity <= 0
-                          ? 'opacity-50 cursor-not-allowed'
-                          : 'hover:shadow-md hover:scale-105 cursor-pointer'
-                      }`}
-                    >
-                      {/* Product Image Placeholder */}
-                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                        {product.imageBase64 ? (
-                          <img
-                            src={product.imageBase64}
-                            alt={product.name}
-                            className="w-full h-full object-cover rounded-lg"
-                          />
-                        ) : (
-                          <Box className="h-12 w-12 text-gray-400" />
-                        )}
-                      </div>
-                      <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                      <p className="text-sm text-gray-500">{product.sku}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="font-bold text-primary-600">
-                          {formatCurrency(product.price)}
-                        </span>
-                        <span className={`text-xs ${
-                          product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500'
-                        }`}>
-                          Stock: {product.stockQuantity}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                  {filteredProducts.map((product) => {
+                    const promoLabel = getPromoLabel(product);
+                    const stockClass = product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500';
+                    const buttonClass = product.stockQuantity <= 0 
+                      ? 'opacity-50 cursor-not-allowed' 
+                      : 'hover:shadow-md hover:scale-105 cursor-pointer';
+                    
+                    return (
+                      <button
+                        key={product.id}
+                        onClick={() => handleProductClick(product)}
+                        disabled={product.stockQuantity <= 0}
+                        className={`bg-white rounded-xl p-4 text-left transition-all ${buttonClass}`}
+                      >
+                        {/* Product Image Placeholder */}
+                        <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center relative">
+                          {product.imageBase64 ? (
+                            <img
+                              src={product.imageBase64}
+                              alt={product.name}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          ) : (
+                            <Box className="h-12 w-12 text-gray-400" />
+                          )}
+                          {/* Promo Badge */}
+                          {promoLabel && (
+                            <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                              {promoLabel}
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                        <p className="text-sm text-gray-500">{product.sku}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="font-bold text-primary-600">
+                            {formatCurrency(product.price)}
+                          </span>
+                          <span className={`text-xs ${stockClass}`}>
+                            Stock: {product.stockQuantity}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1039,14 +1080,14 @@ export default function POS() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        handleApplyDiscount();
+                        handleApplyDiscount(undefined);
                       }
                     }}
                   />
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleApplyDiscount}
+                    onClick={() => handleApplyDiscount()}
                     disabled={isApplyingDiscount || !discountCode.trim()}
                   >
                     {isApplyingDiscount ? '...' : 'Apply'}
