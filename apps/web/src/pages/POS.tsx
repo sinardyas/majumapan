@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore, type CartDiscount } from '@/stores/cartStore';
 import { 
@@ -18,6 +18,10 @@ import { Receipt } from '@/components/pos/Receipt';
 import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
 import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
 import { ResumeConfirmModal } from '@/components/pos/ResumeConfirmModal';
+import { ViewToggle } from '@/components/pos/ViewToggle';
+import { ProductList } from '@/components/pos/ProductList';
+import { SkuSearchPopover } from '@/components/pos/SkuSearchPopover';
+import { CartView } from '@/components/pos/CartView';
 import type { PaymentMethod } from '@pos/shared';
 import { 
   Search, ShoppingCart, Trash2, X, Printer, 
@@ -51,6 +55,14 @@ export default function POS() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  
+  // View mode state
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'cart'>('grid');
+  const [skuSearchQuery, setSkuSearchQuery] = useState('');
+  const [skuSearchOpen, setSkuSearchOpen] = useState(false);
+  const [listSelectedIndex, setListSelectedIndex] = useState(0);
+  const [popoverSelectedIndex, setPopoverSelectedIndex] = useState(0);
+  const skuInputRef = useRef<HTMLInputElement>(null);
   
   // Discount code state
   const [discountCode, setDiscountCode] = useState('');
@@ -207,6 +219,69 @@ export default function POS() {
     initHeldOrders();
   }, [user?.storeId, user?.id]);
 
+  // Load saved view mode from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('pos-view-mode') as 'grid' | 'list';
+    if (saved) {
+      setViewMode(saved);
+    }
+  }, []);
+
+  // Save view mode to localStorage
+  useEffect(() => {
+    localStorage.setItem('pos-view-mode', viewMode);
+  }, [viewMode]);
+
+  // Handle F2 shortcut for view toggle (cycles through Grid -> List -> Cart -> Grid)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2') {
+        e.preventDefault();
+        setViewMode(prev => {
+          switch (prev) {
+            case 'grid': return 'list';
+            case 'list': return 'cart';
+            case 'cart': return 'grid';
+          }
+        });
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Auto-focus SKU input when switching to List or Cart View
+  useEffect(() => {
+    if (viewMode === 'list' || viewMode === 'cart') {
+      skuInputRef.current?.focus();
+    }
+  }, [viewMode]);
+
+  // SKU search debounce and popover control
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (skuSearchQuery.trim()) {
+        setSkuSearchOpen(true);
+      } else {
+        setSkuSearchOpen(false);
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [skuSearchQuery]);
+
+  // SKU search results
+  const skuSearchResults = useMemo(() => {
+    if (!skuSearchQuery.trim()) return [];
+    const query = skuSearchQuery.toLowerCase();
+    return products
+      .filter(product =>
+        product.sku.toLowerCase().includes(query) ||
+        product.barcode?.toLowerCase().includes(query) ||
+        product.name.toLowerCase().includes(query)
+      )
+      .slice(0, 10);
+  }, [skuSearchQuery, products]);
+
   // Filter products
   const filteredProducts = products.filter((product) => {
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
@@ -228,6 +303,35 @@ export default function POS() {
       unitPrice: product.price,
       discountValue: 0,
     });
+  };
+
+  // Popover keyboard handler
+  const handlePopoverKeyDown = (e: React.KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowUp':
+        e.preventDefault();
+        setPopoverSelectedIndex(prev => Math.max(0, prev - 1));
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        setPopoverSelectedIndex(prev =>
+          Math.min(skuSearchResults.length - 1, prev + 1)
+        );
+        break;
+      case 'Enter':
+        e.preventDefault();
+        if (skuSearchResults[popoverSelectedIndex]) {
+          handleProductClick(skuSearchResults[popoverSelectedIndex]);
+          setSkuSearchOpen(false);
+          setSkuSearchQuery('');
+        }
+        break;
+      case 'Escape':
+        e.preventDefault();
+        setSkuSearchOpen(false);
+        skuInputRef.current?.focus();
+        break;
+    }
   };
 
   const handleApplyDiscount = async () => {
@@ -616,19 +720,64 @@ export default function POS() {
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <input
-                type="text"
-                placeholder="Search products or scan barcode..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="input pl-10"
-                autoFocus
-              />
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-            </div>
+          <div className="flex items-center gap-4 mb-4">
+            {/* View Toggle */}
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+
+            {/* Search - Grid View */}
+            {viewMode === 'grid' && (
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  placeholder="Search products or scan barcode..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="input pl-10"
+                  autoFocus
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              </div>
+            )}
+
+            {/* SKU Search - List View */}
+            {viewMode === 'list' && (
+              <div className="flex-1 relative">
+                <input
+                  ref={skuInputRef}
+                  type="text"
+                  placeholder="Enter SKU or barcode..."
+                  value={skuSearchQuery}
+                  onChange={(e) => setSkuSearchQuery(e.target.value)}
+                  onKeyDown={handlePopoverKeyDown}
+                  className="input pl-10"
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                {skuSearchQuery && (
+                  <button
+                    onClick={() => {
+                      setSkuSearchQuery('');
+                      setSkuSearchOpen(false);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                <SkuSearchPopover
+                  query={skuSearchQuery}
+                  isOpen={skuSearchOpen}
+                  onClose={() => {
+                    setSkuSearchOpen(false);
+                    skuInputRef.current?.focus();
+                  }}
+                  products={skuSearchResults}
+                  selectedIndex={popoverSelectedIndex}
+                  onSelect={handleProductClick}
+                  onSelectIndex={setPopoverSelectedIndex}
+                  anchorRef={skuInputRef}
+                />
+              </div>
+            )}
 
             {/* Online status indicator */}
             <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
@@ -653,7 +802,7 @@ export default function POS() {
           </div>
 
           {/* Categories */}
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
+          <div className="flex gap-2 overflow-x-auto pb-2">
             <button
               onClick={() => setSelectedCategory(null)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
@@ -680,61 +829,99 @@ export default function POS() {
           </div>
         </header>
 
-        {/* Products Grid */}
-        <div className="flex-1 overflow-y-auto p-6">
-          {filteredProducts.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <p>No products found</p>
-              {!isOnline && (
-                <p className="text-sm mt-2">Sync data when online to load products</p>
-              )}
-            </div>
+        {/* Products Area */}
+        <div className="flex-1 overflow-hidden">
+          {viewMode === 'cart' ? (
+            <CartView
+              items={items}
+              subtotal={subtotal}
+              discountAmount={discountAmount}
+              taxAmount={taxAmount}
+              total={total}
+              cartDiscount={cartDiscount}
+              onUpdateQuantity={updateItemQuantity}
+              onRemoveItem={removeItem}
+              onApplyDiscount={handleApplyDiscount}
+              onRemoveDiscount={removeDiscount}
+              onClearCart={clearCart}
+              onHoldOrder={() => setShowHoldModal(true)}
+              onPay={() => setShowPaymentModal(true)}
+              skuSearchQuery={skuSearchQuery}
+              setSkuSearchQuery={setSkuSearchQuery}
+              skuSearchOpen={skuSearchOpen}
+              setSkuSearchOpen={setSkuSearchOpen}
+              skuSearchResults={skuSearchResults}
+              popoverSelectedIndex={popoverSelectedIndex}
+              setPopoverSelectedIndex={setPopoverSelectedIndex}
+              onProductSelect={handleProductClick}
+              skuInputRef={skuInputRef}
+              cashierName={user?.name || 'Unknown'}
+            />
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleProductClick(product)}
-                  disabled={product.stockQuantity <= 0}
-                  className={`bg-white rounded-xl p-4 text-left transition-all ${
-                    product.stockQuantity <= 0
-                      ? 'opacity-50 cursor-not-allowed'
-                      : 'hover:shadow-md hover:scale-105 cursor-pointer'
-                  }`}
-                >
-                  {/* Product Image Placeholder */}
-                  <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
-                    {product.imageBase64 ? (
-                      <img
-                        src={product.imageBase64}
-                        alt={product.name}
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                    ) : (
-                      <Box className="h-12 w-12 text-gray-400" />
-                    )}
-                  </div>
-                  <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                  <p className="text-sm text-gray-500">{product.sku}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="font-bold text-primary-600">
-                      {formatCurrency(product.price)}
-                    </span>
-                    <span className={`text-xs ${
-                      product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500'
-                    }`}>
-                      Stock: {product.stockQuantity}
-                    </span>
-                  </div>
-                </button>
-              ))}
+            <div className="flex-1 overflow-y-auto p-6">
+              {filteredProducts.length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <p>No products found</p>
+                  {!isOnline && (
+                    <p className="text-sm mt-2">Sync data when online to load products</p>
+                  )}
+                </div>
+              ) : viewMode === 'list' ? (
+                <ProductList
+                  products={filteredProducts}
+                  selectedIndex={listSelectedIndex}
+                  onSelect={handleProductClick}
+                  onSelectIndex={setListSelectedIndex}
+                />
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                  {filteredProducts.map((product) => (
+                    <button
+                      key={product.id}
+                      onClick={() => handleProductClick(product)}
+                      disabled={product.stockQuantity <= 0}
+                      className={`bg-white rounded-xl p-4 text-left transition-all ${
+                        product.stockQuantity <= 0
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:shadow-md hover:scale-105 cursor-pointer'
+                      }`}
+                    >
+                      {/* Product Image Placeholder */}
+                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center">
+                        {product.imageBase64 ? (
+                          <img
+                            src={product.imageBase64}
+                            alt={product.name}
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                        ) : (
+                          <Box className="h-12 w-12 text-gray-400" />
+                        )}
+                      </div>
+                      <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                      <p className="text-sm text-gray-500">{product.sku}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="font-bold text-primary-600">
+                          {formatCurrency(product.price)}
+                        </span>
+                        <span className={`text-xs ${
+                          product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500'
+                        }`}>
+                          Stock: {product.stockQuantity}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* Cart Section */}
-      <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+      {/* Cart Section - Hidden in Cart View */}
+      {!showPaymentModal && !showReceipt && !showHoldModal && viewMode !== 'cart' && (
+        <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
         {/* Cart Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <div>
@@ -929,6 +1116,7 @@ export default function POS() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Payment Modal */}
       <PaymentModal
