@@ -12,6 +12,8 @@ import auditLogs from './audit-logs';
 import data from './data';
 import settings from './settings';
 import reports from './reports';
+import promotions from './promotions';
+import upload from './upload';
 
 const routes = new Hono();
 
@@ -29,6 +31,8 @@ routes.route('/audit-logs', auditLogs);
 routes.route('/data', data);
 routes.route('/settings', settings);
 routes.route('/reports', reports);
+routes.route('/promotions', promotions);
+routes.route('/upload', upload);
 
 // Health check
 routes.get('/health', (c) => {

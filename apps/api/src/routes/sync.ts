@@ -7,6 +7,7 @@ import {
   products,
   stock,
   discounts,
+  promotions,
   transactions,
   transactionItems,
   syncLog,
@@ -93,6 +94,10 @@ syncRouter.get('/full', requirePermission('sync:full'), async (c) => {
       result.discounts = validDiscounts;
     }
 
+    if (entities.length === 0 || entities.includes('promotions')) {
+      result.promotions = await db.query.promotions.findMany();
+    }
+
     result.lastSyncTimestamp = lastSyncTimestamp;
 
     return c.json({
@@ -137,6 +142,7 @@ syncRouter.get('/pull', requirePermission('sync:pull'), async (c) => {
       products: { created: [] as typeof allProducts, updated: [] as typeof allProducts, deleted: [] as string[] },
       stock: { updated: [] as typeof allStock },
       discounts: { created: [] as typeof allDiscounts, updated: [] as typeof allDiscounts, deleted: [] as string[] },
+      promotions: { created: [] as typeof allPromotions, updated: [] as typeof allPromotions, deleted: [] as string[] },
     };
 
     // Process sync entries
@@ -203,6 +209,23 @@ syncRouter.get('/pull', requirePermission('sync:pull'), async (c) => {
                 changes.discounts.created.push(discount);
               } else {
                 changes.discounts.updated.push(discount);
+              }
+            }
+          }
+          break;
+
+        case 'promotion':
+          if (entry.action === 'delete') {
+            changes.promotions.deleted.push(entry.entityId);
+          } else {
+            const promotion = await db.query.promotions.findFirst({
+              where: eq(promotions.id, entry.entityId),
+            });
+            if (promotion) {
+              if (entry.action === 'create') {
+                changes.promotions.created.push(promotion);
+              } else {
+                changes.promotions.updated.push(promotion);
               }
             }
           }
@@ -468,6 +491,9 @@ syncRouter.get('/status', requirePermission('sync:status'), async (c) => {
         eq(transactions.syncStatus, 'rejected')
       ));
 
+    const [promotionCount] = await db.select({ count: sql<number>`count(*)` })
+      .from(promotions);
+
     const lastSync = await db.query.syncLog.findFirst({
       where: eq(syncLog.storeId, storeId),
       orderBy: (syncLog, { desc }) => [desc(syncLog.timestamp)],
@@ -494,6 +520,10 @@ syncRouter.get('/status', requirePermission('sync:status'), async (c) => {
             synced: Number(syncedTransactionCount.count),
             pending: Number(pendingTransactionCount.count),
             rejected: Number(rejectedTransactionCount.count),
+          },
+          promotions: {
+            synced: Number(promotionCount.count),
+            pending: 0,
           },
         },
         lastSyncTimestamp: lastSync?.timestamp?.toISOString() || null,
@@ -665,8 +695,10 @@ type CategoryType = Awaited<ReturnType<typeof db.query.categories.findMany>>;
 type ProductType = Awaited<ReturnType<typeof db.query.products.findMany>>;
 type StockType = Awaited<ReturnType<typeof db.query.stock.findMany>>;
 type DiscountType = Awaited<ReturnType<typeof db.query.discounts.findMany>>;
+type PromotionType = Awaited<ReturnType<typeof db.query.promotions.findMany>>;
 
 const allCategories: CategoryType = [];
 const allProducts: ProductType = [];
 const allStock: StockType = [];
 const allDiscounts: DiscountType = [];
+const allPromotions: PromotionType = [];

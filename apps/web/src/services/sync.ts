@@ -12,6 +12,7 @@ import {
   type LocalDiscount,
   type LocalTransaction,
   type LocalStore,
+  type LocalPromotion,
 } from '@/db';
 import { LOCAL_RETENTION_DAYS } from '@pos/shared';
 
@@ -92,6 +93,29 @@ function transformDiscount(d: Record<string, unknown>): LocalDiscount {
   };
 }
 
+/**
+ * Transforms a promotion from API response to local storage format.
+ */
+function transformPromotion(p: Record<string, unknown>): LocalPromotion {
+  return {
+    id: p.id as string,
+    storeId: (p.storeId as string) || null,
+    name: p.name as string,
+    description: (p.description as string) || null,
+    bannerImageUrl: p.bannerImageUrl as string,
+    discountId: (p.discountId as string) || null,
+    colorTheme: p.colorTheme as string,
+    displayPriority: (p.displayPriority as number) ?? 0,
+    displayDuration: (p.displayDuration as number) ?? 5,
+    showOnDisplay: (p.showOnDisplay as boolean) ?? true,
+    startDate: (p.startDate as string) || null,
+    endDate: (p.endDate as string) || null,
+    isActive: (p.isActive as boolean) ?? true,
+    createdAt: p.createdAt as string,
+    updatedAt: p.updatedAt as string,
+  };
+}
+
 // API response types
 interface FullSyncResponse {
   store: LocalStore;
@@ -99,6 +123,7 @@ interface FullSyncResponse {
   products: LocalProduct[];
   stock: LocalStock[];
   discounts: (LocalDiscount & { productIds?: string[] })[];
+  promotions: LocalPromotion[];
   lastSyncTimestamp: string;
 }
 
@@ -108,6 +133,7 @@ interface PullSyncResponse {
     products: { created: LocalProduct[]; updated: LocalProduct[]; deleted: string[] };
     stock: { updated: LocalStock[] };
     discounts: { created: LocalDiscount[]; updated: LocalDiscount[]; deleted: string[] };
+    promotions: { created: LocalPromotion[]; updated: LocalPromotion[]; deleted: string[] };
   };
   lastSyncTimestamp: string;
 }
@@ -134,6 +160,7 @@ interface SyncStatusResponse {
     products: { synced: number; pending: number };
     stock: { synced: number; pending: number };
     transactions: { synced: number; pending: number; rejected: number };
+    promotions: { synced: number; pending: number };
   };
   lastSyncTimestamp: string | null;
   serverTime: string;
@@ -176,11 +203,11 @@ class SyncService {
         return { success: false, error: response.error || 'Failed to fetch data' };
       }
 
-      const { store, categories, products, stock, discounts, lastSyncTimestamp } = response.data;
+      const { store, categories, products, stock, discounts, promotions, lastSyncTimestamp } = response.data;
 
       // Clear existing data and insert new data in a transaction
       await db.transaction('rw',
-        [db.store, db.categories, db.products, db.stock, db.discounts],
+        [db.store, db.categories, db.products, db.stock, db.discounts, db.promotions],
         async () => {
           // Clear existing data
           await db.store.clear();
@@ -188,6 +215,7 @@ class SyncService {
           await db.products.clear();
           await db.stock.clear();
           await db.discounts.clear();
+          await db.promotions.clear();
 
           // Insert store
           if (store) {
@@ -218,6 +246,13 @@ class SyncService {
           if (discounts?.length > 0) {
             await db.discounts.bulkPut(
               discounts.map(d => transformDiscount(d as unknown as Record<string, unknown>))
+            );
+          }
+
+          // Insert promotions
+          if (promotions?.length > 0) {
+            await db.promotions.bulkPut(
+              promotions.map(p => transformPromotion(p as unknown as Record<string, unknown>))
             );
           }
         }
@@ -265,7 +300,7 @@ class SyncService {
 
       // Apply changes in a transaction
       await db.transaction('rw', 
-        [db.categories, db.products, db.stock, db.discounts], 
+        [db.categories, db.products, db.stock, db.discounts, db.promotions], 
         async () => {
           // Categories
           if (changes.categories.created.length > 0) {
@@ -311,6 +346,21 @@ class SyncService {
           }
           if (changes.discounts.deleted.length > 0) {
             await db.discounts.bulkDelete(changes.discounts.deleted);
+          }
+
+          // Promotions
+          if (changes.promotions.created.length > 0) {
+            await db.promotions.bulkPut(
+              changes.promotions.created.map(p => transformPromotion(p as unknown as Record<string, unknown>))
+            );
+          }
+          if (changes.promotions.updated.length > 0) {
+            await db.promotions.bulkPut(
+              changes.promotions.updated.map(p => transformPromotion(p as unknown as Record<string, unknown>))
+            );
+          }
+          if (changes.promotions.deleted.length > 0) {
+            await db.promotions.bulkDelete(changes.promotions.deleted);
           }
         }
       );

@@ -15,37 +15,77 @@ discountsRouter.use('*', authMiddleware);
 discountsRouter.get('/', requirePermission('discounts:read'), async (c) => {
   try {
     const user = c.get('user');
-    const storeId = c.req.query('storeId') || user.storeId;
+    const requestedStoreId = c.req.query('storeId');
     const scope = c.req.query('scope'); // 'product' or 'cart'
     const activeOnly = c.req.query('activeOnly') !== 'false';
 
-    if (!storeId) {
-      return c.json({ success: false, error: 'Store ID is required' }, 400);
+    const canAccessAllStores = user.role === 'admin';
+
+    let discountList;
+
+    if (requestedStoreId) {
+      // Specific store requested
+      if (user.role !== 'admin' && requestedStoreId !== user.storeId) {
+        return c.json({ success: false, error: 'Access denied' }, 403);
+      }
+
+      const conditions = [eq(discounts.storeId, requestedStoreId)];
+
+      if (activeOnly) {
+        conditions.push(eq(discounts.isActive, true));
+      }
+
+      if (scope === 'product' || scope === 'cart') {
+        conditions.push(eq(discounts.discountScope, scope));
+      }
+
+      discountList = await db.query.discounts.findMany({
+        where: and(...conditions),
+        orderBy: (discounts, { desc }) => [desc(discounts.createdAt)],
+      });
+    } else if (canAccessAllStores && !user.storeId) {
+      // Admin without storeId - return ALL discounts
+      const conditions = [];
+
+      if (activeOnly) {
+        conditions.push(eq(discounts.isActive, true));
+      }
+
+      if (scope === 'product' || scope === 'cart') {
+        conditions.push(eq(discounts.discountScope, scope));
+      }
+
+      discountList = await db.query.discounts.findMany({
+        where: conditions.length > 0 ? and(...conditions) : undefined,
+        orderBy: (discounts, { desc }) => [desc(discounts.createdAt)],
+      });
+    } else {
+      // No storeId in query, use user's store
+      const effectiveStoreId = user.storeId || requestedStoreId;
+
+      if (!effectiveStoreId) {
+        return c.json({ success: false, error: 'Store ID is required' }, 400);
+      }
+
+      const conditions = [eq(discounts.storeId, effectiveStoreId)];
+
+      if (activeOnly) {
+        conditions.push(eq(discounts.isActive, true));
+      }
+
+      if (scope === 'product' || scope === 'cart') {
+        conditions.push(eq(discounts.discountScope, scope));
+      }
+
+      discountList = await db.query.discounts.findMany({
+        where: and(...conditions),
+        orderBy: (discounts, { desc }) => [desc(discounts.createdAt)],
+      });
     }
-
-    // Non-admins can only access their store's discounts
-    if (user.role !== 'admin' && storeId !== user.storeId) {
-      return c.json({ success: false, error: 'Access denied' }, 403);
-    }
-
-    const conditions = [eq(discounts.storeId, storeId)];
-
-    if (activeOnly) {
-      conditions.push(eq(discounts.isActive, true));
-    }
-
-    if (scope === 'product' || scope === 'cart') {
-      conditions.push(eq(discounts.discountScope, scope));
-    }
-
-    const allDiscounts = await db.query.discounts.findMany({
-      where: and(...conditions),
-      orderBy: (discounts, { desc }) => [desc(discounts.createdAt)],
-    });
 
     return c.json({
       success: true,
-      data: allDiscounts,
+      data: discountList,
     });
   } catch (error) {
     console.error('List discounts error:', error);

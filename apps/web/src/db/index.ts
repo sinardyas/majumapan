@@ -143,6 +143,35 @@ export interface HeldOrder {
   expiresAt: string;
 }
 
+export interface LocalPromotion {
+  id: string;
+  storeId: string | null;
+  name: string;
+  description: string | null;
+  bannerImageUrl: string;
+  discountId: string | null;
+  colorTheme: string;
+  displayPriority: number;
+  displayDuration: number;
+  showOnDisplay: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Color themes for promotions
+export const COLOR_THEMES = [
+  { id: 'sunset-orange', name: 'Sunset Orange', primaryColor: '#F97316', secondaryColor: '#EA580C' },
+  { id: 'ocean-blue', name: 'Ocean Blue', primaryColor: '#0EA5E9', secondaryColor: '#0284C7' },
+  { id: 'forest-green', name: 'Forest Green', primaryColor: '#22C55E', secondaryColor: '#16A34A' },
+  { id: 'royal-purple', name: 'Royal Purple', primaryColor: '#A855F7', secondaryColor: '#9333EA' },
+  { id: 'cherry-red', name: 'Cherry Red', primaryColor: '#EF4444', secondaryColor: '#DC2626' },
+] as const;
+
+export type ColorThemeId = typeof COLOR_THEMES[number]['id'];
+
 class PosDatabase extends Dexie {
   categories!: Table<LocalCategory>;
   products!: Table<LocalProduct>;
@@ -152,6 +181,7 @@ class PosDatabase extends Dexie {
   syncMeta!: Table<SyncMeta>;
   store!: Table<LocalStore>;
   heldOrders!: Table<HeldOrder>;
+  promotions!: Table<LocalPromotion>;
 
   constructor() {
     super('pos-database');
@@ -203,6 +233,20 @@ class PosDatabase extends Dexie {
       syncMeta: 'key',
       store: 'id',
       heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
+    });
+
+    // Version 6: Make promotions.storeId nullable (promotions are now global)
+    // See docs/features/promotions.md
+    this.version(6).stores({
+      categories: 'id, storeId, name',
+      products: 'id, storeId, categoryId, sku, barcode, name',
+      stock: 'id, storeId, productId, [storeId+productId]',
+      discounts: 'id, storeId, code, discountScope',
+      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
+      syncMeta: 'key',
+      store: 'id',
+      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
+      promotions: 'id, displayPriority, showOnDisplay, isActive',
     });
   }
 }

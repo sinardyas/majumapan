@@ -1,0 +1,1 @@
+export { PromotionCarousel } from './PromotionCarousel';

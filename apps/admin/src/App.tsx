@@ -12,6 +12,7 @@ const Reports = lazy(() => import('@/pages/Reports'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const DataManagement = lazy(() => import('@/pages/DataManagement'));
+const Promotions = lazy(() => import('@/pages/Promotions'));
 
 
 function Loading({ children }: { children: ReactNode }) {
@@ -91,6 +92,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><DataManagement /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/promotions"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Promotions /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

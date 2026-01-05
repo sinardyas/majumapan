@@ -139,6 +139,28 @@ export const productDiscounts = pgTable('product_discounts', {
   uniqueIndex('idx_product_discounts_unique').on(table.discountId, table.productId),
 ]);
 
+// Promotions (for Customer Display carousel)
+export const promotions = pgTable('promotions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').references(() => stores.id),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  bannerImageUrl: text('banner_image_url').notNull(),
+  discountId: uuid('discount_id').references(() => discounts.id),
+  colorTheme: varchar('color_theme', { length: 50 }).default('sunset-orange'),
+  displayPriority: integer('display_priority').default(0),
+  displayDuration: integer('display_duration').default(5),
+  showOnDisplay: boolean('show_on_display').default(true),
+  startDate: timestamp('start_date'),
+  endDate: timestamp('end_date'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_promotions_priority').on(table.displayPriority),
+  index('idx_promotions_active').on(table.isActive, table.showOnDisplay),
+]);
+
 // Transactions
 export const transactions = pgTable('transactions', {
   id: uuid('id').primaryKey().defaultRandom(),

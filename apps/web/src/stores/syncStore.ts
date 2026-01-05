@@ -29,6 +29,7 @@ interface EntityCounts {
   products: { synced: number; pending: number };
   stock: { synced: number; pending: number };
   transactions: { synced: number; pending: number; rejected: number };
+  promotions: { synced: number; pending: number };
 }
 
 interface SyncState {
@@ -77,6 +78,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     products: { synced: 0, pending: 0 },
     stock: { synced: 0, pending: 0 },
     transactions: { synced: 0, pending: 0, rejected: 0 },
+    promotions: { synced: 0, pending: 0 },
   },
   selectedEntities: new Set(['products', 'categories', 'transactions']),
   isAutoRefreshing: true,

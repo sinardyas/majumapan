@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Database,
   Settings,
+  Megaphone,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -46,6 +47,11 @@ const navItems: NavItem[] = [
     name: 'Audit Logs',
     path: '/audit-logs',
     icon: <ClipboardList className="h-5 w-5" />,
+  },
+  {
+    name: 'Promotions',
+    path: '/promotions',
+    icon: <Megaphone className="h-5 w-5" />,
   },
   {
     name: 'Data Management',
