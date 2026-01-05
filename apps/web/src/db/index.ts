@@ -24,6 +24,12 @@ export interface LocalProduct {
   imageUrl: string | null;
   imageBase64: string | null;
   isActive: boolean;
+  hasPromo: boolean;
+  promoType: 'percentage' | 'fixed' | null;
+  promoValue: number | null;
+  promoMinQty: number;
+  promoStartDate: string | null;
+  promoEndDate: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -197,6 +203,19 @@ class PosDatabase extends Dexie {
     this.version(4).stores({
       categories: 'id, storeId, name',
       products: 'id, storeId, categoryId, sku, barcode, name',
+      stock: 'id, storeId, productId, [storeId+productId]',
+      discounts: 'id, storeId, code, discountScope',
+      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
+      syncMeta: 'key',
+      store: 'id',
+      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
+    });
+
+    // Version 5: Add product promo fields
+    // See Product Bundle Promo FSD: docs/features/product-bundle-promo.md
+    this.version(5).stores({
+      categories: 'id, storeId, name',
+      products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
       stock: 'id, storeId, productId, [storeId+productId]',
       discounts: 'id, storeId, code, discountScope',
       transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',

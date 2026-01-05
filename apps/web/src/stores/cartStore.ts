@@ -21,6 +21,10 @@ export interface CartItem {
   discountId?: string;
   discountName?: string;
   discountValue: number;
+  promoType?: 'percentage' | 'fixed' | null;
+  promoValue?: number;
+  promoMinQty?: number;
+  promoDiscount?: number;
   subtotal: number;
 }
 
@@ -54,6 +58,7 @@ interface CartState {
   discountAmount: number;
   taxAmount: number;
   total: number;
+  totalPromoDiscount: number;
 
   // Hold Order state
   resumedOrderInfo: ResumedOrderInfo | null;
@@ -90,11 +95,46 @@ interface CartSyncMessage {
     discountAmount: number;
     taxAmount: number;
     total: number;
+    totalPromoDiscount: number;
   };
 }
 
+const calculatePromoDiscount = (
+  quantity: number,
+  unitPrice: number,
+  promoType: 'percentage' | 'fixed' | undefined | null,
+  promoValue: number | undefined | null,
+  promoMinQty: number | undefined
+): number => {
+  if (!promoType || !promoValue || !promoMinQty) {
+    return 0;
+  }
+  
+  if (quantity < promoMinQty) {
+    return 0;
+  }
+  
+  const basePrice = unitPrice * quantity;
+  
+  if (promoType === 'percentage') {
+    return Math.round((basePrice * promoValue) / 100 * 100) / 100;
+  } else {
+    return promoValue;
+  }
+};
+
 const calculateItemSubtotal = (item: Omit<CartItem, 'subtotal'>): number => {
-  return (item.unitPrice * item.quantity) - item.discountValue;
+  const basePrice = item.unitPrice * item.quantity;
+  const promoDiscount = calculatePromoDiscount(
+    item.quantity,
+    item.unitPrice,
+    item.promoType,
+    item.promoValue,
+    item.promoMinQty
+  );
+  const cartDiscount = item.discountValue || 0;
+  const totalDiscount = promoDiscount + cartDiscount;
+  return Math.round((basePrice - totalDiscount) * 100) / 100;
 };
 
 function broadcastCartState(state: CartState) {
@@ -109,6 +149,7 @@ function broadcastCartState(state: CartState) {
       discountAmount: state.discountAmount,
       taxAmount: state.taxAmount,
       total: state.total,
+      totalPromoDiscount: state.totalPromoDiscount,
     },
   };
   
@@ -126,6 +167,7 @@ if (channel) {
         discountAmount: payload.discountAmount,
         taxAmount: payload.taxAmount,
         total: payload.total,
+        totalPromoDiscount: payload.totalPromoDiscount,
       });
     }
   };
@@ -138,6 +180,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   discountAmount: 0,
   taxAmount: 0,
   total: 0,
+  totalPromoDiscount: 0,
   resumedOrderInfo: null,
 
   addItem: (newItem) => {
@@ -211,6 +254,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       discountAmount: 0,
       taxAmount: 0,
       total: 0,
+      totalPromoDiscount: 0,
       resumedOrderInfo: null,
     });
     broadcastCartState(get());
@@ -219,8 +263,19 @@ export const useCartStore = create<CartState>((set, get) => ({
   calculateTotals: () => {
     const { items, cartDiscount } = get();
     
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    const discountAmount = cartDiscount?.amount ?? 0;
+    const subtotal = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    const totalPromoDiscount = items.reduce((sum, item) => {
+      const promoDiscount = calculatePromoDiscount(
+        item.quantity,
+        item.unitPrice,
+        item.promoType,
+        item.promoValue,
+        item.promoMinQty
+      );
+      return sum + promoDiscount;
+    }, 0);
+    const cartDiscountAmount = cartDiscount?.amount ?? 0;
+    const discountAmount = totalPromoDiscount + cartDiscountAmount;
     const taxableAmount = subtotal - discountAmount;
     const taxAmount = Math.round(taxableAmount * TAX_RATE * 100) / 100;
     const total = Math.round((taxableAmount + taxAmount) * 100) / 100;
@@ -230,6 +285,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       discountAmount: Math.round(discountAmount * 100) / 100,
       taxAmount,
       total,
+      totalPromoDiscount: Math.round(totalPromoDiscount * 100) / 100,
     });
   },
 

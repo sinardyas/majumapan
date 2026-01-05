@@ -1,5 +1,5 @@
 import { useState, useEffect, KeyboardEvent } from 'react';
-import { Search, X, Trash2, Plus, Minus, Check, Clock, User } from 'lucide-react';
+import { Search, X, Trash2, Plus, Minus, Check, Clock, User, ClipboardList } from 'lucide-react';
 import { Button } from '@pos/ui';
 import type { LocalProduct } from '@/db';
 import type { CartItem, CartDiscount } from '@/stores/cartStore';
@@ -33,6 +33,9 @@ interface CartViewProps {
   onProductSelect: (product: ProductWithStock) => void;
   skuInputRef: React.RefObject<HTMLInputElement>;
   cashierName: string;
+  heldOrdersCount: number;
+  onOpenHeldOrders: () => void;
+  totalPromoDiscount: number;
 }
 
 function formatCurrency(amount: number): string {
@@ -62,6 +65,13 @@ function CartItemCard({
   onUpdateQuantity: (productId: string, quantity: number) => void;
   onRemove: (productId: string) => void;
 }) {
+  const hasPromo = item.promoType && item.promoValue && item.promoMinQty && item.quantity >= item.promoMinQty;
+  const promoLabel = hasPromo && item.promoType && item.promoValue
+    ? item.promoType === 'percentage'
+      ? `${item.promoValue}% OFF`
+      : `${formatCurrency(item.promoValue)} OFF`
+    : null;
+
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
       <div className="flex justify-between items-start">
@@ -69,6 +79,9 @@ function CartItemCard({
           <h4 className="font-medium text-gray-900 truncate">{item.productName}</h4>
           <p className="text-sm text-gray-500">
             {formatCurrency(item.unitPrice)} each
+            {promoLabel && (
+              <span className="ml-2 text-green-600 font-medium">({promoLabel})</span>
+            )}
           </p>
         </div>
         <button
@@ -95,9 +108,16 @@ function CartItemCard({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        <span className="font-bold text-gray-900">
-          {formatCurrency(item.subtotal)}
-        </span>
+        <div className="text-right">
+          <span className="font-bold text-gray-900">
+            {formatCurrency(item.subtotal)}
+          </span>
+          {hasPromo && item.promoDiscount && item.promoDiscount > 0 && (
+            <p className="text-xs text-green-600">
+              Save {formatCurrency(item.promoDiscount)}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -116,6 +136,9 @@ function OrderSummary({
   onClearCart,
   onPay,
   items,
+  heldOrdersCount,
+  onOpenHeldOrders,
+  totalPromoDiscount,
 }: {
   subtotal: number;
   discountAmount: number;
@@ -129,6 +152,9 @@ function OrderSummary({
   onClearCart: () => void;
   onPay: () => void;
   items: CartItem[];
+  heldOrdersCount: number;
+  onOpenHeldOrders: () => void;
+  totalPromoDiscount: number;
 }) {
   const [discountCode, setDiscountCode] = useState('');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
@@ -155,17 +181,32 @@ function OrderSummary({
   return (
     <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* Summary Header */}
-      <div className="p-4 border-b border-gray-200 bg-gray-50">
-        <h3 className="font-semibold text-gray-900 mb-3">Order Summary</h3>
+      <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900">Order Summary</h3>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <User className="h-4 w-4" />
+            <span>{cashierName || 'Unknown Cashier'}</span>
+          </div>
+          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
+            <Clock className="h-4 w-4" />
+            <span>{formatDateTime(currentTime)}</span>
+          </div>
+        </div>
         
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <User className="h-4 w-4" />
-          <span>{cashierName || 'Unknown Cashier'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-          <Clock className="h-4 w-4" />
-          <span>{formatDateTime(currentTime)}</span>
-        </div>
+        {/* Held Orders Button */}
+        <button
+          onClick={onOpenHeldOrders}
+          className="relative p-2 hover:bg-gray-200 rounded-lg transition-colors"
+          title="Held Orders"
+        >
+          <ClipboardList className="h-5 w-5 text-gray-600" />
+          {heldOrdersCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
+              {heldOrdersCount}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Discount Section */}
@@ -214,10 +255,16 @@ function OrderSummary({
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
-          {discountAmount > 0 && (
+          {totalPromoDiscount > 0 && (
             <div className="flex justify-between text-green-600">
-              <span>Discount</span>
-              <span>-{formatCurrency(discountAmount)}</span>
+              <span>Promo Savings</span>
+              <span>-{formatCurrency(totalPromoDiscount)}</span>
+            </div>
+          )}
+          {cartDiscount && discountAmount > 0 && (
+            <div className="flex justify-between text-green-600">
+              <span>{cartDiscount.name}</span>
+              <span>-{formatCurrency(discountAmount - totalPromoDiscount)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-600">
@@ -237,7 +284,7 @@ function OrderSummary({
           <div className="flex gap-2 flex-1">
             <Button
               variant="outline"
-              size="sm"
+              size="lg"
               onClick={onHoldOrder}
               disabled={items.length === 0}
               className="flex-1"
@@ -246,7 +293,7 @@ function OrderSummary({
             </Button>
             <Button
               variant="outline"
-              size="sm"
+              size="lg"
               onClick={onClearCart}
               disabled={items.length === 0}
               className="flex-1"
@@ -255,8 +302,7 @@ function OrderSummary({
             </Button>
           </div>
           <Button
-            variant="success"
-            size="sm"
+            size="lg"
             onClick={onPay}
             disabled={items.length === 0}
             className="flex-1 font-semibold"
@@ -293,6 +339,9 @@ export function CartView({
   onProductSelect,
   skuInputRef,
   cashierName,
+  heldOrdersCount,
+  onOpenHeldOrders,
+  totalPromoDiscount,
 }: CartViewProps) {
   const handlePopoverKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     switch (e.key) {
@@ -328,7 +377,7 @@ export function CartView({
       <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
         {/* SKU Search Input */}
         <div className="p-4 bg-white border-b border-gray-200 shadow-sm flex-shrink-0">
-          <div className="relative max-w-xl">
+          <div className="relative w-full">
             <input
               ref={skuInputRef}
               type="text"
@@ -382,7 +431,7 @@ export function CartView({
               <p className="text-sm text-gray-400 mt-1">Enter a SKU above to add items</p>
             </div>
           ) : (
-            <div className="space-y-3 max-w-2xl mx-auto">
+            <div className="space-y-3 w-full">
               {items.map((item) => (
                 <CartItemCard
                   key={item.productId}
@@ -411,6 +460,9 @@ export function CartView({
           onClearCart={onClearCart}
           onPay={onPay}
           items={items}
+          heldOrdersCount={heldOrdersCount}
+          onOpenHeldOrders={onOpenHeldOrders}
+          totalPromoDiscount={totalPromoDiscount}
         />
       </div>
     </div>
