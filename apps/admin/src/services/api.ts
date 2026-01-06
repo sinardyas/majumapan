@@ -21,6 +21,8 @@ export const dashboardApi = {
     api.get<any>('/reports/sales-by-store', { queryParams: params }),
   getTopStores: (params?: { startDate?: string; endDate?: string; metric?: string }) =>
     api.get<any>('/reports/top-stores', { queryParams: params }),
+  getPromoPerformance: (params?: { startDate?: string; endDate?: string; storeId?: string }) =>
+    api.get<any>('/reports/promo-performance', { queryParams: params }),
   getAuditLogs: (params?: {
     page?: number;
     limit?: number;

@@ -109,6 +109,44 @@ export default function POS() {
       : `${formatCurrency(product.promoValue)} OFF`;
   };
 
+  // Check cart items for expired promos and show warning
+  const checkExpiredPromos = useCallback(async () => {
+    const cartItems = useCartStore.getState().items;
+    if (cartItems.length === 0) return;
+
+    const expiredPromoProducts: string[] = [];
+
+    for (const item of cartItems) {
+      if (!item.promoType) continue;
+
+      // Get the current product from IndexedDB to check promo status
+      const product = await db.products.get(item.productId);
+      if (!product) continue;
+
+      // Check if promo was active when added but has expired
+      const promoWasActive = product.hasPromo && 
+        product.promoType === item.promoType &&
+        product.promoValue === item.promoValue &&
+        product.promoMinQty === item.promoMinQty;
+
+      const promoIsNowInactive = !isPromoActive(product);
+
+      if (promoWasActive && promoIsNowInactive) {
+        expiredPromoProducts.push(item.productName);
+      }
+    }
+
+    if (expiredPromoProducts.length > 0) {
+      const productList = expiredPromoProducts.slice(0, 3).join(', ');
+      const moreText = expiredPromoProducts.length > 3 
+        ? ` and ${expiredPromoProducts.length - 3} more` 
+        : '';
+      toast.warning(
+        `Promo expired for: ${productList}${moreText}. Prices have been recalculated.`
+      );
+    }
+  }, [toast]);
+
   // Barcode scanner handler
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     if (!user?.storeId) return;
@@ -212,6 +250,13 @@ export default function POS() {
 
     loadData();
   }, [user?.storeId]);
+
+  // Check for expired promos in cart after data loads
+  useEffect(() => {
+    if (!isLoading && products.length > 0) {
+      checkExpiredPromos();
+    }
+  }, [isLoading, products.length, checkExpiredPromos]);
 
   // Initialize held orders: cleanup expired and load count
   useEffect(() => {

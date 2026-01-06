@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import {
   LayoutGrid,
+  Package,
   Building,
   Users,
   FileText,
@@ -26,6 +27,11 @@ const navItems: NavItem[] = [
     name: 'Dashboard',
     path: '/',
     icon: <LayoutGrid className="h-5 w-5" />,
+  },
+  {
+    name: 'Products',
+    path: '/products',
+    icon: <Package className="h-5 w-5" />,
   },
   {
     name: 'Stores',

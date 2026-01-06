@@ -1,11 +1,43 @@
 import { useEffect, useRef, KeyboardEvent } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Tag } from 'lucide-react';
 import { Button } from '@pos/ui';
 import { cn } from '@pos/ui';
 import type { LocalProduct } from '@/db';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
+}
+
+function isPromoActive(product: LocalProduct): boolean {
+  if (!product.hasPromo) return false;
+  
+  const now = new Date();
+  
+  if (product.promoStartDate && new Date(product.promoStartDate) > now) {
+    return false;
+  }
+  
+  if (product.promoEndDate && new Date(product.promoEndDate) < now) {
+    return false;
+  }
+  
+  return true;
+}
+
+function getPromoLabel(product: LocalProduct): string | null {
+  if (!product.hasPromo || !product.promoType || product.promoValue === null) {
+    return null;
+  }
+  
+  if (!isPromoActive(product)) {
+    return null;
+  }
+  
+  if (product.promoType === 'percentage') {
+    return `${product.promoValue}% OFF`;
+  } else {
+    return `$${product.promoValue} OFF`;
+  }
 }
 
 interface ProductListProps {
@@ -122,6 +154,15 @@ export function ProductList({
                 <div className="font-medium text-gray-900 truncate max-w-xs">
                   {product.name}
                 </div>
+                {getPromoLabel(product) && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <Tag className="h-3 w-3 text-red-500" />
+                    <span className="text-xs text-red-500 font-medium">
+                      {getPromoLabel(product)}
+                      {product.promoMinQty > 1 && ` (Min ${product.promoMinQty})`}
+                    </span>
+                  </div>
+                )}
               </td>
               <td className="px-4 py-3 text-right font-medium text-gray-900">
                 ${product.price.toFixed(2)}

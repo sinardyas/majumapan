@@ -2,23 +2,22 @@
 
 ## Status
 
-**In Progress - P0 Complete** - 2026-01-05
+**Complete** - 2026-01-06
 
 > **Business Context**: See [Product Bundle Promo PRD](../prd/product-bundle-promo-prd.md) for product requirements, user personas, goals, and success metrics. This document covers technical implementation details.
 
 ## Implementation Summary
 
-**Completed (P0):**
+**Completed (All Phases):**
 - Backend schema with promo fields on products
 - Frontend IndexedDB schema and sync
 - Cart store with promo calculation logic
 - POS UI with promo badges and savings display
 - CartView with promo savings in order summary
-
-**Remaining:**
-- Admin Panel product form promo fields
+- Admin Panel product form with promo fields
 - ProductList promo indicator
-- Promo reporting
+- Expired promo handling with toast notification
+- Promo reporting in admin panel
 
 ## Overview
 
@@ -556,33 +555,40 @@ Add promo usage tracking to admin reports:
 
 ### Phase 5: Admin Reports
 
-**Status:** Pending
+**Status:** Complete ✅
 
-1. ⏳ Add promo usage tracking
-2. ⏳ Create promo performance report
-3. ⏳ Add promo filters to existing reports
-4. ⏳ Test reporting accuracy
+1. ✅ Add promo usage tracking
+2. ✅ Create promo performance report
+3. ✅ Add promo filters to existing reports
+4. ✅ Test reporting accuracy
 
 ## Files to Create/Modify
 
 ### New Files
 
-None (feature builds on existing structures)
+| File | Status | Description |
+|------|--------|-------------|
+| `apps/admin/src/pages/Products.tsx` | ✅ Complete | Admin Panel products management page with promo fields |
 
 ### Modified Files
 
 | File | Status | Description |
 |------|--------|-------------|
 | `apps/api/src/db/schema.ts` | ✅ Complete | Add promo columns to products table |
+| `apps/api/src/routes/reports.ts` | ✅ Complete | Add promo performance API endpoint |
 | `apps/web/src/db/index.ts` | ✅ Complete | Add promo fields to LocalProduct, update schema to v5 |
 | `apps/web/src/stores/cartStore.ts` | ✅ Complete | Add promo to CartItem, implement promo calculation |
-| `apps/web/src/pages/POS.tsx` | ✅ Complete | Pass promo info on add item, show badges |
+| `apps/web/src/pages/POS.tsx` | ✅ Complete | Pass promo info on add item, show badges, expired promo check |
 | `apps/web/src/components/pos/CartView.tsx` | ✅ Complete | Display promo savings in summary |
 | `apps/web/src/services/sync.ts` | ✅ Complete | Update transformProduct to include promo fields |
 | `apps/web/src/components/pos/ViewToggle.tsx` | ✅ Complete | Remove unused List import |
-| `apps/web/src/components/pos/ProductList.tsx` | ⏳ Pending | Show promo indicator in list |
-| `apps/admin/src/pages/Products.tsx` | ⏳ Pending | Add promo fields to product form |
-| `apps/admin/src/pages/Reports.tsx` | ⏳ Pending | Add promo usage reports |
+| `apps/web/src/components/pos/ProductList.tsx` | ✅ Complete | Show promo indicator in list |
+| `packages/shared/src/types/models.ts` | ✅ Complete | Add promo fields to Product interface |
+| `packages/shared/src/schemas/index.ts` | ✅ Complete | Add promo fields to product schemas |
+| `apps/admin/src/App.tsx` | ✅ Complete | Add Products route |
+| `apps/admin/src/components/layout/Sidebar.tsx` | ✅ Complete | Add Products nav item |
+| `apps/admin/src/services/api.ts` | ✅ Complete | Add getPromoPerformance API method |
+| `apps/admin/src/pages/Reports.tsx` | ✅ Complete | Add Promo Performance tab with charts and details |
 
 ## Technical Verification
 
