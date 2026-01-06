@@ -133,6 +133,9 @@ export interface TransactionItem {
   productSku: string;
   quantity: number;
   unitPrice: number;
+  promoType?: 'percentage' | 'fixed' | null;
+  promoValue?: number;
+  promoDiscount?: number;
   discountId: string | null;
   discountName: string | null;
   discountValue: number;

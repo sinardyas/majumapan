@@ -263,7 +263,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   calculateTotals: () => {
     const { items, cartDiscount } = get();
     
-    const subtotal = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
+    const baseSubtotal = items.reduce((sum, item) => sum + (item.unitPrice * item.quantity), 0);
     const totalPromoDiscount = items.reduce((sum, item) => {
       const promoDiscount = calculatePromoDiscount(
         item.quantity,
@@ -275,8 +275,15 @@ export const useCartStore = create<CartState>((set, get) => ({
       return sum + promoDiscount;
     }, 0);
     const cartDiscountAmount = cartDiscount?.amount ?? 0;
-    const discountAmount = totalPromoDiscount + cartDiscountAmount;
-    const taxableAmount = subtotal - discountAmount;
+    
+    // subtotal = base price minus product-level promos
+    const subtotal = baseSubtotal - totalPromoDiscount;
+    
+    // discountAmount = only cart-level discount codes
+    const discountAmount = cartDiscountAmount;
+    
+    // tax and total calculated from (subtotal - cart discount)
+    const taxableAmount = subtotal - cartDiscountAmount;
     const taxAmount = Math.round(taxableAmount * TAX_RATE * 100) / 100;
     const total = Math.round((taxableAmount + taxAmount) * 100) / 100;
 
@@ -311,6 +318,10 @@ export const useCartStore = create<CartState>((set, get) => ({
         productSku: item.productSku,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        promoType: item.promoType,
+        promoValue: item.promoValue,
+        promoMinQty: item.promoMinQty,
+        promoDiscount: item.promoDiscount,
         discountId: item.discountId,
         discountName: item.discountName,
         discountValue: item.discountValue,
@@ -380,6 +391,10 @@ export const useCartStore = create<CartState>((set, get) => ({
       productSku: item.productSku,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
+      promoType: item.promoType,
+      promoValue: item.promoValue,
+      promoMinQty: item.promoMinQty,
+      promoDiscount: item.promoDiscount,
       discountId: item.discountId,
       discountName: item.discountName,
       discountValue: item.discountValue,

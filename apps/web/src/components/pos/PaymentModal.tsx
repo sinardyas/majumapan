@@ -93,9 +93,9 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
       />
       
       {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg mx-4 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
           <h2 className="text-xl font-semibold">Payment</h2>
           <button 
             onClick={onClose}
@@ -107,8 +107,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
           </button>
         </div>
 
-        {/* Content */}
-        <div className="p-6">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto p-6">
           {/* Total */}
           <div className="text-center mb-6">
             <p className="text-sm text-gray-500">Total Amount</p>

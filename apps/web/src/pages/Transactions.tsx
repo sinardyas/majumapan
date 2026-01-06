@@ -268,9 +268,34 @@ export default function Transactions() {
                     <div key={index} className="px-4 py-3 flex justify-between">
                       <div>
                         <p className="font-medium">{item.productName}</p>
-                        <p className="text-sm text-gray-500">
-                          {formatCurrency(item.unitPrice)} x {item.quantity}
-                        </p>
+                        {item.promoType && item.promoValue ? (
+                          <div className="text-sm text-gray-500">
+                            <span className="line-through">{formatCurrency(item.unitPrice)}</span>
+                            {' → '}
+                            <span className="text-green-600 font-medium">
+                              {formatCurrency(item.unitPrice * (1 - item.promoValue / 100))}
+                            </span>
+                            {item.promoType === 'percentage'
+                              ? ` (${item.promoValue}% OFF)`
+                              : ` (${formatCurrency(item.promoValue)} OFF)`
+                            }
+                            <span className="ml-2">x {item.quantity}</span>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            {formatCurrency(item.unitPrice)} x {item.quantity}
+                          </p>
+                        )}
+                        {item.promoDiscount && item.promoDiscount > 0 && (
+                          <p className="text-sm text-green-600">
+                            Promo Savings: -{formatCurrency(item.promoDiscount)}
+                          </p>
+                        )}
+                        {item.discountValue > 0 && (
+                          <p className="text-sm text-green-600">
+                            Disc: -{formatCurrency(item.discountValue)}
+                          </p>
+                        )}
                       </div>
                       <p className="font-medium">{formatCurrency(item.subtotal)}</p>
                     </div>

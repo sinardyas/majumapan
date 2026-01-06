@@ -26,6 +26,13 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
+function toISODateTime(value: string | null | undefined): string | null {
+  if (!value || value === '') return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return null;
+  return date.toISOString();
+}
+
 export default function Products() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -155,8 +162,15 @@ export default function Products() {
     setIsLoading(true);
 
     try {
+      // Convert datetime-local format to ISO 8601
+      const payload = {
+        ...formData,
+        promoStartDate: toISODateTime(formData.promoStartDate),
+        promoEndDate: toISODateTime(formData.promoEndDate),
+      };
+
       if (editingProduct) {
-        const response = await api.put<Product>(`/products/${editingProduct.id}`, formData);
+        const response = await api.put<Product>(`/products/${editingProduct.id}`, payload);
         if (response.success) {
           await fetchProducts(selectedStoreId);
           setShowModal(false);
@@ -164,7 +178,7 @@ export default function Products() {
           resetForm();
         }
       } else {
-        const response = await api.post<Product>('/products', formData);
+        const response = await api.post<Product>('/products', payload);
         if (response.success) {
           await fetchProducts(selectedStoreId);
           setShowModal(false);

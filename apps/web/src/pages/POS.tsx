@@ -36,7 +36,6 @@ export default function POS() {
     discountAmount, 
     taxAmount, 
     total, 
-    totalPromoDiscount,
     cartDiscount,
     addItem, 
     updateItemQuantity, 
@@ -614,6 +613,9 @@ export default function POS() {
         productSku: item.productSku,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
+        promoType: item.promoType,
+        promoValue: item.promoValue,
+        promoDiscount: item.promoDiscount,
         discountId: item.discountId,
         discountName: item.discountName,
         discountValue: item.discountValue,
@@ -933,7 +935,8 @@ export default function POS() {
               cashierName={user?.name || 'Unknown'}
               heldOrdersCount={heldOrdersCount}
               onOpenHeldOrders={() => setShowHeldOrdersList(true)}
-              totalPromoDiscount={totalPromoDiscount}
+              discountError={discountError}
+              setDiscountError={setDiscountError}
             />
           ) : (
             <div className="flex-1 overflow-y-auto p-6">
@@ -1043,46 +1046,70 @@ export default function POS() {
             </div>
           ) : (
             <ul className="space-y-3">
-              {items.map((item) => (
-                <li key={item.productId} className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-900 truncate">
-                        {item.productName}
-                      </h4>
-                      <p className="text-sm text-gray-500">
-                        {formatCurrency(item.unitPrice)} each
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => removeItem(item.productId)}
-                      className="text-red-500 hover:text-red-700 p-1"
-                    >
-                      <Trash2 className="h-5 w-5" />
-                    </button>
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
+              {items.map((item) => {
+                const hasPromo = item.promoType && item.promoValue && item.promoMinQty && item.quantity >= item.promoMinQty;
+                const promoLabel = hasPromo && item.promoType && item.promoValue
+                  ? item.promoType === 'percentage'
+                    ? `${item.promoValue}% OFF`
+                    : `${formatCurrency(item.promoValue)} OFF`
+                  : null;
+                
+                return (
+                  <li key={item.productId} className="bg-gray-50 rounded-lg p-3">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 truncate">
+                          {item.productName}
+                        </h4>
+                        {hasPromo ? (
+                          <div className="flex items-center gap-1 text-sm flex-nowrap">
+                            <span className="text-gray-500 line-through flex-shrink-0">
+                              {formatCurrency(item.unitPrice)}
+                            </span>
+                            <span className="text-gray-900 flex-shrink-0">→</span>
+                            <span className="text-green-600 font-medium flex-shrink-0">
+                              {formatCurrency(item.promoValue ? item.unitPrice * (1 - item.promoValue / 100) : item.unitPrice)}
+                            </span>
+                            {promoLabel && (
+                              <span className="text-xs text-green-600 flex-shrink-0">({promoLabel})</span>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            {formatCurrency(item.unitPrice)} each
+                          </p>
+                        )}
+                      </div>
                       <button
-                        onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
-                        className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                        onClick={() => removeItem(item.productId)}
+                        className="text-red-500 hover:text-red-700 p-1"
                       >
-                        <Minus className="h-4 w-4" />
-                      </button>
-                      <span className="w-8 text-center font-medium">{item.quantity}</span>
-                      <button
-                        onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
-                        className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
-                      >
-                        <Plus className="h-4 w-4" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
-                    <span className="font-semibold">
-                      {formatCurrency(item.subtotal)}
-                    </span>
-                  </div>
-                </li>
-              ))}
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
+                          className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                        >
+                          <Minus className="h-4 w-4" />
+                        </button>
+                        <span className="w-8 text-center font-medium">{item.quantity}</span>
+                        <button
+                          onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
+                          className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <span className="font-semibold">
+                        {formatCurrency(item.subtotal)}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -1154,9 +1181,9 @@ export default function POS() {
               <span className="text-gray-600">Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            {discountAmount > 0 && (
+            {cartDiscount && discountAmount > 0 && (
               <div className="flex justify-between text-green-600">
-                <span>Discount</span>
+                <span>{cartDiscount.name}</span>
                 <span>-{formatCurrency(discountAmount)}</span>
               </div>
             )}
