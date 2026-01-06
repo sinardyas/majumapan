@@ -46,6 +46,12 @@ export const createProductSchema = z.object({
   costPrice: z.number().positive().optional(),
   imageUrl: z.string().url().optional(),
   imageBase64: z.string().optional(),
+  hasPromo: z.boolean().default(false),
+  promoType: z.enum(['percentage', 'fixed']).nullable().optional(),
+  promoValue: z.number().positive().nullable().optional(),
+  promoMinQty: z.number().int().positive().default(1),
+  promoStartDate: z.string().datetime().nullable().optional(),
+  promoEndDate: z.string().datetime().nullable().optional(),
 });
 
 export const updateProductSchema = createProductSchema.partial();

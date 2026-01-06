@@ -5,10 +5,10 @@
 | Attribute | Value |
 |-----------|-------|
 | **Feature** | Product Bundle Promo |
-| **Status** | In Progress - P0 Complete |
+| **Status** | In Progress - All Phases Complete |
 | **Created** | 2026-01-05 |
-| **Version** | 1.1 |
-| **Last Updated** | 2026-01-05 |
+| **Version** | 1.3 |
+| **Last Updated** | 2026-01-06 |
 
 ## Executive Summary
 
@@ -122,7 +122,7 @@ As an admin/manager, I want to create product-specific promos so that customers 
 - [x] Promo type: Percentage or Fixed Amount
 - [x] Minimum quantity trigger (e.g., "Buy 2")
 - [x] Optional date range (start date, end date)
-- [ ] Preview shows how promo will display to customers (TBD in Admin Panel task)
+- [x] Preview shows how promo will display to customers
 - [x] Promos sync to POS clients automatically
 
 **Business Rules:**
@@ -162,7 +162,7 @@ As a customer, I want to see promotional pricing clearly so that I understand my
 
 **Acceptance Criteria:**
 - [x] Product grid shows promo badge (e.g., "30% OFF")
-- [ ] Product list view shows promo indicator (TBD)
+- [x] Product list view shows promo indicator
 - [x] Cart item shows original price with promo price
 - [x] Order summary shows "Promo Savings" line item
 - [x] Total savings displayed prominently
@@ -183,8 +183,8 @@ As a system, I want to handle promo expiration gracefully so that customers aren
 
 **Acceptance Criteria:**
 - [x] Expired promos don't apply to new items (date check in isPromoActive)
-- [ ] Items in cart with expired promos recalculate at regular price (TBD)
-- [ ] Customer notified (toast) when promo expires in cart (TBD)
+- [x] Items in cart with expired promos recalculate at regular price
+- [x] Customer notified (toast) when promo expires in cart
 - [x] Sync updates promo status from server
 
 **Business Rules:**
@@ -402,12 +402,15 @@ Pay $69.28
 - [x] Visual indicators show promo savings (grid badge, cart item, order summary)
 - [x] Promos sync to offline clients (IndexedDB)
 
-**Remaining (P1+):**
-- [ ] Admin Panel product form includes promo fields
-- [ ] Promo preview in admin form
-- [ ] Product list view shows promo indicator
-- [ ] Expired promo handling with toast notification
-- [ ] Promo reporting in admin panel
+**Completed (P1):**
+- [x] Admin Panel product form includes promo fields
+- [x] Promo preview in admin form
+- [x] Product list view shows promo indicator
+- [x] Expired promo handling with toast notification
+- [x] Promo reporting in admin panel
+
+**Remaining (P2):**
+None - Feature Complete! ✅
 
 ### Future Enhancements (Out of Scope)
 

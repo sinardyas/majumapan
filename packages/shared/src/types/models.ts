@@ -56,6 +56,12 @@ export interface Product {
   imageUrl: string | null;
   imageBase64: string | null;
   isActive: boolean;
+  hasPromo: boolean;
+  promoType: 'percentage' | 'fixed' | null;
+  promoValue: number | null;
+  promoMinQty: number;
+  promoStartDate: Date | null;
+  promoEndDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }

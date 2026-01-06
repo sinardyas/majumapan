@@ -6,6 +6,7 @@ import { AdminLayout } from '@/components/layout/AdminLayout';
 
 const Login = lazy(() => import('@/pages/Login'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Products = lazy(() => import('@/pages/Products'));
 const Stores = lazy(() => import('@/pages/Stores'));
 const Users = lazy(() => import('@/pages/Users'));
 const Reports = lazy(() => import('@/pages/Reports'));
@@ -46,6 +47,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><Dashboard /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Products /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

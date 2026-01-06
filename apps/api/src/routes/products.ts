@@ -8,6 +8,13 @@ import { createProductSchema, updateProductSchema, paginationSchema } from '@pos
 
 const productsRouter = new Hono();
 
+function convertDateTime(dateStr: string | null | undefined): Date | null {
+  if (!dateStr || dateStr === '') return null;
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return null;
+  return date;
+}
+
 // All routes require authentication
 productsRouter.use('*', authMiddleware);
 
@@ -214,7 +221,7 @@ productsRouter.post('/', requirePermission('products:create'), async (c) => {
       }
     }
 
-    const [newProduct] = await db.insert(products).values({
+    const productValues = {
       storeId,
       categoryId: result.data.categoryId || null,
       sku: result.data.sku,
@@ -225,7 +232,15 @@ productsRouter.post('/', requirePermission('products:create'), async (c) => {
       costPrice: result.data.costPrice?.toString() || null,
       imageUrl: result.data.imageUrl || null,
       imageBase64: result.data.imageBase64 || null,
-    }).returning();
+      hasPromo: result.data.hasPromo ?? false,
+      promoType: result.data.promoType ?? null,
+      promoValue: result.data.promoValue?.toString() ?? null,
+      promoMinQty: result.data.promoMinQty ?? 1,
+      promoStartDate: convertDateTime(result.data.promoStartDate),
+      promoEndDate: convertDateTime(result.data.promoEndDate),
+    };
+
+    const [newProduct] = await db.insert(products).values(productValues).returning();
 
     // Create initial stock record
     const initialQuantity = body.initialStock || 0;
@@ -333,6 +348,17 @@ productsRouter.put('/:id', requirePermission('products:update'), async (c) => {
     }
     if (result.data.costPrice !== undefined) {
       updateData.costPrice = result.data.costPrice.toString();
+    }
+    if (result.data.promoValue !== undefined) {
+      updateData.promoValue = result.data.promoValue?.toString() ?? null;
+    }
+
+    // Convert datetime-local format strings to Date objects for timestamp columns
+    if (result.data.promoStartDate !== undefined) {
+      updateData.promoStartDate = convertDateTime(result.data.promoStartDate);
+    }
+    if (result.data.promoEndDate !== undefined) {
+      updateData.promoEndDate = convertDateTime(result.data.promoEndDate);
     }
 
     const [updatedProduct] = await db.update(products)

@@ -296,4 +296,75 @@ reportsRouter.get('/product-performance', requireRole('admin'), async (c) => {
   }
 });
 
+reportsRouter.get('/promo-performance', requireRole('admin'), async (c) => {
+  try {
+    const startDate = c.req.query('startDate');
+    const endDate = c.req.query('endDate');
+    const storeId = c.req.query('storeId');
+
+    const conditions: any[] = [
+      eq(transactions.status, 'completed'),
+      eq(products.hasPromo, true),
+      eq(products.id, transactionItems.productId),
+    ];
+
+    if (startDate) {
+      conditions.push(gte(transactions.createdAt, new Date(startDate)));
+    }
+
+    if (endDate) {
+      conditions.push(lte(transactions.createdAt, new Date(endDate)));
+    }
+
+    if (storeId) {
+      conditions.push(eq(products.storeId, storeId));
+    }
+
+    const promoStats = await db.select({
+      productId: products.id,
+      productName: products.name,
+      productSku: products.sku,
+      hasPromo: products.hasPromo,
+      promoType: products.promoType,
+      promoValue: sql<number>`CAST(${products.promoValue} AS NUMERIC)`,
+      promoMinQty: products.promoMinQty,
+      usageCount: sql<number>`COUNT(DISTINCT ${transactions.id})`,
+      totalQuantity: sql<number>`SUM(${transactionItems.quantity})`,
+      revenueWithPromo: sql<number>`COALESCE(SUM(CAST(${transactionItems.subtotal} AS NUMERIC)), 0)`,
+    })
+      .from(transactionItems)
+      .innerJoin(transactions, eq(transactions.id, transactionItems.transactionId))
+      .innerJoin(products, eq(products.id, transactionItems.productId))
+      .where(and(...conditions))
+      .groupBy(products.id, products.name, products.sku, products.hasPromo, products.promoType, products.promoValue, products.promoMinQty)
+      .orderBy(desc(sql`COUNT(DISTINCT ${transactions.id})`));
+
+    const activePromos = await db.select({
+      productId: products.id,
+      productName: products.name,
+      productSku: products.sku,
+      hasPromo: products.hasPromo,
+      promoType: products.promoType,
+      promoValue: sql<number>`CAST(${products.promoValue} AS NUMERIC)`,
+      promoMinQty: products.promoMinQty,
+      promoStartDate: products.promoStartDate,
+      promoEndDate: products.promoEndDate,
+    })
+      .from(products)
+      .where(eq(products.hasPromo, true))
+      .orderBy(asc(products.name));
+
+    return c.json({
+      success: true,
+      data: {
+        promoStats: promoStats.filter(p => p.usageCount > 0),
+        activePromos: activePromos,
+      },
+    });
+  } catch (error) {
+    console.error('Promo performance error:', error);
+    return c.json({ success: false, error: 'Failed to fetch promo performance' }, 500);
+  }
+});
+
 export default reportsRouter;
