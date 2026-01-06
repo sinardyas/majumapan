@@ -35,7 +35,8 @@ interface CartViewProps {
   cashierName: string;
   heldOrdersCount: number;
   onOpenHeldOrders: () => void;
-  totalPromoDiscount: number;
+  discountError: string;
+  setDiscountError: (error: string) => void;
 }
 
 function formatCurrency(amount: number): string {
@@ -77,12 +78,24 @@ function CartItemCard({
       <div className="flex justify-between items-start">
         <div className="flex-1 min-w-0 pr-4">
           <h4 className="font-medium text-gray-900 truncate">{item.productName}</h4>
-          <p className="text-sm text-gray-500">
-            {formatCurrency(item.unitPrice)} each
-            {promoLabel && (
-              <span className="ml-2 text-green-600 font-medium">({promoLabel})</span>
-            )}
-          </p>
+          {hasPromo ? (
+            <div className="flex items-center gap-1 text-sm flex-nowrap">
+              <span className="text-gray-500 line-through flex-shrink-0">
+                {formatCurrency(item.unitPrice)}
+              </span>
+              <span className="text-gray-900 flex-shrink-0">→</span>
+              <span className="text-green-600 font-medium flex-shrink-0">
+                {formatCurrency(item.promoValue ? item.unitPrice * (1 - item.promoValue / 100) : item.unitPrice)}
+              </span>
+              {promoLabel && (
+                <span className="text-xs text-green-600 flex-shrink-0">({promoLabel})</span>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {formatCurrency(item.unitPrice)} each
+            </p>
+          )}
         </div>
         <button
           onClick={() => onRemove(item.productId)}
@@ -108,16 +121,9 @@ function CartItemCard({
             <Plus className="h-4 w-4" />
           </button>
         </div>
-        <div className="text-right">
-          <span className="font-bold text-gray-900">
-            {formatCurrency(item.subtotal)}
-          </span>
-          {hasPromo && item.promoDiscount && item.promoDiscount > 0 && (
-            <p className="text-xs text-green-600">
-              Save {formatCurrency(item.promoDiscount)}
-            </p>
-          )}
-        </div>
+        <span className="font-bold text-gray-900">
+          {formatCurrency(item.subtotal)}
+        </span>
       </div>
     </div>
   );
@@ -138,7 +144,8 @@ function OrderSummary({
   items,
   heldOrdersCount,
   onOpenHeldOrders,
-  totalPromoDiscount,
+  discountError,
+  setDiscountError,
 }: {
   subtotal: number;
   discountAmount: number;
@@ -154,7 +161,8 @@ function OrderSummary({
   items: CartItem[];
   heldOrdersCount: number;
   onOpenHeldOrders: () => void;
-  totalPromoDiscount: number;
+  discountError: string;
+  setDiscountError: (error: string) => void;
 }) {
   const [discountCode, setDiscountCode] = useState('');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
@@ -212,23 +220,31 @@ function OrderSummary({
       {/* Discount Section */}
       <div className="p-4 border-b border-gray-200">
         {!cartDiscount ? (
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Discount code"
-              value={discountCode}
-              onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-              onKeyDown={(e) => e.key === 'Enter' && handleApplyDiscount()}
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleApplyDiscount}
-              disabled={!discountCode.trim() || isApplyingDiscount}
-            >
-              Apply
-            </Button>
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Discount code"
+                value={discountCode}
+                onChange={(e) => {
+                  setDiscountCode(e.target.value.toUpperCase());
+                  setDiscountError('');
+                }}
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                onKeyDown={(e) => e.key === 'Enter' && handleApplyDiscount()}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleApplyDiscount}
+                disabled={!discountCode.trim() || isApplyingDiscount}
+              >
+                {isApplyingDiscount ? '...' : 'Apply'}
+              </Button>
+            </div>
+            {discountError && (
+              <p className="text-red-500 text-xs">{discountError}</p>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg">
@@ -255,16 +271,10 @@ function OrderSummary({
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
-          {totalPromoDiscount > 0 && (
-            <div className="flex justify-between text-green-600">
-              <span>Promo Savings</span>
-              <span>-{formatCurrency(totalPromoDiscount)}</span>
-            </div>
-          )}
           {cartDiscount && discountAmount > 0 && (
             <div className="flex justify-between text-green-600">
               <span>{cartDiscount.name}</span>
-              <span>-{formatCurrency(discountAmount - totalPromoDiscount)}</span>
+              <span>-{formatCurrency(discountAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-600">
@@ -341,7 +351,8 @@ export function CartView({
   cashierName,
   heldOrdersCount,
   onOpenHeldOrders,
-  totalPromoDiscount,
+  discountError,
+  setDiscountError,
 }: CartViewProps) {
   const handlePopoverKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     switch (e.key) {
@@ -462,7 +473,8 @@ export function CartView({
           items={items}
           heldOrdersCount={heldOrdersCount}
           onOpenHeldOrders={onOpenHeldOrders}
-          totalPromoDiscount={totalPromoDiscount}
+          discountError={discountError}
+          setDiscountError={setDiscountError}
         />
       </div>
     </div>

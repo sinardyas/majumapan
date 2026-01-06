@@ -89,9 +89,23 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
                 <tr key={index}>
                   <td className="py-1">
                     <div className="truncate max-w-[120px]">{item.productName}</div>
-                    <div className="text-gray-500 text-xs">
-                      @ {formatCurrency(item.unitPrice)}
-                    </div>
+                    {item.promoType && item.promoValue ? (
+                      <div className="text-gray-500 text-xs">
+                        <span className="line-through">{formatCurrency(item.unitPrice)}</span>
+                        {' → '}
+                        <span className="text-green-600 font-medium">
+                          {formatCurrency(item.unitPrice * (1 - item.promoValue / 100))}
+                        </span>
+                        {item.promoType === 'percentage'
+                          ? ` (${item.promoValue}% OFF)`
+                          : ` (${formatCurrency(item.promoValue)} OFF)`
+                        }
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-xs">
+                        @ {formatCurrency(item.unitPrice)}
+                      </div>
+                    )}
                     {item.discountValue > 0 && (
                       <div className="text-green-600 text-xs">
                         Disc: -{formatCurrency(item.discountValue)}

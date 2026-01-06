@@ -76,6 +76,9 @@ export interface LocalTransaction {
     productSku: string;
     quantity: number;
     unitPrice: number;
+    promoType?: 'percentage' | 'fixed' | null;
+    promoValue?: number;
+    promoDiscount?: number;
     discountId?: string;
     discountName?: string;
     discountValue: number;
@@ -118,6 +121,10 @@ export interface HeldOrderItem {
   productSku: string;
   quantity: number;
   unitPrice: number;
+  promoType?: 'percentage' | 'fixed' | null;
+  promoValue?: number;
+  promoMinQty?: number;
+  promoDiscount?: number;
   discountId?: string;
   discountName?: string;
   discountValue: number;
@@ -214,6 +221,19 @@ class PosDatabase extends Dexie {
     // Version 5: Add product promo fields
     // See Product Bundle Promo FSD: docs/features/product-bundle-promo.md
     this.version(5).stores({
+      categories: 'id, storeId, name',
+      products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
+      stock: 'id, storeId, productId, [storeId+productId]',
+      discounts: 'id, storeId, code, discountScope',
+      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
+      syncMeta: 'key',
+      store: 'id',
+      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
+    });
+
+    // Version 6: Add promo fields to heldOrders items
+    // See Product Bundle Promo FSD: docs/features/product-bundle-promo.md
+    this.version(6).stores({
       categories: 'id, storeId, name',
       products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
       stock: 'id, storeId, productId, [storeId+productId]',
