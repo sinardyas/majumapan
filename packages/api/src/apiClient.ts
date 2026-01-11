@@ -1,4 +1,4 @@
-import type { ApiResponse, RequestOptions, AuthState, AuthActions } from './types';
+import type { ApiResponse, RequestOptions, AuthState, AuthActions, Shift } from './types';
 
 export class ApiClient {
   private baseUrl: string;
@@ -163,18 +163,48 @@ export class ApiClient {
 
   async delete<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { skipAuth, skipAuthHandling, responseType, ...fetchOptions } = options;
-
+    
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method: 'DELETE',
         headers: await this.getHeaders(skipAuth),
         ...fetchOptions,
       });
-
+      
       return this.handleResponse<T>(response, responseType, skipAuthHandling);
     } catch (error) {
       console.error('API DELETE error:', error);
       return { success: false, error: 'Network error' };
     }
+  }
+
+  async openShift(data: { floatAmount: number; note?: string }): Promise<ApiResponse<{ shift: Shift }>> {
+    return this.post('/shifts/open', data);
+  }
+
+  async closeShift(data: {
+    shiftId: string;
+    endingCash: number;
+    note?: string;
+    supervisorApproval?: { supervisorId: string; approvedAt: string };
+    varianceReason?: string;
+  }): Promise<ApiResponse<{ shift: Shift }>> {
+    return this.post('/shifts/close', data);
+  }
+
+  async syncShifts(shifts: unknown[]): Promise<ApiResponse<{ shifts: Shift[] }>> {
+    return this.post('/shifts/sync', { shifts });
+  }
+
+  async verifyPin(data: {
+    pin: string;
+    action: string;
+    metadata?: { shiftId?: string; variance?: number };
+  }): Promise<ApiResponse<{ supervisorId?: string; supervisorName?: string }>> {
+    return this.post('/auth/verify-pin', data);
+  }
+
+  async getShiftById(shiftId: string): Promise<ApiResponse<{ shift: Shift }>> {
+    return this.get(`/shifts/${shiftId}`);
   }
 }

@@ -156,39 +156,6 @@ export interface HeldOrder {
   expiresAt: string;
 }
 
-export interface LocalShift {
-  id: string;
-  serverId: string | null;
-  shiftNumber: string;
-  cashierId: string;
-  storeId: string;
-  status: 'ACTIVE' | 'CLOSED';
-  openingFloat: number;
-  openingNote: string | null;
-  openingImageUrl: string | null;
-  openingTimestamp: string;
-  endingCash: number | null;
-  endingNote: string | null;
-  closingTimestamp: string | null;
-  variance: number | null;
-  varianceReason: string | null;
-  varianceApprovedBy: string | null;
-  varianceApprovedAt: string | null;
-  syncStatus: 'synced' | 'pending';
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface PendingShiftOperation {
-  id: string;
-  shiftId: string;
-  operation: 'OPEN' | 'CLOSE';
-  data: LocalShift;
-  createdAt: string;
-  syncStatus: 'pending' | 'failed' | 'synced';
-  error?: string;
-}
-
 class PosDatabase extends Dexie {
   categories!: Table<LocalCategory>;
   products!: Table<LocalProduct>;
@@ -198,8 +165,6 @@ class PosDatabase extends Dexie {
   syncMeta!: Table<SyncMeta>;
   store!: Table<LocalStore>;
   heldOrders!: Table<HeldOrder>;
-  shifts!: Table<LocalShift>;
-  pendingShiftOperations!: Table<PendingShiftOperation>;
 
   constructor() {
     super('pos-database');
@@ -278,21 +243,6 @@ class PosDatabase extends Dexie {
       store: 'id',
       heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
     });
-
-    // Version 7: Add shifts tables for Shift Management feature
-    // See Shift Management FSD: docs/features/shift-management.md
-    this.version(7).stores({
-      categories: 'id, storeId, name',
-      products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
-      stock: 'id, storeId, productId, [storeId+productId]',
-      discounts: 'id, storeId, code, discountScope',
-      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
-      syncMeta: 'key',
-      store: 'id',
-      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
-      shifts: 'id, storeId, cashierId, status, [storeId+cashierId]',
-      pendingShiftOperations: 'id, shiftId, syncStatus',
-    });
   }
 }
 
@@ -367,8 +317,6 @@ export async function clearAllData(): Promise<void> {
     db.syncMeta.clear(),
     db.store.clear(),
     db.heldOrders.clear(),
-    db.shifts.clear(),
-    db.pendingShiftOperations.clear(),
   ]);
 }
 
@@ -437,7 +385,7 @@ export async function deleteHeldOrder(id: string): Promise<void> {
 
 /**
  * Delete all expired held orders
- * Returns number of deleted orders
+ * Returns the number of deleted orders
  */
 export async function deleteExpiredHeldOrders(): Promise<number> {
   const now = new Date().toISOString();
@@ -452,57 +400,4 @@ export async function deleteExpiredHeldOrders(): Promise<number> {
   }
   
   return expired.length;
-}
-
-// =============================================================================
-// Shift Management Helper Functions
-// See Shift Management FSD: docs/features/shift-management.md
-// =============================================================================
-
-export async function saveShift(shift: LocalShift): Promise<void> {
-  await db.shifts.put(shift);
-}
-
-export async function getActiveShift(
-  storeId: string,
-  cashierId: string
-): Promise<LocalShift | undefined> {
-  const shift = await db.shifts
-    .where('[storeId+cashierId]')
-    .equals([storeId, cashierId])
-    .filter(s => s.status === 'ACTIVE')
-    .first();
-  return shift;
-}
-
-export async function savePendingShiftOperation(operation: PendingShiftOperation): Promise<void> {
-  await db.pendingShiftOperations.put(operation);
-}
-
-export async function getPendingShiftOperations(): Promise<PendingShiftOperation[]> {
-  return db.pendingShiftOperations
-    .where('syncStatus')
-    .equals('pending')
-    .toArray();
-}
-
-export async function markShiftAsSynced(shiftId: string, serverId: string): Promise<void> {
-  await db.shifts.update(shiftId, {
-    syncStatus: 'synced',
-    serverId,
-  });
-}
-
-export async function deletePendingShiftOperation(operationId: string): Promise<void> {
-  await db.pendingShiftOperations.delete(operationId);
-}
-
-export async function markShiftOperationAsFailed(
-  operationId: string,
-  error: string
-): Promise<void> {
-  await db.pendingShiftOperations.update(operationId, {
-    syncStatus: 'failed',
-    error,
-  });
 }

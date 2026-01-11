@@ -237,3 +237,32 @@ export const auditLogTable = pgTable('audit_logs', {
     index('idx_audit_logs_action').on(table.action),
     index('idx_audit_logs_date').on(table.createdAt),
   ]);
+
+// Shifts
+export const shifts = pgTable('shifts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  shiftNumber: varchar('shift_number', { length: 50 }).notNull().unique(),
+  cashierId: varchar('cashier_id', { length: 255 }).notNull(),
+  storeId: uuid('store_id').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('ACTIVE'),
+  openingFloat: decimal('opening_float', { precision: 10, scale: 2 }).notNull(),
+  openingNote: text('opening_note'),
+  openingImageUrl: text('opening_image_url'),
+  openingTimestamp: timestamp('opening_timestamp').notNull().defaultNow(),
+  endingCash: decimal('ending_cash', { precision: 10, scale: 2 }),
+  endingNote: text('ending_note'),
+  closingTimestamp: timestamp('closing_timestamp'),
+  variance: decimal('variance', { precision: 10, scale: 2 }),
+  varianceReason: text('variance_reason'),
+  varianceApprovedBy: varchar('variance_approved_by', { length: 255 }),
+  varianceApprovedAt: timestamp('variance_approved_at'),
+  syncStatus: varchar('sync_status', { length: 20 }).notNull().default('pending'),
+  serverId: uuid('server_id'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => [
+  index('shifts_cashier_status_idx').on(table.cashierId, table.status),
+  index('shifts_store_status_idx').on(table.storeId, table.status),
+  index('shifts_shift_number_idx').on(table.shiftNumber),
+  index('shifts_opening_timestamp_idx').on(table.openingTimestamp),
+]);

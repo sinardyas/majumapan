@@ -12,6 +12,7 @@ import auditLogs from './audit-logs';
 import data from './data';
 import settings from './settings';
 import reports from './reports';
+import shifts from './shifts';
 
 const routes = new Hono();
 
@@ -29,6 +30,7 @@ routes.route('/audit-logs', auditLogs);
 routes.route('/data', data);
 routes.route('/settings', settings);
 routes.route('/reports', reports);
+routes.route('/shifts', shifts);
 
 // Health check
 routes.get('/health', (c) => {
