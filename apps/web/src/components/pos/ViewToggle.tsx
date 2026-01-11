@@ -24,20 +24,6 @@ export function ViewToggle({ value, onChange, className }: ViewToggleProps) {
         <Grid3X3 className="h-4 w-4" />
         <span className="hidden sm:inline">Grid</span>
       </button>
-      {/* <button */}
-      {/*   type="button" */}
-      {/*   className={cn( */}
-      {/*     'flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors', */}
-      {/*     value === 'list' */}
-      {/*       ? 'bg-primary-600 text-white' */}
-      {/*       : 'text-gray-600 hover:bg-gray-100' */}
-      {/*   )} */}
-      {/*   onClick={() => onChange('list')} */}
-      {/*   aria-pressed={value === 'list'} */}
-      {/* > */}
-      {/*   <List className="h-4 w-4" /> */}
-      {/*   <span className="hidden sm:inline">List</span> */}
-      {/* </button> */}
       <button
         type="button"
         className={cn(

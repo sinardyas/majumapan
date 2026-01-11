@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore, type CartDiscount } from '@/stores/cartStore';
+import { useShiftStore } from '@/stores/shiftStore';
 import { 
   db, 
   type LocalProduct, 
@@ -9,7 +10,6 @@ import {
   deleteExpiredHeldOrders,
   deleteHeldOrder,
 } from '@/db';
-import { Button } from '@pos/ui';
 import { useToast } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
@@ -18,14 +18,16 @@ import { Receipt } from '@/components/pos/Receipt';
 import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
 import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
 import { ResumeConfirmModal } from '@/components/pos/ResumeConfirmModal';
-import { ViewToggle } from '@/components/pos/ViewToggle';
-import { ProductList } from '@/components/pos/ProductList';
-import { SkuSearchPopover } from '@/components/pos/SkuSearchPopover';
+import { ShiftModal } from '@/components/shift/ShiftModal';
+import { POSHeader } from '@/components/pos/POSHeader';
+import { POSSearchBar } from '@/components/pos/POSSearchBar';
+import { CategoriesBar } from '@/components/pos/CategoriesBar';
+import { CartSidebar } from '@/components/pos/CartSidebar';
 import { CartView } from '@/components/pos/CartView';
+import { CurrentOrder } from '@/components/pos/CurrentOrder';
 import type { PaymentMethod } from '@pos/shared';
 import { 
-  Search, ShoppingCart, Trash2, X, Printer, 
-  AlertTriangle, ClipboardList, Plus, Minus, Box, Monitor, Wifi
+  X, Printer, AlertTriangle, Box 
 } from 'lucide-react';
 
 export default function POS() {
@@ -45,8 +47,8 @@ export default function POS() {
     removeDiscount,
     holdOrder,
     resumeOrder,
-    resumedOrderInfo,
   } = useCartStore();
+  const { activeShift, loadActiveShift, status } = useShiftStore();
   const { isOnline } = useOnlineStatus();
   const toast = useToast();
   
@@ -56,40 +58,41 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
-  // View mode state
   const [viewMode, setViewMode] = useState<'grid' | 'list' | 'cart'>('grid');
   const [skuSearchQuery, setSkuSearchQuery] = useState('');
   const [skuSearchOpen, setSkuSearchOpen] = useState(false);
-  const [listSelectedIndex, setListSelectedIndex] = useState(0);
   const [popoverSelectedIndex, setPopoverSelectedIndex] = useState(0);
   const skuInputRef = useRef<HTMLInputElement>(null);
   
-  // Discount code state
   const [discountCode, setDiscountCode] = useState('');
   const [discountError, setDiscountError] = useState('');
   const [isApplyingDiscount, setIsApplyingDiscount] = useState(false);
   
-  // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  
-  // Receipt state
   const [completedTransaction, setCompletedTransaction] = useState<LocalTransaction | null>(null);
   const [showReceipt, setShowReceipt] = useState(false);
   const [storeName, setStoreName] = useState('');
   const [storeAddress, setStoreAddress] = useState<string | null>(null);
   const [storePhone, setStorePhone] = useState<string | null>(null);
   
-  // Hold Order state
   const [showHoldModal, setShowHoldModal] = useState(false);
   const [showHeldOrdersList, setShowHeldOrdersList] = useState(false);
   const [showResumeConfirm, setShowResumeConfirm] = useState(false);
+  const [showShiftModal, setShowShiftModal] = useState(false);
+  const [showShiftMessage, setShowShiftMessage] = useState(false);
   const [heldOrdersCount, setHeldOrdersCount] = useState(0);
   const [pendingResumeOrderId, setPendingResumeOrderId] = useState<string | null>(null);
   const [isHolding, setIsHolding] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
-  // Helper to check if promo is active
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(amount);
+  };
+
   const isPromoActive = (product: LocalProduct): boolean => {
     if (!product.hasPromo) return false;
     const now = new Date();
@@ -98,7 +101,6 @@ export default function POS() {
     return true;
   };
 
-  // Helper to get promo label
   const getPromoLabel = (product: LocalProduct): string | null => {
     if (!isPromoActive(product) || !product.promoType || !product.promoValue) {
       return null;
@@ -108,7 +110,6 @@ export default function POS() {
       : `${formatCurrency(product.promoValue)} OFF`;
   };
 
-  // Check cart items for expired promos and show warning
   const checkExpiredPromos = useCallback(async () => {
     const cartItems = useCartStore.getState().items;
     if (cartItems.length === 0) return;
@@ -118,11 +119,9 @@ export default function POS() {
     for (const item of cartItems) {
       if (!item.promoType) continue;
 
-      // Get the current product from IndexedDB to check promo status
       const product = await db.products.get(item.productId);
       if (!product) continue;
 
-      // Check if promo was active when added but has expired
       const promoWasActive = product.hasPromo && 
         product.promoType === item.promoType &&
         product.promoValue === item.promoValue &&
@@ -146,11 +145,9 @@ export default function POS() {
     }
   }, [toast]);
 
-  // Barcode scanner handler
   const handleBarcodeScan = useCallback(async (barcode: string) => {
     if (!user?.storeId) return;
     
-    // Find product by barcode
     const product = await db.products
       .where('barcode')
       .equals(barcode)
@@ -166,7 +163,6 @@ export default function POS() {
       const stockQuantity = stockRecord?.quantity ?? 0;
       
       if (stockQuantity <= 0) {
-        // Could show a toast notification here
         console.warn('Product out of stock:', product.name);
         return;
       }
@@ -189,10 +185,8 @@ export default function POS() {
     }
   }, [user?.storeId, addItem]);
 
-  // Initialize barcode scanner
   useBarcode({ onScan: handleBarcodeScan });
 
-  // Load products from IndexedDB
   useEffect(() => {
     const loadData = async () => {
       if (!user?.storeId) {
@@ -201,7 +195,6 @@ export default function POS() {
       }
 
       try {
-        // Load store info
         const store = await db.store.get(user.storeId);
 
         if (store) {
@@ -210,7 +203,6 @@ export default function POS() {
           setStorePhone(store.phone);
         }
 
-        // Load categories
         const localCategories = await db.categories
           .where('storeId')
           .equals(user.storeId)
@@ -219,7 +211,6 @@ export default function POS() {
 
         setCategories(localCategories.map(c => ({ id: c.id, name: c.name })));
 
-        // Load products with stock
         const localProducts = await db.products
           .where('storeId')
           .equals(user.storeId)
@@ -250,26 +241,22 @@ export default function POS() {
     loadData();
   }, [user?.storeId]);
 
-  // Check for expired promos in cart after data loads
   useEffect(() => {
     if (!isLoading && products.length > 0) {
       checkExpiredPromos();
     }
   }, [isLoading, products.length, checkExpiredPromos]);
 
-  // Initialize held orders: cleanup expired and load count
   useEffect(() => {
     const initHeldOrders = async () => {
       if (!user?.storeId || !user?.id) return;
       
       try {
-        // Clean up expired orders
         const expiredCount = await deleteExpiredHeldOrders();
         if (expiredCount > 0) {
           console.log(`Cleaned up ${expiredCount} expired held orders`);
         }
         
-        // Load count
         const count = await getHeldOrdersCount(user.storeId, user.id);
         setHeldOrdersCount(count);
       } catch (error) {
@@ -280,7 +267,18 @@ export default function POS() {
     initHeldOrders();
   }, [user?.storeId, user?.id]);
 
-  // Load saved view mode from localStorage
+  useEffect(() => {
+    loadActiveShift();
+  }, [loadActiveShift]);
+
+  useEffect(() => {
+    if (status === 'none' && !activeShift) {
+      setShowShiftMessage(true);
+    } else {
+      setShowShiftMessage(false);
+    }
+  }, [status, activeShift]);
+
   useEffect(() => {
     const saved = localStorage.getItem('pos-view-mode') as 'grid' | 'list';
     if (saved) {
@@ -288,12 +286,10 @@ export default function POS() {
     }
   }, []);
 
-  // Save view mode to localStorage
   useEffect(() => {
     localStorage.setItem('pos-view-mode', viewMode);
   }, [viewMode]);
 
-  // Handle F2 shortcut for view toggle (cycles through Grid -> List -> Cart -> Grid)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F2') {
@@ -311,14 +307,12 @@ export default function POS() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Auto-focus SKU input when switching to List or Cart View
   useEffect(() => {
     if (viewMode === 'list' || viewMode === 'cart') {
       skuInputRef.current?.focus();
     }
   }, [viewMode]);
 
-  // SKU search debounce and popover control
   useEffect(() => {
     const timer = setTimeout(() => {
       if (skuSearchQuery.trim()) {
@@ -330,7 +324,6 @@ export default function POS() {
     return () => clearTimeout(timer);
   }, [skuSearchQuery]);
 
-  // SKU search results
   const skuSearchResults = useMemo(() => {
     if (!skuSearchQuery.trim()) return [];
     const query = skuSearchQuery.toLowerCase();
@@ -343,7 +336,6 @@ export default function POS() {
       .slice(0, 10);
   }, [skuSearchQuery, products]);
 
-  // Filter products
   const filteredProducts = products.filter((product) => {
     const matchesCategory = !selectedCategory || product.categoryId === selectedCategory;
     const matchesSearch = !searchQuery ||
@@ -371,7 +363,6 @@ export default function POS() {
     });
   };
 
-  // Popover keyboard handler
   const handlePopoverKeyDown = (e: React.KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowUp':
@@ -408,7 +399,6 @@ export default function POS() {
     setDiscountError('');
     
     try {
-      // Search for discount by code in local DB
       const discount = await db.discounts
         .where('code')
         .equals(codeToUse.toUpperCase())
@@ -420,19 +410,16 @@ export default function POS() {
         return;
       }
       
-      // Check if discount is for cart scope
       if (discount.discountScope !== 'cart') {
         setDiscountError('This discount can only be applied to specific products');
         return;
       }
       
-      // Check store restriction
       if (discount.storeId && discount.storeId !== user.storeId) {
         setDiscountError('This discount is not valid for this store');
         return;
       }
       
-      // Check date validity
       const now = new Date();
       if (discount.startDate && new Date(discount.startDate) > now) {
         setDiscountError('This discount is not yet active');
@@ -443,20 +430,17 @@ export default function POS() {
         return;
       }
       
-      // Check minimum purchase
       const minPurchase = Number(discount.minPurchaseAmount);
       if (minPurchase && subtotal < minPurchase) {
         setDiscountError(`Minimum purchase of $${minPurchase.toFixed(2)} required`);
         return;
       }
       
-      // Check usage limit
       if (discount.usageLimit && discount.usageCount >= discount.usageLimit) {
         setDiscountError('This discount has reached its usage limit');
         return;
       }
       
-      // Calculate discount amount
       const discountValueNum = Number(discount.value);
       let discountValue = 0;
       if (discount.discountType === 'percentage') {
@@ -465,13 +449,11 @@ export default function POS() {
         discountValue = discountValueNum;
       }
       
-      // Apply max discount cap
       const maxDiscount = Number(discount.maxDiscountAmount);
       if (maxDiscount && discountValue > maxDiscount) {
         discountValue = maxDiscount;
       }
       
-      // Apply discount
       applyDiscount({
         id: discount.id,
         code: discount.code || '',
@@ -491,10 +473,6 @@ export default function POS() {
       setIsApplyingDiscount(false);
     }
   };
-
-  // ============================================================================
-  // Hold Order Handlers
-  // ============================================================================
 
   const revalidateDiscount = async (discount: CartDiscount): Promise<boolean> => {
     try {
@@ -539,7 +517,6 @@ export default function POS() {
         return;
       }
       
-      // Update count
       setHeldOrdersCount(prev => Math.max(0, prev - 1));
       setShowHeldOrdersList(false);
       setShowResumeConfirm(false);
@@ -547,7 +524,6 @@ export default function POS() {
       
       toast.success('Order resumed');
       
-      // Show warning if discount was removed
       if (result.discountRemoved && result.discountName) {
         toast.warning(
           `Discount '${result.discountName}' is no longer valid and was removed`
@@ -560,14 +536,12 @@ export default function POS() {
   };
 
   const handleResumeOrder = async (heldOrderId: string) => {
-    // If cart has items, show confirmation first
     if (items.length > 0) {
       setPendingResumeOrderId(heldOrderId);
       setShowResumeConfirm(true);
       return;
     }
     
-    // Otherwise, resume directly
     await executeResume(heldOrderId);
   };
 
@@ -638,10 +612,8 @@ export default function POS() {
     };
     
     try {
-      // Save transaction to IndexedDB
       await db.transactions.add(transaction);
       
-      // Update local stock
       for (const item of items) {
         const stockRecord = await db.stock
           .where({ productId: item.productId, storeId: user.storeId })
@@ -655,7 +627,6 @@ export default function POS() {
         }
       }
       
-      // Update products in state with new stock
       setProducts(prev => prev.map(p => {
         const cartItem = items.find(i => i.productId === p.id);
         if (cartItem) {
@@ -667,18 +638,12 @@ export default function POS() {
         return p;
       }));
       
-      // Set completed transaction for receipt
       setCompletedTransaction(transaction);
       setShowReceipt(true);
-      
-      // Close payment modal
       setShowPaymentModal(false);
-      
-      // Clear cart
       clearCart();
     } catch (error) {
       console.error('Error saving transaction:', error);
-      // Could show error toast here
     }
   };
 
@@ -749,11 +714,8 @@ export default function POS() {
     setCompletedTransaction(null);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
+  const handleShiftButtonClick = () => {
+    setShowShiftModal(true);
   };
 
   if (isLoading) {
@@ -767,7 +729,6 @@ export default function POS() {
     );
   }
 
-  // Show message for admin users without a store assigned
   if (!user?.storeId) {
     return (
       <div className="flex flex-col items-center justify-center h-screen text-center px-4">
@@ -787,451 +748,197 @@ export default function POS() {
   }
 
   return (
-    <div className="flex h-screen">
-      {/* Products Section */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center gap-4 mb-4">
-            {/* View Toggle */}
-            <ViewToggle value={viewMode} onChange={setViewMode} />
+    <div className="h-screen flex flex-col">
+      <POSHeader
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        isOnline={isOnline}
+        activeShift={activeShift}
+        onOpenShiftModal={handleShiftButtonClick}
+      />
 
-            {/* Search - Grid View */}
-            {viewMode === 'grid' && (
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  placeholder="Search products or scan barcode..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="input pl-10"
-                  autoFocus
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              </div>
-            )}
-
-            {/* SKU Search - List View */}
-            {viewMode === 'list' && (
-              <div className="flex-1 relative">
-                <input
-                  ref={skuInputRef}
-                  type="text"
-                  placeholder="Enter SKU or barcode..."
-                  value={skuSearchQuery}
-                  onChange={(e) => setSkuSearchQuery(e.target.value)}
-                  onKeyDown={handlePopoverKeyDown}
-                  className="input pl-10"
-                />
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-                {skuSearchQuery && (
-                  <button
-                    onClick={() => {
-                      setSkuSearchQuery('');
-                      setSkuSearchOpen(false);
-                    }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-                <SkuSearchPopover
-                  query={skuSearchQuery}
-                  isOpen={skuSearchOpen}
-                  onClose={() => {
-                    setSkuSearchOpen(false);
-                    skuInputRef.current?.focus();
-                  }}
-                  products={skuSearchResults}
-                  selectedIndex={popoverSelectedIndex}
-                  onSelect={handleProductClick}
-                  onSelectIndex={setPopoverSelectedIndex}
-                  anchorRef={skuInputRef}
-                />
-              </div>
-            )}
-
-            {/* Right-aligned status elements */}
-            <div className="ml-auto flex items-center gap-2">
-              {/* Online Status Icon */}
-              <div
-                className={`flex items-center justify-center w-10 h-10 rounded-lg cursor-help ${
-                  isOnline ? 'bg-green-100' : 'bg-yellow-100'
-                }`}
-                title={isOnline ? 'Online' : 'Offline'}
-              >
-                <Wifi className={`h-5 w-5 ${isOnline ? 'text-green-600' : 'text-yellow-600'}`} />
-              </div>
-
-              {/* Customer Display Button */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => window.open('/customer-display', '_blank', 'width=1024,height=768')}
-                title="Customer Display"
-                className="w-10 h-10"
-              >
-                <Monitor className="h-5 w-5" />
-              </Button>
-            </div>
-          </div>
-
-          {/* Categories - Hidden in Cart View */}
-          {viewMode !== 'cart' && (
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              <button
-                onClick={() => setSelectedCategory(null)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                  !selectedCategory
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All
-              </button>
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  onClick={() => setSelectedCategory(category.id)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                    selectedCategory === category.id
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </header>
-
-        {/* Products Area */}
-        <div className="flex-1 overflow-hidden">
-          {viewMode === 'cart' ? (
-            <CartView
-              items={items}
-              subtotal={subtotal}
-              discountAmount={discountAmount}
-              taxAmount={taxAmount}
-              total={total}
-              cartDiscount={cartDiscount}
-              onUpdateQuantity={updateItemQuantity}
-              onRemoveItem={removeItem}
-              onApplyDiscount={handleApplyDiscount}
-              onRemoveDiscount={removeDiscount}
-              onClearCart={clearCart}
-              onHoldOrder={() => setShowHoldModal(true)}
-              onPay={() => setShowPaymentModal(true)}
+      <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          {!showShiftMessage && viewMode !== 'cart' && (
+            <POSSearchBar
+              viewMode={viewMode}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
               skuSearchQuery={skuSearchQuery}
               setSkuSearchQuery={setSkuSearchQuery}
+              skuInputRef={skuInputRef}
+              handlePopoverKeyDown={handlePopoverKeyDown}
               skuSearchOpen={skuSearchOpen}
               setSkuSearchOpen={setSkuSearchOpen}
               skuSearchResults={skuSearchResults}
               popoverSelectedIndex={popoverSelectedIndex}
               setPopoverSelectedIndex={setPopoverSelectedIndex}
               onProductSelect={handleProductClick}
-              skuInputRef={skuInputRef}
+            />
+          )}
+
+          {!showShiftMessage && viewMode !== 'cart' && (
+            <CategoriesBar
+              categories={categories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+            />
+          )}
+
+          <div className="flex-1 min-h-0">
+            {showShiftMessage && (
+              <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-50/95">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2">Open a shift to start</h2>
+                  <p className="text-gray-600 mb-4">Click the calendar icon in the header to open your shift</p>
+                  <button
+                    onClick={() => setShowShiftModal(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Open Shift
+                  </button>
+                </div>
+              </div>
+            )}
+            {viewMode === 'cart' ? (
+              <CartView
+                items={items}
+                onUpdateQuantity={updateItemQuantity}
+                onRemoveItem={removeItem}
+                skuSearchQuery={skuSearchQuery}
+                setSkuSearchQuery={setSkuSearchQuery}
+                skuSearchOpen={skuSearchOpen}
+                setSkuSearchOpen={setSkuSearchOpen}
+                skuSearchResults={skuSearchResults}
+                popoverSelectedIndex={popoverSelectedIndex}
+                setPopoverSelectedIndex={setPopoverSelectedIndex}
+                onProductSelect={handleProductClick}
+                skuInputRef={skuInputRef}
+              />
+            ) : (
+              <div className="h-full overflow-y-auto p-6">
+                {filteredProducts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>No products found</p>
+                    {!isOnline && (
+                      <p className="text-sm mt-2">Sync data when online to load products</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
+                    {filteredProducts.map((product) => {
+                      const promoLabel = getPromoLabel(product);
+                      const stockClass = product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500';
+                      const buttonClass = product.stockQuantity <= 0 
+                        ? 'opacity-50 cursor-not-allowed' 
+                        : 'hover:shadow-md hover:scale-105 cursor-pointer';
+                      
+                      return (
+                        <button
+                          key={product.id}
+                          onClick={() => handleProductClick(product)}
+                          disabled={product.stockQuantity <= 0}
+                          className={`bg-white rounded-xl p-4 text-left transition-all ${buttonClass}`}
+                        >
+                          <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center relative">
+                            {product.imageBase64 ? (
+                              <img
+                                src={product.imageBase64}
+                                alt={product.name}
+                                className="w-full h-full object-cover rounded-lg"
+                              />
+                            ) : (
+                              <Box className="h-12 w-12 text-gray-400" />
+                            )}
+                            {promoLabel && (
+                              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                {promoLabel}
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
+                          <p className="text-xs text-gray-500">{product.sku}</p>
+                          <div className="mt-1">
+                            {promoLabel ? (
+                              <div className="flex items-center flex-nowrap">
+                                <span className="text-sm text-gray-400 line-through min-w-0 truncate">
+                                  {formatCurrency(product.price)}
+                                </span>
+                                <span className="text-gray-400 mx-0.5 flex-shrink-0">→</span>
+                                <span className="text-sm font-bold text-primary-600 flex-shrink-0">
+                                  {formatCurrency(product.price * (1 - (product.promoValue ?? 0) / 100))}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="font-bold text-primary-600">
+                                {formatCurrency(product.price)}
+                              </span>
+                            )}
+                            <p className={`text-xs mt-1 ${stockClass}`}>
+                              Stock: {product.stockQuantity}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {viewMode !== 'cart' ? (
+          <CartSidebar
+            cashierName={user?.name}
+            items={items}
+            subtotal={subtotal}
+            discountAmount={discountAmount}
+            taxAmount={taxAmount}
+            total={total}
+            cartDiscount={cartDiscount}
+            onUpdateQuantity={updateItemQuantity}
+            onRemoveItem={removeItem}
+            onApplyDiscount={handleApplyDiscount}
+            onRemoveDiscount={removeDiscount}
+            onClearCart={clearCart}
+            onHoldOrder={() => setShowHoldModal(true)}
+            onPay={() => setShowPaymentModal(true)}
+            heldOrdersCount={heldOrdersCount}
+            onOpenHeldOrders={() => setShowHeldOrdersList(true)}
+            discountError={discountError}
+            setDiscountError={setDiscountError}
+            isApplyingDiscount={isApplyingDiscount}
+          />
+        ) : (
+          <div className="w-96 max-w-md bg-white border-l border-gray-200 flex flex-col h-full">
+            <CurrentOrder
+              subtotal={subtotal}
+              discountAmount={discountAmount}
+              taxAmount={taxAmount}
+              total={total}
+              cartDiscount={cartDiscount}
+              onRemoveDiscount={removeDiscount}
+              onApplyDiscount={handleApplyDiscount}
+              onClearCart={clearCart}
+              onHoldOrder={() => setShowHoldModal(true)}
+              onPay={() => setShowPaymentModal(true)}
               cashierName={user?.name || 'Unknown'}
               heldOrdersCount={heldOrdersCount}
               onOpenHeldOrders={() => setShowHeldOrdersList(true)}
               discountError={discountError}
               setDiscountError={setDiscountError}
+              showItemsList={false}
             />
-          ) : (
-            <div className="flex-1 overflow-y-auto p-6">
-              {filteredProducts.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <p>No products found</p>
-                  {!isOnline && (
-                    <p className="text-sm mt-2">Sync data when online to load products</p>
-                  )}
-                </div>
-              ) : viewMode === 'list' ? (
-                <ProductList
-                  products={filteredProducts}
-                  selectedIndex={listSelectedIndex}
-                  onSelect={handleProductClick}
-                  onSelectIndex={setListSelectedIndex}
-                />
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {filteredProducts.map((product) => {
-                    const promoLabel = getPromoLabel(product);
-                    const stockClass = product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500';
-                    const buttonClass = product.stockQuantity <= 0 
-                      ? 'opacity-50 cursor-not-allowed' 
-                      : 'hover:shadow-md hover:scale-105 cursor-pointer';
-                    
-                    return (
-                      <button
-                        key={product.id}
-                        onClick={() => handleProductClick(product)}
-                        disabled={product.stockQuantity <= 0}
-                        className={`bg-white rounded-xl p-4 text-left transition-all ${buttonClass}`}
-                      >
-                        {/* Product Image Placeholder */}
-                        <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center relative">
-                          {product.imageBase64 ? (
-                            <img
-                              src={product.imageBase64}
-                              alt={product.name}
-                              className="w-full h-full object-cover rounded-lg"
-                            />
-                          ) : (
-                            <Box className="h-12 w-12 text-gray-400" />
-                          )}
-                          {/* Promo Badge */}
-                          {promoLabel && (
-                            <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
-                              {promoLabel}
-                            </span>
-                          )}
-                        </div>
-                        <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                        <p className="text-sm text-gray-500">{product.sku}</p>
-                        <div className="flex items-center justify-between mt-2">
-                          <span className="font-bold text-primary-600">
-                            {formatCurrency(product.price)}
-                          </span>
-                          <span className={`text-xs ${stockClass}`}>
-                            Stock: {product.stockQuantity}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Cart Section - Hidden in Cart View */}
-      {!showPaymentModal && !showReceipt && !showHoldModal && viewMode !== 'cart' && (
-        <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
-        {/* Cart Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Current Order</h2>
-            {resumedOrderInfo && (
-              <p className="text-sm text-primary-600 mt-1">
-                Resumed: {resumedOrderInfo.customerName || 'Held Order'}
-              </p>
-            )}
-          </div>
-          {/* Held Orders Button */}
-          <button
-            onClick={() => setShowHeldOrdersList(true)}
-            className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Held Orders"
-          >
-            <ClipboardList className="h-6 w-6 text-gray-600" />
-            {heldOrdersCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
-                {heldOrdersCount}
-              </span>
-            )}
-          </button>
-        </div>
-
-        {/* Cart Items */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {items.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <ShoppingCart className="h-16 w-16 mx-auto text-gray-300 mb-4" />
-              <p>Cart is empty</p>
-              <p className="text-sm mt-1">Add products to get started</p>
-            </div>
-          ) : (
-            <ul className="space-y-3">
-              {items.map((item) => {
-                const hasPromo = item.promoType && item.promoValue && item.promoMinQty && item.quantity >= item.promoMinQty;
-                const promoLabel = hasPromo && item.promoType && item.promoValue
-                  ? item.promoType === 'percentage'
-                    ? `${item.promoValue}% OFF`
-                    : `${formatCurrency(item.promoValue)} OFF`
-                  : null;
-                
-                return (
-                  <li key={item.productId} className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 truncate">
-                          {item.productName}
-                        </h4>
-                        {hasPromo ? (
-                          <div className="flex items-center gap-1 text-sm flex-nowrap">
-                            <span className="text-gray-500 line-through flex-shrink-0">
-                              {formatCurrency(item.unitPrice)}
-                            </span>
-                            <span className="text-gray-900 flex-shrink-0">→</span>
-                            <span className="text-green-600 font-medium flex-shrink-0">
-                              {formatCurrency(item.promoValue ? item.unitPrice * (1 - item.promoValue / 100) : item.unitPrice)}
-                            </span>
-                            {promoLabel && (
-                              <span className="text-xs text-green-600 flex-shrink-0">({promoLabel})</span>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-sm text-gray-500">
-                            {formatCurrency(item.unitPrice)} each
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => removeItem(item.productId)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                    <div className="flex items-center justify-between mt-2">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => updateItemQuantity(item.productId, item.quantity - 1)}
-                          className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => updateItemQuantity(item.productId, item.quantity + 1)}
-                          className="h-8 w-8 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <span className="font-semibold">
-                        {formatCurrency(item.subtotal)}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-
-        {/* Discount Code Section */}
-        {items.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200">
-            {cartDiscount ? (
-              <div className="flex items-center justify-between bg-green-50 rounded-lg p-3">
-                <div>
-                  <p className="text-sm font-medium text-green-700">
-                    {cartDiscount.name}
-                  </p>
-                  <p className="text-xs text-green-600">
-                    {cartDiscount.discountType === 'percentage' 
-                      ? `${cartDiscount.value}% off`
-                      : `${formatCurrency(cartDiscount.value)} off`
-                    }
-                  </p>
-                </div>
-                <button
-                  onClick={removeDiscount}
-                  className="text-green-700 hover:text-green-800 p-1"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            ) : (
-              <div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Discount code"
-                    value={discountCode}
-                    onChange={(e) => {
-                      setDiscountCode(e.target.value.toUpperCase());
-                      setDiscountError('');
-                    }}
-                    className="input flex-1 text-sm"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleApplyDiscount(undefined);
-                      }
-                    }}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleApplyDiscount()}
-                    disabled={isApplyingDiscount || !discountCode.trim()}
-                  >
-                    {isApplyingDiscount ? '...' : 'Apply'}
-                  </Button>
-                </div>
-                {discountError && (
-                  <p className="text-red-500 text-xs mt-1">{discountError}</p>
-                )}
-              </div>
-            )}
           </div>
         )}
-
-        {/* Cart Summary & Checkout */}
-        <div className="border-t border-gray-200 p-4 space-y-4">
-          {/* Summary */}
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
-            </div>
-            {cartDiscount && discountAmount > 0 && (
-              <div className="flex justify-between text-green-600">
-                <span>{cartDiscount.name}</span>
-                <span>-{formatCurrency(discountAmount)}</span>
-              </div>
-            )}
-            <div className="flex justify-between">
-              <span className="text-gray-600">Tax (10%)</span>
-              <span>{formatCurrency(taxAmount)}</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-200">
-              <span>Total</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            <Button
-              className="w-full"
-              disabled={items.length === 0}
-              onClick={() => setShowPaymentModal(true)}
-            >
-              Pay {formatCurrency(total)}
-            </Button>
-            
-            {/* Hold Order and Clear Cart buttons side by side */}
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowHoldModal(true)}
-                disabled={items.length === 0}
-              >
-                Hold Order
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={clearCart}
-                disabled={items.length === 0}
-              >
-                Clear Cart
-              </Button>
-            </div>
-          </div>
-        </div>
       </div>
-      )}
 
-      {/* Payment Modal */}
       <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
@@ -1239,7 +946,6 @@ export default function POS() {
         total={total}
       />
 
-      {/* Receipt Modal */}
       {showReceipt && completedTransaction && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div 
@@ -1247,7 +953,6 @@ export default function POS() {
             onClick={handleCloseReceipt}
           />
           <div className="relative bg-white rounded-2xl shadow-xl max-w-md mx-4 overflow-hidden">
-            {/* Header */}
             <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-xl font-semibold">Transaction Complete</h2>
               <button 
@@ -1258,7 +963,6 @@ export default function POS() {
               </button>
             </div>
 
-            {/* Receipt Preview */}
             <div className="max-h-[60vh] overflow-y-auto">
               <Receipt
                 ref={receiptRef}
@@ -1270,21 +974,19 @@ export default function POS() {
               />
             </div>
 
-            {/* Actions */}
             <div className="px-6 py-4 border-t border-gray-200 flex gap-3">
-              <Button
-                className="flex-1"
+              <button
+                className="flex-1 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
                 onClick={handlePrint}
               >
-                <Printer className="h-5 w-5 mr-2" />
+                <Printer className="h-5 w-5 inline mr-2" />
                 Print Receipt
-              </Button>
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Hold Order Modal */}
       <HoldOrderModal
         isOpen={showHoldModal}
         onClose={() => setShowHoldModal(false)}
@@ -1292,7 +994,6 @@ export default function POS() {
         isLoading={isHolding}
       />
 
-      {/* Held Orders List Modal */}
       <HeldOrdersList
         isOpen={showHeldOrdersList}
         onClose={() => setShowHeldOrdersList(false)}
@@ -1302,7 +1003,6 @@ export default function POS() {
         cashierId={user?.id || ''}
       />
 
-      {/* Resume Confirm Modal */}
       <ResumeConfirmModal
         isOpen={showResumeConfirm}
         onClose={() => {
@@ -1312,6 +1012,12 @@ export default function POS() {
         onConfirm={handleConfirmResume}
         currentCartItemCount={items.length}
         currentCartTotal={total}
+      />
+
+      <ShiftModal
+        isOpen={showShiftModal}
+        onClose={() => setShowShiftModal(false)}
+        mode={activeShift ? 'close' : 'open'}
       />
     </div>
   );
