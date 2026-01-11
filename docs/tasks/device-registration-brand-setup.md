@@ -10,43 +10,61 @@ This document contains the implementation task breakdown for the Device Registra
 
 ---
 
-## Phase 1: Database & Configuration (Fundamental)
+## Phase 1: Database & Configuration (Fundamental) ✅ COMPLETED
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 1.1 | Create `companies` table schema file | ⏳ | `apps/api/src/db/schema/companies.ts` |
-| 1.2 | Create `registered_devices` table schema file | ⏳ | `apps/api/src/db/schema/registered_devices.ts` |
-| 1.3 | Create `device_audit_logs` table schema file | ⏳ | `apps/api/src/db/schema/device_audit_logs.ts` |
-| 1.4 | Add `company_id` column to `stores` table | ⏳ | Migration script |
-| 1.5 | Add `company_id` column to `users` table | ⏳ | Migration script |
-| 1.6 | Add new app settings | ⏳ | `brand_email`, `device_token_expiry_days`, `otp_expiry_minutes`, `max_otp_attempts` |
-| 1.7 | Write database migration script | ⏳ | Include data migration for existing stores/users |
+| 1.1 | Create `companies` table schema file | ✅ | `apps/api/src/db/schema/companies.ts` |
+| 1.2 | Create `registered_devices` table schema file | ✅ | `apps/api/src/db/schema/registered_devices.ts` |
+| 1.3 | Create `device_audit_logs` table schema file | ✅ | `apps/api/src/db/schema/device_audit_logs.ts` |
+| 1.4 | Add `company_id` column to `stores` table | ✅ | Added to main schema.ts |
+| 1.5 | Add `company_id` column to `users` table | ✅ | Added to main schema.ts |
+| 1.6 | Add new app settings | ✅ | Added to seed.ts and migration script |
+| 1.7 | Write database migration script | ✅ | `apps/api/src/db/migrate-device-registration.ts` |
 
 **Dependencies:** None (Foundational)
 
----
-
-## Phase 2: Backend Utilities
-
-| Order | Task | Status | Notes |
-|-------|------|--------|-------|
-| 2.1 | Implement OTP utilities | ⏳ | `generateOTP`, `hashOTP`, `verifyOTP`, `sendOTPEmail` |
-| 2.2 | Implement device token encryption | ⏳ | `encryptDeviceToken`, `decryptDeviceToken` using AES-256 |
-| 2.3 | Implement device fingerprint utilities | ⏳ | `getDeviceFingerprint`, `fingerprintToHash`, `generateDeviceName` |
-
-**Dependencies:** Phase 1
+**Files Created/Modified:**
+- `apps/api/src/db/schema/companies.ts` (new)
+- `apps/api/src/db/schema/registered_devices.ts` (new)
+- `apps/api/src/db/schema/device_audit_logs.ts` (new)
+- `apps/api/src/db/schema.ts` (modified - added company_id columns)
+- `apps/api/src/db/seed.ts` (modified - added new app settings)
+- `apps/api/src/db/migrate-device-registration.ts` (new)
 
 ---
 
-## Phase 3: Backend Routes - Brand
+## Phase 2: Backend Utilities ✅ COMPLETED
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 3.1 | Implement `POST /brand/setup` | ⏳ | First-run brand setup, creates company + admin |
-| 3.2 | Implement `GET /brand` | ⏳ | Get brand details (admin only) |
-| 3.3 | Implement `PUT /brand` | ⏳ | Update brand details (admin only) |
+| 2.1 | Implement OTP utilities | ✅ | `generateOTP`, `hashOTP`, `verifyOTP`, OTP cache management |
+| 2.2 | Implement device token encryption | ✅ | `encryptDeviceToken`, `decryptDeviceToken` using AES-256 |
+| 2.3 | Implement device fingerprint utilities | ✅ | `getDeviceFingerprint`, `fingerprintToHash`, `generateDeviceName` |
 
-**Dependencies:** Phase 2
+**Dependencies:** Phase 1 ✅
+
+**Files Created:**
+- `apps/api/src/utils/otp.ts` - OTP generation, hashing, verification, and caching
+- `apps/api/src/utils/encryption.ts` - Device token encryption/decryption
+- `apps/api/src/utils/deviceFingerprint.ts` - Device fingerprint utilities
+
+---
+
+## Phase 3: Backend Routes - Brand ✅ COMPLETED
+
+| Order | Task | Status | Notes |
+|-------|------|--------|-------|
+| 3.1 | Implement `POST /brand/setup` | ✅ | First-run brand setup, creates company + admin |
+| 3.2 | Implement `GET /brand` | ✅ | Get brand details |
+| 3.3 | Implement `PUT /brand` | ✅ | Update brand details |
+| 3.4 | Implement `GET /brand/check` | ✅ | Check if brand is configured (public) |
+
+**Dependencies:** Phase 2 ✅
+
+**Files Created/Modified:**
+- `apps/api/src/routes/brand.ts` (new)
+- `apps/api/src/routes/index.ts` (modified - added brand route mount)
 
 ---
 
@@ -219,3 +237,6 @@ Phase 12: Documentation
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-01-11 | - | Initial task list |
+| 1.1 | 2025-01-11 | - | Phase 1 completed: Database schema and migration script |
+| 1.2 | 2025-01-11 | - | Phase 2 completed: Backend utilities (OTP, encryption, fingerprint) |
+| 1.3 | 2025-01-11 | - | Phase 3 completed: Brand endpoints (/brand/setup, /brand, /brand/check) |

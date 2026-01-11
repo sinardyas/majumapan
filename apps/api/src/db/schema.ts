@@ -28,9 +28,24 @@ export const appSettings = pgTable('app_settings', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+// Companies (Brands)
+export const companies = pgTable('companies', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull(),
+  logoUrl: text('logo_url'),
+  isActive: boolean('is_active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_companies_email').on(table.email),
+  index('idx_companies_active').on(table.isActive),
+]);
+
 // Stores
 export const stores = pgTable('stores', {
   id: uuid('id').primaryKey().defaultRandom(),
+  companyId: uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
   name: varchar('name', { length: 255 }).notNull(),
   address: text('address'),
   phone: varchar('phone', { length: 50 }),
@@ -39,12 +54,14 @@ export const stores = pgTable('stores', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index('idx_stores_active').on(table.isActive),
+  index('idx_stores_company').on(table.companyId),
 ]);
 
 // Users
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
-  storeId: uuid('store_id').references(() => stores.id),
+  companyId: uuid('company_id').references(() => companies.id, { onDelete: 'set null' }),
+  storeId: uuid('store_id').references(() => stores.id, { onDelete: 'set null' }),
   email: varchar('email', { length: 255 }).notNull().unique(),
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -54,6 +71,7 @@ export const users = pgTable('users', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
+  index('users_company_idx').on(table.companyId),
   index('idx_users_store').on(table.storeId),
   index('idx_users_email').on(table.email),
 ]);
@@ -265,4 +283,73 @@ export const shifts = pgTable('shifts', {
   index('shifts_store_status_idx').on(table.storeId, table.status),
   index('shifts_shift_number_idx').on(table.shiftNumber),
   index('shifts_opening_timestamp_idx').on(table.openingTimestamp),
+]);
+
+// Device Approval Status
+export const deviceApprovalStatusEnum = pgEnum('device_approval_status', [
+  'PENDING',
+  'APPROVED',
+  'REJECTED',
+]);
+
+// Registered Devices
+export const registeredDevices = pgTable('registered_devices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  companyId: uuid('company_id')
+    .references(() => companies.id, { onDelete: 'cascade' })
+    .notNull(),
+  storeId: uuid('store_id')
+    .references(() => stores.id, { onDelete: 'cascade' })
+    .notNull(),
+  deviceTokenHash: varchar('device_token_hash', { length: 255 }).notNull(),
+  deviceName: varchar('device_name', { length: 100 }).notNull(),
+  deviceFingerprint: text('device_fingerprint'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  isActive: boolean('is_active').default(true).notNull(),
+  lastUsedAt: timestamp('last_used_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  approvedByUserId: uuid('approved_by_user_id').references(() => users.id),
+  approvalStatus: deviceApprovalStatusEnum('approval_status')
+    .default('PENDING')
+    .notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_registered_devices_company').on(table.companyId),
+  index('idx_registered_devices_store').on(table.storeId),
+  index('idx_registered_devices_token').on(table.deviceTokenHash),
+  index('idx_registered_devices_active').on(table.isActive),
+  index('idx_registered_devices_expires').on(table.expiresAt),
+  index('idx_registered_devices_approval').on(table.approvalStatus),
+]);
+
+// Device Audit Action
+export const deviceAuditActionEnum = pgEnum('device_audit_action', [
+  'REGISTERED',
+  'APPROVED',
+  'REJECTED',
+  'REVOKED',
+  'TRANSFERRED',
+  'RENAMED',
+  'EXPIRED',
+  'LOGIN_FAILED_MISMATCH',
+  'TOKEN_INVALIDATED',
+]);
+
+// Device Audit Logs
+export const deviceAuditLogs = pgTable('device_audit_logs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  deviceId: uuid('device_id')
+    .references(() => registeredDevices.id, { onDelete: 'cascade' })
+    .notNull(),
+  userId: uuid('user_id').references(() => users.id),
+  action: deviceAuditActionEnum('action').notNull(),
+  details: jsonb('details'),
+  ipAddress: varchar('ip_address', { length: 45 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_device_audit_device').on(table.deviceId),
+  index('idx_device_audit_user').on(table.userId),
+  index('idx_device_audit_action').on(table.action),
+  index('idx_device_audit_created').on(table.createdAt),
 ]);

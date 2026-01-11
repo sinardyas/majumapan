@@ -32,6 +32,10 @@ async function seed() {
       { key: 'currency_symbol', value: '$' },
       { key: 'transaction_prefix', value: 'TXN' },
       { key: 'local_retention_days', value: '30' },
+      { key: 'brand_email', value: '' },
+      { key: 'device_token_expiry_days', value: '30' },
+      { key: 'otp_expiry_minutes', value: '10' },
+      { key: 'max_otp_attempts', value: '5' },
     ]);
 
     // Seed stores
