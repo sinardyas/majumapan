@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '@pos/shared';
+import { useCartStore } from './cartStore';
 
 interface AuthState {
   user: Omit<User, 'passwordHash'> | null;
@@ -8,7 +9,7 @@ interface AuthState {
   refreshToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  
+
   // Actions
   setAuth: (user: Omit<User, 'passwordHash'>, accessToken: string, refreshToken: string) => void;
   setTokens: (accessToken: string, refreshToken?: string) => void;
@@ -43,6 +44,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
+        useCartStore.getState().clearCart();
         set({
           user: null,
           accessToken: null,

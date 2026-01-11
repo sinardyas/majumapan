@@ -116,26 +116,30 @@ This means:
 3. **Cross-tab sync works properly** - State syncs between tabs
 4. **Simple implementation** - Uses existing zustand persist pattern
 5. **Minimal code changes** - No refactoring of store logic
+6. **Session-scoped persistence** - Cart clears on logout, preventing cross-user data leakage
 
 ### Negative
 
-1. **Cart persists across sessions** - May need to clear cart after completed order
-2. **Potential for stale data** - If products change while cart is persisted
-3. **localStorage size limit** - ~5MB limit, but cart data is typically <5KB
+1. **Potential for stale data** - If products change while cart is persisted
+2. **localStorage size limit** - ~5MB limit, but cart data is typically <5KB
 
 ### Mitigations
 
 The `clearCart()` action is called after:
 - Successful order completion
 - Hold order creation
+- User logout
+- Token refresh failure
 
-This ensures the cart is cleared at appropriate times, preventing stale data accumulation.
+This ensures the cart is cleared at appropriate times, preventing stale data accumulation and cross-user data leakage.
 
 ## Files Changed
 
 | File | Action | Description |
 |------|--------|-------------|
 | `apps/web/src/stores/cartStore.ts` | Modify | Added persist middleware, imported `createJSONStorage` |
+| `apps/web/src/stores/authStore.ts` | Modify | Added cart clear on logout via `useCartStore.getState().clearCart()` |
+| `apps/web/src/components/layout/Sidebar.tsx` | Modify | Removed `await db.delete()` to preserve IndexedDB on logout |
 | `docs/adr/0015-cart-state-persistence.md` | Create | This ADR |
 
 ## Implementation Details
@@ -221,6 +225,49 @@ The rehydration happens synchronously before any component mounts, so cart items
 
 **Decision**: Keep localStorage for better UX. The risk profile is acceptable for non-sensitive cart data.
 
+## Business Model Context
+
+### Organizational Hierarchy
+
+The POS system is designed for a multi-tenant retail environment:
+
+```
+Brand (Company)
+  └── Store (Location)
+        └── Manager (Oversees all cashiers)
+              └── Cashier (Processes transactions)
+```
+
+- **Brand level**: Can view performance across all stores
+- **Store level**: Manager can view all cashiers' performance at their store
+- **Cashier level**: Works at a single store, processes transactions
+
+### Data Sharing Model
+
+Given this hierarchy, the following data sharing is acceptable:
+
+| Data Type | Accessible By | Justification |
+|-----------|---------------|---------------|
+| Transactions | All store users | Properly attributed with `cashierId`, manager needs visibility |
+| Pending transactions | All store users | Sync service uses `cashierId` for attribution |
+| Held orders | All store users | Customer orders at the store level |
+| Active shift | Logged-in user | Device-specific, loads based on current user |
+
+### Why IndexedDB Persists on Logout
+
+**Business Requirement**: A cashier should be able to:
+1. Open a shift on a device
+2. Log out (device remains at the store)
+3. Another cashier logs in
+4. The second cashier sees their own active shift
+
+**Implementation**: Removed `await db.delete()` from the logout handler in `Sidebar.tsx`.
+
+**Trade-off**: Pending transactions from the previous user persist on the device. This is acceptable because:
+- Transactions are properly attributed with `cashierId`
+- The store manager already has visibility into all transactions
+- No data leakage concern within the same store
+
 ## Future Enhancements
 
 ### Potential Improvements (Out of Scope)
@@ -257,6 +304,34 @@ These are complementary features:
 ---
 
 ## Changelog
+
+### 2025-01-11: Cart Cleared on Logout
+
+**Issue**: Cart persisted across user sessions, causing privacy issues when different users logged in.
+
+**Root Cause**: Cart was stored in localStorage independently of auth state.
+
+**Solution**: Modified `authStore.ts` to clear cart when `logout()` is called:
+
+```typescript
+import { useCartStore } from './cartStore';
+
+// In logout action:
+logout: () => {
+  useCartStore.getState().clearCart();
+  set({ /* clear auth state */ });
+},
+```
+
+**Behavior**:
+- Cart survives page refresh (while user remains logged in)
+- Cart is cleared when user logs out
+- Cart is cleared when token refresh fails (via api.ts calling logout)
+
+**Files Modified**:
+- `apps/web/src/stores/authStore.ts`: Added cart clear on logout
+
+---
 
 ### 2025-01-11: Cart Totals Not Recalculated After Rehydration Fix
 

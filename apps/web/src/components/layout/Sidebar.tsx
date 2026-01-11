@@ -4,7 +4,6 @@ import { useAuthStore } from '@/stores/authStore';
 import { hasPermission, type UserRole } from '@pos/shared';
 import { useSync } from '@/hooks/useSync';
 import { RejectedTransactions } from '@/components/shared/RejectedTransactions';
-import { db } from '@/db';
 import {
   ShoppingCart,
   LayoutGrid,
@@ -104,7 +103,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   const handleLogout = async () => {
     logout();
-    await db.delete();
     navigate('/login');
   };
 
