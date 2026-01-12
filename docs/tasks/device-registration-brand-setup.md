@@ -68,23 +68,27 @@ This document contains the implementation task breakdown for the Device Registra
 
 ---
 
-## Phase 4: Backend Routes - Devices
+## Phase 4: Backend Routes - Devices ✅ COMPLETED
 
 | Order | Task | Status | Notes |
 |-------|------|--------|-------|
-| 4.1 | `POST /devices/register/init` | ⏳ | Initiate registration, send OTP to brand email |
-| 4.2 | `POST /devices/register/verify` | ⏳ | Verify OTP, create pending device registration |
-| 4.3 | `POST /devices/register/resend` | ⏳ | Resend OTP for pending registration |
-| 4.4 | `POST /devices/approve` | ⏳ | Manager approves/rejects pending device |
-| 4.5 | `GET /devices/pending` | ⏳ | List pending devices for manager's store |
-| 4.6 | `GET /devices` | ⏳ | List all registered devices (paginated) |
-| 4.7 | `GET /devices/:id` | ⏳ | Get device details with audit log |
-| 4.8 | `PUT /devices/:id` | ⏳ | Rename device |
-| 4.9 | `POST /devices/:id/revoke` | ⏳ | Revoke device access |
-| 4.10 | `POST /devices/:id/transfer` | ⏳ | Transfer device to another store |
-| 4.11 | `GET /devices/my` | ⏳ | Get current device status |
+| 4.1 | `POST /devices/register/init` | ✅ | Initiate registration, send OTP to brand email |
+| 4.2 | `POST /devices/register/verify` | ✅ | Verify OTP, create pending device registration |
+| 4.3 | `POST /devices/register/resend` | ✅ | Resend OTP for pending registration |
+| 4.4 | `POST /devices/approve` | ✅ | Manager approves/rejects pending device |
+| 4.5 | `GET /devices/pending` | ✅ | List pending devices for manager's store |
+| 4.6 | `GET /devices` | ✅ | List all registered devices (paginated) |
+| 4.7 | `GET /devices/:id` | ✅ | Get device details with audit log |
+| 4.8 | `PUT /devices/:id` | ✅ | Rename device |
+| 4.9 | `POST /devices/:id/revoke` | ✅ | Revoke device access |
+| 4.10 | `POST /devices/:id/transfer` | ✅ | Transfer device to another store |
+| 4.11 | `GET /devices/my` | ✅ | Get current device status |
 
-**Dependencies:** Phase 2, Phase 3
+**Dependencies:** Phase 2, Phase 3 ✅
+
+**Files Created/Modified:**
+- `apps/api/src/routes/devices.ts` (new - 11 endpoints)
+- `apps/api/src/routes/index.ts` (modified - added devices route mount)
 
 ---
 
@@ -240,3 +244,4 @@ Phase 12: Documentation
 | 1.1 | 2025-01-11 | - | Phase 1 completed: Database schema and migration script |
 | 1.2 | 2025-01-11 | - | Phase 2 completed: Backend utilities (OTP, encryption, fingerprint) |
 | 1.3 | 2025-01-11 | - | Phase 3 completed: Brand endpoints (/brand/setup, /brand, /brand/check) |
+| 1.4 | 2025-01-11 | - | Phase 4 completed: Device endpoints (11 endpoints for registration, approval, management)

@@ -14,6 +14,7 @@ import settings from './settings';
 import reports from './reports';
 import shifts from './shifts';
 import brand from './brand';
+import devices from './devices';
 
 const routes = new Hono();
 
@@ -33,6 +34,7 @@ routes.route('/settings', settings);
 routes.route('/reports', reports);
 routes.route('/shifts', shifts);
 routes.route('/brand', brand);
+routes.route('/devices', devices);
 
 // Health check
 routes.get('/health', (c) => {
