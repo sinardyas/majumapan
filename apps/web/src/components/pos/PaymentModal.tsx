@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@pos/ui';
 import { PAYMENT_METHODS, type PaymentMethod } from '@pos/shared';
+import { Banknote, CreditCard } from 'lucide-react';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -242,7 +243,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                     className="flex-1"
                     onClick={() => addPayment('cash')}
                   >
-                    💵 Add Cash
+                    <Banknote className="h-4 w-4 mr-2" />
+                    Add Cash
                   </Button>
                 )}
                 {!payments.some(p => p.paymentMethod === 'card') && (
@@ -251,7 +253,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                     className="flex-1"
                     onClick={() => addPayment('card')}
                   >
-                    💳 Add Card
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Add Card
                   </Button>
                 )}
               </div>
@@ -261,7 +264,17 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                 <div key={payment.id} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <span className="font-medium flex items-center gap-2">
-                      {payment.paymentMethod === 'cash' ? '💵 Cash' : '💳 Card'}
+                      {payment.paymentMethod === 'cash' ? (
+                        <>
+                          <Banknote className="h-4 w-4" />
+                          Cash
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="h-4 w-4" />
+                          Card
+                        </>
+                      )}
                     </span>
                     <button
                       onClick={() => removePayment(payment.id)}
@@ -322,8 +335,18 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                   </div>
                   {payments.map((p) => (
                     <div key={p.id} className="flex justify-between text-sm">
-                      <span>
-                        {p.paymentMethod === 'cash' ? '💵 Cash' : '💳 Card'}:
+                      <span className="flex items-center gap-1">
+                        {p.paymentMethod === 'cash' ? (
+                          <>
+                            <Banknote className="h-3 w-3" />
+                            Cash
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-3 w-3" />
+                            Card
+                          </>
+                        )}:
                       </span>
                       <span>
                         {formatCurrency(p.amount)}
@@ -361,17 +384,13 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                   >
                     {method === 'cash' ? (
                       <>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        Cash
+                        <Banknote className="h-4 w-4" />
+			Cash
                       </>
                     ) : (
                       <>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                        </svg>
-                        Card
+			<CreditCard className="h-4 w-4" />
+                	Card
                       </>
                     )}
                   </button>
