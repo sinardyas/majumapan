@@ -35,6 +35,8 @@ Majumapan is a web-based Point of Sale (POS) system designed with offline-first 
 - **Transactions**: Full POS checkout flow with cash/card
 - **Receipt Printing**: Browser print dialog, 80mm thermal format
 - **Hold Orders**: Temporarily save and resume in-progress orders
+- **Customer Display**: Secondary window showing cart contents to customers in real-time
+- **Split Payments**: Pay with multiple payment methods (documentation only, pending implementation)
 - **Dashboard**: Daily sales summary, transaction history
 - **PWA**: Installable app with offline support
 

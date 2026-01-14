@@ -1,6 +1,5 @@
 import type {
   UserRole,
-  PaymentMethod,
   TransactionStatus,
   SyncStatus,
   DiscountType,
@@ -101,6 +100,14 @@ export interface ProductDiscount {
   productId: string;
 }
 
+export interface TransactionPayment {
+  id: string;
+  transactionId: string;
+  paymentMethod: 'cash' | 'card';
+  amount: number;
+  changeAmount: number;
+}
+
 export interface Transaction {
   id: string;
   clientId: string;
@@ -114,15 +121,17 @@ export interface Transaction {
   discountCode: string | null;
   discountName: string | null;
   total: number;
-  paymentMethod: PaymentMethod;
-  amountPaid: number;
-  changeAmount: number;
+  isSplitPayment: boolean;
+  paymentMethod: 'cash' | 'card' | null;
+  amountPaid: number | null;
+  changeAmount: number | null;
   status: TransactionStatus;
   syncStatus: SyncStatus;
   rejectionReason: string | null;
   rejectedAt: Date | null;
   clientTimestamp: Date;
   createdAt: Date;
+  payments?: TransactionPayment[];
 }
 
 export interface TransactionItem {

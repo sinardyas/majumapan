@@ -154,23 +154,52 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {/* Divider */}
         <div className="border-t border-dashed border-gray-400 my-2" />
 
-        {/* Payment Info */}
-        <div className="mb-4">
-          <div className="flex justify-between">
-            <span>Payment Method:</span>
-            <span className="uppercase">{transaction.paymentMethod}</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Amount Paid:</span>
-            <span>{formatCurrency(transaction.amountPaid)}</span>
-          </div>
-          {transaction.changeAmount > 0 && (
-            <div className="flex justify-between font-bold">
-              <span>Change:</span>
-              <span>{formatCurrency(transaction.changeAmount)}</span>
+        {/* Payment Info - Single Payment */}
+        {!transaction.isSplitPayment ? (
+          <div className="mb-4">
+            <div className="flex justify-between">
+              <span>Payment Method:</span>
+              <span className="uppercase">{transaction.paymentMethod}</span>
             </div>
-          )}
-        </div>
+            <div className="flex justify-between">
+              <span>Amount Paid:</span>
+              <span>{formatCurrency(transaction.amountPaid || 0)}</span>
+            </div>
+            {(transaction.changeAmount || 0) > 0 && (
+              <div className="flex justify-between font-bold">
+                <span>Change:</span>
+                <span>{formatCurrency(transaction.changeAmount || 0)}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Payment Info - Split Payment */
+          <div className="mb-4">
+            <div className="font-bold mb-2">PAYMENT BREAKDOWN</div>
+            {transaction.payments?.map((payment, index) => (
+              <div key={index} className="flex justify-between">
+                <span>
+                  {payment.paymentMethod === 'cash' ? 'Cash' : 'Card'}:
+                </span>
+                <span>
+                  {formatCurrency(payment.amount)}
+                </span>
+              </div>
+            ))}
+            {(transaction.payments?.some(p => p.changeAmount > 0)) && (
+              <div className="flex justify-between text-green-600">
+                <span>Change:</span>
+                <span>{formatCurrency(
+                  transaction.payments?.reduce((sum, p) => sum + p.changeAmount, 0) || 0
+                )}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-bold border-t border-gray-300 pt-1 mt-1">
+              <span>Total Paid:</span>
+              <span>{formatCurrency(transaction.total)}</span>
+            </div>
+          </div>
+        )}
 
         {/* Divider */}
         <div className="border-t border-dashed border-gray-400 my-2" />

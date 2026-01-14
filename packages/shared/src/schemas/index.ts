@@ -124,6 +124,36 @@ export const createTransactionSchema = z.object({
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 
+// Split transaction schema (for transactions with multiple payment methods)
+export const createSplitTransactionSchema = z.object({
+  items: z.array(z.object({
+    productId: z.string().uuid(),
+    productName: z.string(),
+    productSku: z.string(),
+    quantity: z.number().int().positive(),
+    unitPrice: z.number().positive(),
+    discountId: z.string().uuid().optional(),
+    discountName: z.string().optional(),
+    discountValue: z.number().optional(),
+    subtotal: z.number(),
+  })).min(1, 'At least one item is required'),
+  subtotal: z.number().positive(),
+  taxAmount: z.number().min(0),
+  discountAmount: z.number().min(0),
+  discountId: z.string().uuid().optional(),
+  discountCode: z.string().optional(),
+  discountName: z.string().optional(),
+  total: z.number().positive(),
+  isSplitPayment: z.boolean().default(false),
+  payments: z.array(z.object({
+    paymentMethod: z.enum(['cash', 'card']),
+    amount: z.number().positive(),
+    changeAmount: z.number().min(0).default(0),
+  })).min(1, 'At least one payment is required'),
+});
+
+export type CreateSplitTransactionInput = z.infer<typeof createSplitTransactionSchema>;
+
 // Sync schemas
 export const syncPushSchema = z.object({
   transactions: z.array(z.object({
@@ -147,9 +177,15 @@ export const syncPushSchema = z.object({
     discountCode: z.string().optional(),
     discountName: z.string().optional(),
     total: z.number(),
-    paymentMethod: z.enum(['cash', 'card']),
-    amountPaid: z.number(),
-    changeAmount: z.number(),
+    isSplitPayment: z.boolean().optional().default(false),
+    paymentMethod: z.enum(['cash', 'card']).optional(),
+    amountPaid: z.number().optional(),
+    changeAmount: z.number().optional(),
+    payments: z.array(z.object({
+      paymentMethod: z.enum(['cash', 'card']),
+      amount: z.number(),
+      changeAmount: z.number().optional().default(0),
+    })).optional(),
   })),
 });
 

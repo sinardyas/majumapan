@@ -9,6 +9,7 @@ import {
   discounts,
   transactions,
   transactionItems,
+  transactionPayments,
   syncLog,
 } from '../db';
 import { authMiddleware } from '../middleware/auth';
@@ -327,40 +328,97 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
         // Create the transaction
         const transactionNumber = generateTransactionNumber();
 
-        const [newTransaction] = await db.insert(transactions).values({
-          clientId: txn.clientId,
-          storeId,
-          cashierId: user.userId,
-          transactionNumber,
-          subtotal: txn.subtotal.toString(),
-          taxAmount: txn.taxAmount.toString(),
-          discountAmount: txn.discountAmount.toString(),
-          discountId: txn.discountId || null,
-          discountCode: txn.discountCode || null,
-          discountName: txn.discountName || null,
-          total: txn.total.toString(),
-          paymentMethod: txn.paymentMethod,
-          amountPaid: txn.amountPaid.toString(),
-          changeAmount: txn.changeAmount.toString(),
-          status: 'completed',
-          syncStatus: 'synced',
-          clientTimestamp: new Date(txn.clientTimestamp),
-        }).returning();
+        // Check if this is a split payment
+        const isSplitPayment = txn.isSplitPayment === true || (txn.payments && txn.payments.length > 0);
+
+        if (isSplitPayment && txn.payments) {
+          // Handle split payment
+          const totalPaid = txn.payments.reduce((sum, p) => sum + p.amount, 0);
+          const totalChange = txn.payments.reduce((sum, p) => sum + (p.changeAmount || 0), 0);
+
+          const [newTransaction] = await db.insert(transactions).values({
+            clientId: txn.clientId,
+            storeId,
+            cashierId: user.userId,
+            transactionNumber,
+            subtotal: txn.subtotal.toString(),
+            taxAmount: txn.taxAmount.toString(),
+            discountAmount: txn.discountAmount.toString(),
+            discountId: txn.discountId || null,
+            discountCode: txn.discountCode || null,
+            discountName: txn.discountName || null,
+            total: txn.total.toString(),
+            isSplitPayment: true,
+            paymentMethod: 'cash', // Primary for compatibility
+            amountPaid: totalPaid.toString(),
+            changeAmount: totalChange.toString(),
+            status: 'completed',
+            syncStatus: 'synced',
+            clientTimestamp: new Date(txn.clientTimestamp),
+          }).returning();
+
+          // Create transaction payments
+          for (const payment of txn.payments) {
+            await db.insert(transactionPayments).values({
+              transactionId: newTransaction.id,
+              paymentMethod: payment.paymentMethod,
+              amount: payment.amount.toString(),
+              changeAmount: (payment.changeAmount || 0).toString(),
+            });
+          }
+        } else {
+          // Handle single payment (original logic)
+          const [newTransaction] = await db.insert(transactions).values({
+            clientId: txn.clientId,
+            storeId,
+            cashierId: user.userId,
+            transactionNumber,
+            subtotal: txn.subtotal.toString(),
+            taxAmount: txn.taxAmount.toString(),
+            discountAmount: txn.discountAmount.toString(),
+            discountId: txn.discountId || null,
+            discountCode: txn.discountCode || null,
+            discountName: txn.discountName || null,
+            total: txn.total.toString(),
+            isSplitPayment: false,
+            paymentMethod: txn.paymentMethod || 'cash',
+            amountPaid: (txn.amountPaid || txn.total).toString(),
+            changeAmount: (txn.changeAmount || 0).toString(),
+            status: 'completed',
+            syncStatus: 'synced',
+            clientTimestamp: new Date(txn.clientTimestamp),
+          }).returning();
+
+          // Create single transaction payment record
+          await db.insert(transactionPayments).values({
+            transactionId: newTransaction.id,
+            paymentMethod: txn.paymentMethod || 'cash',
+            amount: (txn.amountPaid || txn.total).toString(),
+            changeAmount: (txn.changeAmount || 0).toString(),
+          });
+        }
 
         // Create transaction items
         for (const item of txn.items) {
-          await db.insert(transactionItems).values({
-            transactionId: newTransaction.id,
-            productId: item.productId,
-            productName: item.productName,
-            productSku: item.productSku,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice.toString(),
-            discountId: item.discountId || null,
-            discountName: item.discountName || null,
-            discountValue: (item.discountValue || 0).toString(),
-            subtotal: item.subtotal.toString(),
+          // Find the transaction we just created
+          const createdTxn = await db.query.transactions.findFirst({
+            where: eq(transactions.clientId, txn.clientId),
           });
+          
+          if (createdTxn) {
+            await db.insert(transactionItems).values({
+              transactionId: createdTxn.id,
+              productId: item.productId,
+              productName: item.productName,
+              productSku: item.productSku,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice.toString(),
+              discountId: item.discountId || null,
+              discountName: item.discountName || null,
+              discountValue: (item.discountValue || 0).toString(),
+              subtotal: item.subtotal.toString(),
+            });
+          }
         }
 
         // Update stock levels
@@ -390,7 +448,7 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
 
         synced.push({
           clientId: txn.clientId,
-          serverId: newTransaction.id,
+          serverId: (await db.query.transactions.findFirst({ where: eq(transactions.clientId, txn.clientId) }))!.id,
           transactionNumber,
         });
       } catch (err) {
