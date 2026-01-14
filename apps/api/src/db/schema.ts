@@ -160,6 +160,7 @@ export const transactions = pgTable('transactions', {
   discountCode: varchar('discount_code', { length: 50 }),
   discountName: varchar('discount_name', { length: 255 }),
   total: decimal('total', { precision: 12, scale: 2 }).notNull(),
+  isSplitPayment: boolean('is_split_payment').default(false).notNull(),
   paymentMethod: paymentMethodEnum('payment_method').notNull(),
   amountPaid: decimal('amount_paid', { precision: 12, scale: 2 }).notNull(),
   changeAmount: decimal('change_amount', { precision: 12, scale: 2 }).default('0').notNull(),
@@ -175,6 +176,18 @@ export const transactions = pgTable('transactions', {
   index('idx_transactions_cashier').on(table.cashierId),
   index('idx_transactions_date').on(table.createdAt),
   index('idx_transactions_client_id').on(table.clientId),
+]);
+
+// Transaction Payments (for split payments)
+export const transactionPayments = pgTable('transaction_payments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  transactionId: uuid('transaction_id').references(() => transactions.id, { onDelete: 'cascade' }).notNull(),
+  paymentMethod: paymentMethodEnum('payment_method').notNull(),
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  changeAmount: decimal('change_amount', { precision: 12, scale: 2 }).default('0').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_transaction_payments_transaction').on(table.transactionId),
 ]);
 
 // Transaction Items

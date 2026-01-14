@@ -64,6 +64,13 @@ export interface LocalDiscount {
   updatedAt: string;
 }
 
+export interface LocalPayment {
+  id: string;
+  paymentMethod: 'cash' | 'card';
+  amount: number;
+  changeAmount: number;
+}
+
 export interface LocalTransaction {
   clientId: string;
   serverId?: string;
@@ -91,9 +98,11 @@ export interface LocalTransaction {
   discountCode?: string;
   discountName?: string;
   total: number;
-  paymentMethod: 'cash' | 'card';
-  amountPaid: number;
-  changeAmount: number;
+  isSplitPayment: boolean;
+  paymentMethod?: 'cash' | 'card';
+  amountPaid?: number;
+  changeAmount?: number;
+  payments?: LocalPayment[];
   status: 'completed' | 'voided' | 'pending_sync';
   syncStatus: 'pending' | 'synced' | 'failed' | 'rejected';
   rejectionReason?: string;

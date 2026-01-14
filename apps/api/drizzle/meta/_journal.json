@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1766653542137,
-      "tag": "0000_green_zemo",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1767084464721,
-      "tag": "0001_grey_cassandra_nova",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1767670395430,
-      "tag": "0002_heavy_thunderball",
+      "when": 1768363858203,
+      "tag": "0000_ambitious_human_robot",
       "breakpoints": true
     }
   ]

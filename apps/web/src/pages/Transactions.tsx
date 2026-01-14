@@ -323,14 +323,36 @@ export default function Transactions() {
                   <span>Total</span>
                   <span>{formatCurrency(selectedTransaction.total)}</span>
                 </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Amount Paid</span>
-                  <span>{formatCurrency(selectedTransaction.amountPaid)}</span>
-                </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Change</span>
-                  <span>{formatCurrency(selectedTransaction.changeAmount)}</span>
-                </div>
+                {selectedTransaction.isSplitPayment ? (
+                  <div className="mt-2">
+                    <div className="text-sm font-medium text-gray-500 mb-1">Payment Breakdown:</div>
+                    {selectedTransaction.payments?.map((payment, index) => (
+                      <div key={index} className="flex justify-between text-gray-500">
+                        <span className="capitalize">{payment.paymentMethod}</span>
+                        <span>{formatCurrency(payment.amount)}</span>
+                      </div>
+                    ))}
+                    {selectedTransaction.payments?.some(p => p.changeAmount > 0) && (
+                      <div className="flex justify-between text-green-600">
+                        <span>Change</span>
+                        <span>{formatCurrency(
+                          selectedTransaction.payments?.reduce((sum, p) => sum + p.changeAmount, 0) || 0
+                        )}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Amount Paid</span>
+                      <span>{formatCurrency(selectedTransaction.amountPaid || 0)}</span>
+                    </div>
+                    <div className="flex justify-between text-gray-500">
+                      <span>Change</span>
+                      <span>{formatCurrency(selectedTransaction.changeAmount || 0)}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">

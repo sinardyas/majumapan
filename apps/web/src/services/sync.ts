@@ -363,9 +363,11 @@ class SyncService {
         discountCode: txn.discountCode,
         discountName: txn.discountName,
         total: txn.total,
+        isSplitPayment: txn.isSplitPayment,
         paymentMethod: txn.paymentMethod,
         amountPaid: txn.amountPaid,
         changeAmount: txn.changeAmount,
+        payments: txn.payments,
       }));
 
       const response = await api.post<PushSyncResponse>('/sync/push', {

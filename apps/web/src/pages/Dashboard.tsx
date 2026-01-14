@@ -176,7 +176,8 @@ export default function Dashboard() {
     const avgTransaction = txns.length > 0 ? totalSales / txns.length : 0;
     
     const paymentMethods = txns.reduce((acc, t) => {
-      acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.total;
+      const method = t.isSplitPayment ? 'split' : (t.paymentMethod || 'unknown');
+      acc[method] = (acc[method] || 0) + t.total;
       return acc;
     }, {} as Record<string, number>);
     

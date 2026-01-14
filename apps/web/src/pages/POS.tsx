@@ -6,6 +6,7 @@ import {
   db, 
   type LocalProduct, 
   type LocalTransaction,
+  type LocalPayment,
   getHeldOrdersCount,
   deleteExpiredHeldOrders,
   deleteHeldOrder,
@@ -569,12 +570,28 @@ export default function POS() {
     return `TXN-${dateStr}-${sequence}`;
   };
 
-  const handlePaymentConfirm = async (paymentMethod: PaymentMethod, amountPaid: number) => {
+  const handlePaymentConfirm = async (
+    paymentMethod: PaymentMethod, 
+    amountPaid: number, 
+    isSplitPayment: boolean = false,
+    payments?: LocalPayment[]
+  ) => {
     if (!user?.storeId || !user?.id) return;
     
-    const changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
     const now = new Date().toISOString();
     const clientId = crypto.randomUUID();
+    
+    // For split payments, calculate change from cash only
+    let changeAmount = 0;
+    if (isSplitPayment && payments) {
+      const cashPayment = payments.find(p => p.paymentMethod === 'cash');
+      if (cashPayment) {
+        const cashAmountApplied = cashPayment.amount - cashPayment.changeAmount;
+        changeAmount = cashPayment.amount - cashAmountApplied;
+      }
+    } else {
+      changeAmount = paymentMethod === 'cash' ? Math.max(0, amountPaid - total) : 0;
+    }
     
     const transaction: LocalTransaction = {
       clientId,
@@ -602,9 +619,11 @@ export default function POS() {
       discountCode: cartDiscount?.code,
       discountName: cartDiscount?.name,
       total,
-      paymentMethod,
-      amountPaid,
-      changeAmount,
+      isSplitPayment,
+      paymentMethod: isSplitPayment ? undefined : paymentMethod,
+      amountPaid: isSplitPayment ? undefined : amountPaid,
+      changeAmount: isSplitPayment ? undefined : changeAmount,
+      payments: isSplitPayment ? payments : undefined,
       status: 'completed',
       syncStatus: isOnline ? 'pending' : 'pending',
       clientTimestamp: now,
