@@ -56,6 +56,9 @@ export const PERMISSIONS = {
   'sync:pull': ['admin', 'manager', 'cashier'],
   'sync:push': ['admin', 'manager', 'cashier'],
   'sync:status': ['admin', 'manager'],
+
+  // End of Day
+  'eod:manage': ['admin', 'manager'],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

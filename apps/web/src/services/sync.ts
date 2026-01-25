@@ -13,6 +13,7 @@ import {
   type LocalTransaction,
   type LocalStore,
 } from '@/db';
+import { syncPendingShiftOperations } from '@/db/shifts';
 import { LOCAL_RETENTION_DAYS } from '@pos/shared';
 
 // =============================================================================
@@ -446,16 +447,20 @@ class SyncService {
   /**
    * Perform a complete sync cycle
    * 1. Push pending transactions
-   * 2. Pull changes
+   * 2. Sync pending shifts
+   * 3. Pull changes
    */
   async sync(): Promise<SyncResult> {
     // First, push any pending transactions
     const pushResult = await this.pushTransactions();
     
     if (!pushResult.success) {
-      // Still try to pull even if push failed
-      console.warn('Push failed, continuing with pull:', pushResult.error);
+      // Still try to sync shifts and pull even if push failed
+      console.warn('Push failed, continuing with shift sync:', pushResult.error);
     }
+
+    // Sync pending shift operations to server
+    await syncPendingShiftOperations();
 
     // Then pull changes
     const pullResult = await this.pullChanges();

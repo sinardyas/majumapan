@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   index,
   jsonb,
+  date,
 } from 'drizzle-orm/pg-core';
 
 // Enums
@@ -35,6 +36,9 @@ export const stores = pgTable('stores', {
   address: text('address'),
   phone: varchar('phone', { length: 50 }),
   isActive: boolean('is_active').default(true).notNull(),
+  operationalDayStartHour: integer('operational_day_start_hour').notNull().default(6),
+  allowAutoDayTransition: boolean('allow_auto_day_transition').notNull().default(true),
+  eodNotificationEmails: text('eod_notification_emails').array(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
@@ -169,6 +173,7 @@ export const transactions = pgTable('transactions', {
   rejectionReason: text('rejection_reason'),
   rejectedAt: timestamp('rejected_at'),
   clientTimestamp: timestamp('client_timestamp').notNull(),
+  operationalDate: date('operational_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
@@ -176,6 +181,7 @@ export const transactions = pgTable('transactions', {
   index('idx_transactions_cashier').on(table.cashierId),
   index('idx_transactions_date').on(table.createdAt),
   index('idx_transactions_client_id').on(table.clientId),
+  index('idx_transactions_operational_date').on(table.operationalDate),
 ]);
 
 // Transaction Payments (for split payments)
@@ -278,4 +284,106 @@ export const shifts = pgTable('shifts', {
   index('shifts_store_status_idx').on(table.storeId, table.status),
   index('shifts_shift_number_idx').on(table.shiftNumber),
   index('shifts_opening_timestamp_idx').on(table.openingTimestamp),
+]);
+
+// =============================================================================
+// END OF DAY TABLES
+// =============================================================================
+
+// Operational Days
+export const operationalDays = pgTable('operational_days', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  operationalDate: date('operational_date').notNull(),
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  status: varchar('status', { length: 20 }).$type<'OPEN' | 'CLOSED'>().default('OPEN').notNull(),
+  closedByUserId: uuid('closed_by_user_id'),
+  closedByUserName: varchar('closed_by_user_name', { length: 255 }),
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_operational_days_store_date').on(table.storeId, table.operationalDate),
+  index('idx_operational_days_date').on(table.operationalDate),
+]);
+
+// Day Closes
+export const dayCloses = pgTable('day_closes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  operationalDayId: uuid('operational_day_id').references(() => operationalDays.id).notNull(),
+  operationalDate: date('operational_date').notNull(),
+  dayCloseNumber: varchar('day_close_number', { length: 50 }).notNull(),
+  periodStart: timestamp('period_start').notNull(),
+  periodEnd: timestamp('period_end').notNull(),
+  
+  totalTransactions: integer('total_transactions').notNull().default(0),
+  completedTransactions: integer('completed_transactions').notNull().default(0),
+  voidedTransactions: integer('voided_transactions').notNull().default(0),
+  totalSales: decimal('total_sales', { precision: 10, scale: 2 }).notNull().default('0'),
+  cashRevenue: decimal('cash_revenue', { precision: 10, scale: 2 }).notNull().default('0'),
+  cardRevenue: decimal('card_revenue', { precision: 10, scale: 2 }).notNull().default('0'),
+  totalRefunds: decimal('total_refunds', { precision: 10, scale: 2 }).notNull().default('0'),
+  totalDiscounts: decimal('total_discounts', { precision: 10, scale: 2 }).notNull().default('0'),
+  totalVariance: decimal('total_variance', { precision: 10, scale: 2 }).notNull().default('0'),
+  
+  pendingTransactionsAtClose: integer('pending_transactions_at_close').notNull().default(0),
+  syncStatus: varchar('sync_status', { length: 20 }).$type<'clean' | 'warning'>().default('clean').notNull(),
+  
+  closedByUserId: uuid('closed_by_user_id').notNull(),
+  closedByUserName: varchar('closed_by_user_name', { length: 255 }).notNull(),
+  closedAt: timestamp('closed_at').notNull(),
+  
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_day_closes_store_date').on(table.storeId, table.operationalDate),
+  uniqueIndex('idx_day_closes_number').on(table.dayCloseNumber),
+  index('idx_day_closes_date').on(table.operationalDate),
+]);
+
+// Day Close Shifts
+export const dayCloseShifts = pgTable('day_close_shifts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  dayCloseId: uuid('day_close_id').references(() => dayCloses.id, { onDelete: 'cascade' }).notNull(),
+  shiftId: uuid('shift_id').references(() => shifts.id).notNull(),
+  cashierId: uuid('cashier_id').notNull(),
+  cashierName: varchar('cashier_name', { length: 255 }).notNull(),
+  openingFloat: decimal('opening_float', { precision: 10, scale: 2 }).notNull(),
+  closingCash: decimal('closing_cash', { precision: 10, scale: 2 }).notNull(),
+  variance: decimal('variance', { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_day_close_shifts_day_close').on(table.dayCloseId),
+  index('idx_day_close_shifts_shift').on(table.shiftId),
+]);
+
+// Pending Carts Queue
+export const pendingCartsQueue = pgTable('pending_carts_queue', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  cartId: varchar('cart_id', { length: 100 }).notNull(),
+  cartData: text('cart_data').notNull(),
+  operationalDate: date('operational_date').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+}, (table) => [
+  index('idx_pending_carts_store_date').on(table.storeId, table.operationalDate),
+  index('idx_pending_carts_expires').on(table.expiresAt),
+]);
+
+// Devices (for master terminal management)
+export const devices = pgTable('devices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').references(() => stores.id).notNull(),
+  deviceName: varchar('device_name', { length: 255 }),
+  deviceIdentifier: varchar('device_identifier', { length: 255 }).notNull().unique(),
+  isMasterTerminal: boolean('is_master_terminal').default(false).notNull(),
+  masterTerminalName: varchar('master_terminal_name', { length: 100 }),
+  lastActiveAt: timestamp('last_active_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_devices_store').on(table.storeId),
+  index('idx_devices_identifier').on(table.deviceIdentifier),
 ]);

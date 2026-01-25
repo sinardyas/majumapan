@@ -174,3 +174,260 @@ export interface AppSetting {
   value: string;
   updatedAt: Date;
 }
+
+// =============================================================================
+// END OF DAY TYPES
+// =============================================================================
+
+export type OperationalDayStatus = 'OPEN' | 'CLOSED';
+export type DayCloseSyncStatus = 'clean' | 'warning';
+
+export interface OperationalDay {
+  id: string;
+  storeId: string;
+  operationalDate: string;
+  periodStart: Date;
+  periodEnd: Date;
+  status: OperationalDayStatus;
+  closedByUserId: string | null;
+  closedByUserName: string | null;
+  closedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface DayClose {
+  id: string;
+  storeId: string;
+  operationalDayId: string;
+  operationalDate: string;
+  dayCloseNumber: string;
+  periodStart: Date;
+  periodEnd: Date;
+  totalTransactions: number;
+  completedTransactions: number;
+  voidedTransactions: number;
+  totalSales: number;
+  cashRevenue: number;
+  cardRevenue: number;
+  totalRefunds: number;
+  totalDiscounts: number;
+  totalVariance: number;
+  pendingTransactionsAtClose: number;
+  syncStatus: DayCloseSyncStatus;
+  closedByUserId: string;
+  closedByUserName: string;
+  closedAt: Date;
+  createdAt: Date;
+}
+
+export interface DayCloseShift {
+  id: string;
+  dayCloseId: string;
+  shiftId: string;
+  cashierId: string;
+  cashierName: string;
+  openingFloat: number;
+  closingCash: number;
+  variance: number;
+}
+
+export interface PendingCartQueueItem {
+  id: string;
+  storeId: string;
+  cartId: string;
+  cartData: string;
+  operationalDate: string;
+  createdAt: Date;
+  expiresAt: Date;
+}
+
+export interface EODSettings {
+  storeId: string;
+  operationalDayStartHour: number;
+  allowAutoDayTransition: boolean;
+  eodNotificationEmails: string[];
+}
+
+export interface MasterTerminal {
+  id: string;
+  storeId: string;
+  deviceName: string | null;
+  deviceIdentifier: string;
+  isMasterTerminal: boolean;
+  masterTerminalName: string | null;
+}
+
+export interface PreEODSummary {
+  storeId: string;
+  storeName: string;
+  operationalDate: string;
+  periodStart: string;
+  periodEnd: string;
+  transactions: {
+    total: number;
+    completed: number;
+    voided: number;
+  };
+  revenue: {
+    totalSales: number;
+    cashRevenue: number;
+    cardRevenue: number;
+    refunds: number;
+    discounts: number;
+  };
+  shifts: {
+    activeCount: number;
+    totalVariance: number;
+    shifts: Array<{
+      shiftId: string;
+      cashierId: string;
+      cashierName: string;
+      status: string;
+    }>;
+  };
+  syncStatus: {
+    pendingTransactions: number;
+    pendingCarts: number;
+  };
+}
+
+export interface DailySalesReport {
+  dayCloseId: string;
+  operationalDate: string;
+  periodStart: string;
+  periodEnd: string;
+  overview: {
+    totalTransactions: number;
+    completedTransactions: number;
+    voidedTransactions: number;
+  };
+  revenue: {
+    grossSales: number;
+    refunds: number;
+    discounts: number;
+    netRevenue: number;
+  };
+  paymentMethods: {
+    cash: number;
+    cashPercentage: number;
+    card: number;
+    cardPercentage: number;
+  };
+  salesByHour: Array<{
+    period: string;
+    amount: number;
+  }>;
+  topProducts: Array<{
+    productName: string;
+    quantitySold: number;
+  }>;
+}
+
+export interface CashReconReport {
+  dayCloseId: string;
+  operationalDate: string;
+  cashHandling: {
+    openingFloat: number;
+    cashSales: number;
+    cashRefunds: number;
+    paidOuts: number;
+    expectedCash: number;
+  };
+  shifts: Array<{
+    shiftId: string;
+    cashierName: string;
+    openedAt: string;
+    closedAt: string;
+    sales: number;
+    transactions: number;
+    openingFloat: number;
+    closingCash: number;
+    variance: number;
+    status: string;
+  }>;
+  summary: {
+    totalExpected: number;
+    totalActual: number;
+    totalVariance: number;
+    status: string;
+  };
+}
+
+export interface InventoryMovementReport {
+  dayCloseId: string;
+  operationalDate: string;
+  itemsSold: Array<{
+    productId: string;
+    productName: string;
+    quantitySold: number;
+  }>;
+  lowStockAlerts: Array<{
+    productId: string;
+    productName: string;
+    currentStock: number;
+    threshold: number;
+  }>;
+  reorderRecommendations: Array<{
+    productId: string;
+    productName: string;
+    recommendedQuantity: number;
+    reason: string;
+  }>;
+}
+
+export interface TransactionAuditLogReport {
+  dayCloseId: string;
+  operationalDate: string;
+  transactions: Array<{
+    transactionNumber: string;
+    timestamp: string;
+    amount: number;
+    paymentMethod: string;
+    cashierName: string;
+    status: string;
+  }>;
+  summary: {
+    totalTransactions: number;
+    totalVolume: number;
+    voidCount: number;
+    voidTransactionNumbers: string[];
+  };
+}
+
+export interface ShiftAggregationReport {
+  dayCloseId: string;
+  operationalDate: string;
+  shifts: Array<{
+    shiftId: string;
+    cashierId: string;
+    cashierName: string;
+    openedAt: string;
+    closedAt: string;
+    sales: number;
+    transactions: number;
+    openingFloat: number;
+    closingCash: number;
+    variance: number;
+    status: string;
+  }>;
+  dailyTotals: {
+    totalSales: number;
+    totalTransactions: number;
+    totalOpeningFloat: number;
+    totalClosingCash: number;
+    combinedVariance: number;
+    status: string;
+  };
+}
+
+export interface DayCloseHistoryItem {
+  id: string;
+  dayCloseNumber: string;
+  operationalDate: string;
+  closedAt: string;
+  closedByUserName: string;
+  totalTransactions: number;
+  totalSales: number;
+  syncStatus: DayCloseSyncStatus;
+}

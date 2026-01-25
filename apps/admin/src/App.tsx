@@ -13,6 +13,10 @@ const Reports = lazy(() => import('@/pages/Reports'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const DataManagement = lazy(() => import('@/pages/DataManagement'));
+const EODSettings = lazy(() => import('@/pages/EODSettings'));
+const MasterTerminals = lazy(() => import('@/pages/MasterTerminals'));
+const DayCloseHistory = lazy(() => import('@/pages/DayCloseHistory'));
+const DayCloseDetail = lazy(() => import('@/pages/DayCloseDetail'));
 
 
 function Loading({ children }: { children: ReactNode }) {
@@ -110,6 +114,42 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><Settings /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/eod/settings"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><EODSettings /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/eod/master-terminals"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><MasterTerminals /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/eod/day-close-history"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><DayCloseHistory /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/eod/day-close/:id"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><DayCloseDetail /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

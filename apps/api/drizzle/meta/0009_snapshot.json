@@ -1,0 +1,525 @@
+{
+  "version": "6",
+  "dialect": "postgresql",
+  "id": "abc12345-def0-1234-5678-abcdef123456",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "tables": {
+    "operational_days": {
+      "name": "operational_days",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operational_date": {
+          "name": "operational_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_start": {
+          "name": "period_start",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_end": {
+          "name": "period_end",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'OPEN'"
+        },
+        "closed_by_user_id": {
+          "name": "closed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_by_user_name": {
+          "name": "closed_by_user_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_operational_days_date": {
+          "name": "idx_operational_days_date",
+          "columns": ["operational_date"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "operational_days_store_id_fkey": {
+          "name": "operational_days_store_id_fkey",
+          "columns": ["store_id"],
+          "referencedTable": "stores",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "operational_days_store_id_operational_date_unique": {
+          "name": "operational_days_store_id_operational_date_unique",
+          "columns": ["store_id", "operational_date"]
+        }
+      }
+    },
+    "day_closes": {
+      "name": "day_closes",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operational_day_id": {
+          "name": "operational_day_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operational_date": {
+          "name": "operational_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "day_close_number": {
+          "name": "day_close_number",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_start": {
+          "name": "period_start",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "period_end": {
+          "name": "period_end",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total_transactions": {
+          "name": "total_transactions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "completed_transactions": {
+          "name": "completed_transactions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "voided_transactions": {
+          "name": "voided_transactions",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "total_sales": {
+          "name": "total_sales",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "cash_revenue": {
+          "name": "cash_revenue",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "card_revenue": {
+          "name": "card_revenue",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "total_refunds": {
+          "name": "total_refunds",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "total_discounts": {
+          "name": "total_discounts",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "total_variance": {
+          "name": "total_variance",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "pending_transactions_at_close": {
+          "name": "pending_transactions_at_close",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "0"
+        },
+        "sync_status": {
+          "name": "sync_status",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'clean'"
+        },
+        "closed_by_user_id": {
+          "name": "closed_by_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_by_user_name": {
+          "name": "closed_by_user_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closed_at": {
+          "name": "closed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_day_closes_date": {
+          "name": "idx_day_closes_date",
+          "columns": ["operational_date"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "day_closes_store_id_fkey": {
+          "name": "day_closes_store_id_fkey",
+          "columns": ["store_id"],
+          "referencedTable": "stores",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "day_closes_operational_day_id_fkey": {
+          "name": "day_closes_operational_day_id_fkey",
+          "columns": ["operational_day_id"],
+          "referencedTable": "operational_days",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "day_closes_store_id_operational_date_unique": {
+          "name": "day_closes_store_id_operational_date_unique",
+          "columns": ["store_id", "operational_date"]
+        },
+        "day_closes_day_close_number_unique": {
+          "name": "day_closes_day_close_number_unique",
+          "columns": ["day_close_number"]
+        }
+      }
+    },
+    "day_close_shifts": {
+      "name": "day_close_shifts",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "day_close_id": {
+          "name": "day_close_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shift_id": {
+          "name": "shift_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cashier_id": {
+          "name": "cashier_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cashier_name": {
+          "name": "cashier_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "opening_float": {
+          "name": "opening_float",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "closing_cash": {
+          "name": "closing_cash",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "variance": {
+          "name": "variance",
+          "type": "decimal(10,2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_day_close_shifts_day_close": {
+          "name": "idx_day_close_shifts_day_close",
+          "columns": ["day_close_id"],
+          "isUnique": false
+        },
+        "idx_day_close_shifts_shift": {
+          "name": "idx_day_close_shifts_shift",
+          "columns": ["shift_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "day_close_shifts_day_close_id_fkey": {
+          "name": "day_close_shifts_day_close_id_fkey",
+          "columns": ["day_close_id"],
+          "referencedTable": "day_closes",
+          "referencedColumns": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "day_close_shifts_shift_id_fkey": {
+          "name": "day_close_shifts_shift_id_fkey",
+          "columns": ["shift_id"],
+          "referencedTable": "shifts",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "pending_carts_queue": {
+      "name": "pending_carts_queue",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cart_id": {
+          "name": "cart_id",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cart_data": {
+          "name": "cart_data",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "operational_date": {
+          "name": "operational_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "idx_pending_carts_store_date": {
+          "name": "idx_pending_carts_store_date",
+          "columns": ["store_id", "operational_date"],
+          "isUnique": false
+        },
+        "idx_pending_carts_expires": {
+          "name": "idx_pending_carts_expires",
+          "columns": ["expires_at"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "pending_carts_queue_store_id_fkey": {
+          "name": "pending_carts_queue_store_id_fkey",
+          "columns": ["store_id"],
+          "referencedTable": "stores",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {}
+    },
+    "devices": {
+      "name": "devices",
+      "schema": "public",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "device_name": {
+          "name": "device_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "device_identifier": {
+          "name": "device_identifier",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "is_master_terminal": {
+          "name": "is_master_terminal",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "false"
+        },
+        "master_terminal_name": {
+          "name": "master_terminal_name",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "devices_store_id_fkey": {
+          "name": "devices_store_id_fkey",
+          "columns": ["store_id"],
+          "referencedTable": "stores",
+          "referencedColumns": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "devices_device_identifier_unique": {
+          "name": "devices_device_identifier_unique",
+          "columns": ["device_identifier"]
+        }
+      }
+    }
+  }
+}

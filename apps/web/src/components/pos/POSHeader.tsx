@@ -4,8 +4,8 @@ import { Button } from '@pos/ui';
 import { Wifi, Monitor, Calendar } from 'lucide-react';
 
 interface POSHeaderProps {
-  viewMode: 'grid' | 'list' | 'cart';
-  setViewMode: (mode: 'grid' | 'list' | 'cart') => void;
+  viewMode: 'grid' | 'cart';
+  setViewMode: (mode: 'grid' | 'cart') => void;
   isOnline: boolean;
   activeShift: ReturnType<typeof useShiftStore.getState>['activeShift'];
   onOpenShiftModal: () => void;

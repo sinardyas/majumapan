@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  Clock,
+  CalendarCheck,
 } from 'lucide-react';
 
 interface NavItem {
@@ -57,6 +59,18 @@ const navItems: NavItem[] = [
     path: '/discounts',
     icon: <Percent className="h-5 w-5" />,
     permission: 'discounts:create',
+  },
+  {
+    name: 'Pending Carts',
+    path: '/pending-carts',
+    icon: <Clock className="h-5 w-5" />,
+    permission: 'eod:manage',
+  },
+  {
+    name: 'End of Day',
+    path: '/end-of-day',
+    icon: <CalendarCheck className="h-5 w-5" />,
+    permission: 'eod:manage',
   },
   {
     name: 'Sync Status',
