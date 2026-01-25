@@ -50,6 +50,41 @@ export interface ResumeOrderResult {
   error?: string;
 }
 
+export interface PendingCartData {
+  cartId: string;
+  storeId: string;
+  cashierId: string;
+  customerName?: string;
+  items: Array<{
+    productId: string;
+    productName: string;
+    productSku: string;
+    quantity: number;
+    unitPrice: number;
+    promoType?: 'percentage' | 'fixed' | null;
+    promoValue?: number;
+    promoMinQty?: number;
+    promoDiscount?: number;
+    discountId?: string;
+    discountName?: string;
+    discountValue: number;
+    subtotal: number;
+  }>;
+  cartDiscount: {
+    id: string;
+    code: string;
+    name: string;
+    discountType: 'percentage' | 'fixed';
+    value: number;
+    amount: number;
+  } | null;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  total: number;
+  createdAt: string;
+}
+
 interface CartState {
   items: CartItem[];
   cartDiscount: CartDiscount | null;
@@ -85,6 +120,14 @@ interface CartState {
     revalidateDiscount: (discount: CartDiscount) => Promise<boolean>
   ) => Promise<ResumeOrderResult>;
   clearResumedOrderInfo: () => void;
+
+  // EOD Pending Cart actions
+  serializeCartForPending: (
+    storeId: string,
+    cashierId: string,
+    customerName?: string
+  ) => string;
+  restoreCartFromPending: (cartData: string) => Promise<boolean>;
 }
 
 interface CartSyncMessage {
@@ -422,6 +465,99 @@ export const useCartStore = create<CartState>()(
       clearResumedOrderInfo: () => {
         set({ resumedOrderInfo: null });
         broadcastCartState(get());
+      },
+
+      serializeCartForPending: (storeId, cashierId, customerName) => {
+        const { items, cartDiscount, subtotal, discountAmount, taxAmount, total } = get();
+
+        if (items.length === 0) {
+          return '';
+        }
+
+        const pendingCart: PendingCartData = {
+          cartId: crypto.randomUUID(),
+          storeId,
+          cashierId,
+          customerName,
+          items: items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            productSku: item.productSku,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            promoType: item.promoType,
+            promoValue: item.promoValue,
+            promoMinQty: item.promoMinQty,
+            promoDiscount: item.promoDiscount,
+            discountId: item.discountId,
+            discountName: item.discountName,
+            discountValue: item.discountValue,
+            subtotal: item.subtotal,
+          })),
+          cartDiscount: cartDiscount ? {
+            id: cartDiscount.id,
+            code: cartDiscount.code,
+            name: cartDiscount.name,
+            discountType: cartDiscount.discountType,
+            value: cartDiscount.value,
+            amount: cartDiscount.amount,
+          } : null,
+          subtotal,
+          discountAmount,
+          taxAmount,
+          total,
+          createdAt: new Date().toISOString(),
+        };
+
+        return JSON.stringify(pendingCart);
+      },
+
+      restoreCartFromPending: async (cartData) => {
+        try {
+          const pendingCart: PendingCartData = JSON.parse(cartData);
+
+          const items: CartItem[] = pendingCart.items.map(item => ({
+            productId: item.productId,
+            productName: item.productName,
+            productSku: item.productSku,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            promoType: item.promoType,
+            promoValue: item.promoValue,
+            promoMinQty: item.promoMinQty,
+            promoDiscount: item.promoDiscount,
+            discountId: item.discountId,
+            discountName: item.discountName,
+            discountValue: item.discountValue,
+            subtotal: item.subtotal,
+          }));
+
+          const cartDiscount = pendingCart.cartDiscount ? {
+            id: pendingCart.cartDiscount.id,
+            code: pendingCart.cartDiscount.code,
+            name: pendingCart.cartDiscount.name,
+            discountType: pendingCart.cartDiscount.discountType,
+            value: pendingCart.cartDiscount.value,
+            amount: pendingCart.cartDiscount.amount,
+          } : null;
+
+          set({
+            items,
+            cartDiscount,
+            resumedOrderInfo: {
+              id: pendingCart.cartId,
+              customerName: pendingCart.customerName,
+            },
+          });
+
+          get().calculateTotals();
+          broadcastCartState(get());
+
+          return true;
+        } catch (error) {
+          console.error('Failed to restore cart from pending:', error);
+          return false;
+        }
       },
     }),
     {

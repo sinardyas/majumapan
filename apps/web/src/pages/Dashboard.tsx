@@ -3,7 +3,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Button } from '@pos/ui';
-import { DollarSign, Clipboard, RefreshCw, AlertTriangle } from 'lucide-react';
+import { DollarSign, Clipboard, RefreshCw, AlertTriangle, CalendarCheck } from 'lucide-react';
 
 interface DashboardStats {
   todaySales: number;
@@ -49,15 +49,29 @@ export default function Dashboard() {
       }
 
       try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayStr = today.toISOString();
+        // Calculate operational day boundaries (6 AM to 5:59 AM next day)
+        const operationalDayStartHour = 6;
+        const now = new Date();
+        const periodStart = new Date(now);
+        if (now.getHours() < operationalDayStartHour) {
+          periodStart.setDate(periodStart.getDate() - 1);
+        }
+        periodStart.setHours(operationalDayStartHour, 0, 0, 0);
+        
+        const periodEnd = new Date(periodStart);
+        periodEnd.setDate(periodEnd.getDate() + 1);
+        const periodStartStr = periodStart.toISOString();
+        const periodEndStr = periodEnd.toISOString();
 
-        // Get today's transactions
+        // Get today's transactions (within operational day)
         const todayTransactions = await db.transactions
           .where('storeId')
           .equals(user.storeId)
-          .filter(t => t.clientTimestamp >= todayStr && t.status === 'completed')
+          .filter(t => 
+            t.clientTimestamp >= periodStartStr && 
+            t.clientTimestamp < periodEndStr &&
+            t.status === 'completed'
+          )
           .toArray();
 
         // Calculate today's sales
@@ -83,10 +97,15 @@ export default function Dashboard() {
           lowStockItems,
         });
 
-        // Get recent transactions
+        // Get recent transactions (within operational day)
         const recent = await db.transactions
           .where('storeId')
           .equals(user.storeId)
+          .filter(t => 
+            t.clientTimestamp >= periodStartStr && 
+            t.clientTimestamp < periodEndStr &&
+            t.status === 'completed'
+          )
           .reverse()
           .limit(10)
           .toArray();
@@ -328,6 +347,25 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Quick Actions Row */}
+      {(user?.role === 'manager' || user?.role === 'admin') && (
+        <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl shadow-sm p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-white">End of Day</h2>
+              <p className="text-blue-100 mt-1">Ready to close today's operations?</p>
+            </div>
+            <Button
+              onClick={() => window.location.href = '/end-of-day'}
+              className="bg-white text-blue-700 hover:bg-blue-50"
+            >
+              <CalendarCheck className="h-4 w-4 mr-2" />
+              Start EOD
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Top Products & Reports Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">

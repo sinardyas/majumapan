@@ -14,6 +14,9 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  CalendarCheck,
+  History,
+  Monitor,
 } from 'lucide-react';
 
 interface NavItem {
@@ -62,6 +65,24 @@ const navItems: NavItem[] = [
     name: 'Settings',
     path: '/settings',
     icon: <Settings className="h-5 w-5" />,
+  },
+];
+
+const eodNavItems: NavItem[] = [
+  {
+    name: 'EOD Settings',
+    path: '/eod/settings',
+    icon: <CalendarCheck className="h-5 w-5" />,
+  },
+  {
+    name: 'Master Terminals',
+    path: '/eod/master-terminals',
+    icon: <Monitor className="h-5 w-5" />,
+  },
+  {
+    name: 'Day Close History',
+    path: '/eod/day-close-history',
+    icon: <History className="h-5 w-5" />,
   },
 ];
 
@@ -144,6 +165,43 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             </li>
           ))}
         </ul>
+
+        {!isCollapsed && (
+          <div className="px-4 py-2">
+            <div className="h-px bg-gray-700"></div>
+          </div>
+        )}
+
+        <div className={`${isCollapsed ? 'px-2' : 'px-3'} space-y-1`}>
+          {!isCollapsed && (
+            <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              End of Day
+            </p>
+          )}
+          {eodNavItems.map((item) => (
+            <li key={item.path} className="w-full">
+              <NavLink
+                to={item.path}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                    isActive
+                      ? 'bg-primary-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                  } ${isCollapsed ? 'group relative' : ''}`
+                }
+                title={isCollapsed ? item.name : undefined}
+              >
+                {item.icon}
+                {!isCollapsed && <span>{item.name}</span>}
+                {isCollapsed && (
+                  <span className="absolute left-full ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50">
+                    {item.name}
+                  </span>
+                )}
+              </NavLink>
+            </li>
+          ))}
+        </div>
       </nav>
 
       <div className={`p-4 border-t border-gray-800 ${isCollapsed ? 'px-2 py-4' : ''}`}>

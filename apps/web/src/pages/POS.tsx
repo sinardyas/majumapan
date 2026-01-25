@@ -59,7 +59,7 @@ export default function POS() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'cart'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'cart'>('cart');
   const [skuSearchQuery, setSkuSearchQuery] = useState('');
   const [skuSearchOpen, setSkuSearchOpen] = useState(false);
   const [popoverSelectedIndex, setPopoverSelectedIndex] = useState(0);
@@ -281,8 +281,8 @@ export default function POS() {
   }, [status, activeShift]);
 
   useEffect(() => {
-    const saved = localStorage.getItem('pos-view-mode') as 'grid' | 'list';
-    if (saved) {
+    const saved = localStorage.getItem('pos-view-mode') as 'grid' | 'cart';
+    if (saved === 'grid' || saved === 'cart') {
       setViewMode(saved);
     }
   }, []);
@@ -295,13 +295,7 @@ export default function POS() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F2') {
         e.preventDefault();
-        setViewMode(prev => {
-          switch (prev) {
-            case 'grid': return 'list';
-            case 'list': return 'cart';
-            case 'cart': return 'grid';
-          }
-        });
+        setViewMode(prev => prev === 'grid' ? 'cart' : 'grid');
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -309,7 +303,7 @@ export default function POS() {
   }, []);
 
   useEffect(() => {
-    if (viewMode === 'list' || viewMode === 'cart') {
+    if (viewMode !== 'grid') {
       skuInputRef.current?.focus();
     }
   }, [viewMode]);

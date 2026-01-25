@@ -15,6 +15,8 @@ import Products from '@/pages/Products';
 import Categories from '@/pages/Categories';
 import Discounts from '@/pages/Discounts';
 import SyncStatus from '@/pages/SyncStatus';
+import PendingCarts from '@/pages/PendingCarts';
+import EndOfDay from '@/pages/EndOfDay';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -175,6 +177,28 @@ export default function App() {
           <ManagerRoute>
             <AuthenticatedLayout>
               <SyncStatus />
+            </AuthenticatedLayout>
+          </ManagerRoute>
+        }
+      />
+
+      <Route
+        path="/pending-carts"
+        element={
+          <ManagerRoute>
+            <AuthenticatedLayout>
+              <PendingCarts />
+            </AuthenticatedLayout>
+          </ManagerRoute>
+        }
+      />
+
+      <Route
+        path="/end-of-day"
+        element={
+          <ManagerRoute>
+            <AuthenticatedLayout>
+              <EndOfDay />
             </AuthenticatedLayout>
           </ManagerRoute>
         }
