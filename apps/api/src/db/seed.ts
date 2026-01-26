@@ -32,6 +32,9 @@ async function seed() {
       { key: 'currency_symbol', value: '$' },
       { key: 'transaction_prefix', value: 'TXN' },
       { key: 'local_retention_days', value: '30' },
+      { key: 'eod_operational_day_start_hour', value: '6' },
+      { key: 'eod_allow_auto_transition', value: 'true' },
+      { key: 'eod_notification_emails', value: '[]' },
     ]);
 
     // Seed stores

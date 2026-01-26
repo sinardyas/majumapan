@@ -245,10 +245,9 @@ export interface PendingCartQueueItem {
 }
 
 export interface EODSettings {
-  storeId: string;
   operationalDayStartHour: number;
   allowAutoDayTransition: boolean;
-  eodNotificationEmails: string[];
+  notificationEmails: string[];
 }
 
 export interface MasterTerminal {

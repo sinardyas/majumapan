@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton } from '@pos/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Skeleton, Textarea } from '@pos/ui';
 import { z } from 'zod';
-import { Settings as SettingsIcon, Save, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Loader2, CheckCircle, AlertCircle, Sun } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface SettingItem {
@@ -18,6 +18,12 @@ interface SettingsFormData {
   transactionPrefix: string;
   localRetentionDays: string;
   auditLogRetentionDays: string;
+}
+
+interface EODSettingsFormData {
+  operationalDayStartHour: number;
+  allowAutoDayTransition: boolean;
+  notificationEmails: string;
 }
 
 const settingsSchema = z.object({
@@ -36,6 +42,7 @@ export default function Settings() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [eodSaveSuccess, setEodSaveSuccess] = useState(false);
   const [formData, setFormData] = useState<SettingsFormData>({
     taxRate: '0.10',
     currency: 'USD',
@@ -43,6 +50,11 @@ export default function Settings() {
     transactionPrefix: 'TXN',
     localRetentionDays: '30',
     auditLogRetentionDays: '90',
+  });
+  const [eodFormData, setEodFormData] = useState<EODSettingsFormData>({
+    operationalDayStartHour: 6,
+    allowAutoDayTransition: true,
+    notificationEmails: '',
   });
   const [errors, setErrors] = useState<SettingsErrors>({});
 
@@ -83,10 +95,51 @@ export default function Settings() {
         });
         if (formSettings.taxRate) setFormData(prev => ({ ...prev, ...formSettings }));
       }
+
+      const eodResponse = await api.get<{
+        operationalDayStartHour: number;
+        allowAutoDayTransition: boolean;
+        notificationEmails: string[];
+      }>('/settings/eod');
+      if (eodResponse.success && eodResponse.data) {
+        setEodFormData({
+          operationalDayStartHour: eodResponse.data.operationalDayStartHour,
+          allowAutoDayTransition: eodResponse.data.allowAutoDayTransition,
+          notificationEmails: eodResponse.data.notificationEmails?.join(', ') || '',
+        });
+      }
     } catch {
       console.error('Failed to load settings');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEodSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEodSaveSuccess(false);
+
+    const emailsArray = eodFormData.notificationEmails
+      .split(',')
+      .map(e => e.trim())
+      .filter(Boolean);
+
+    setIsSaving(true);
+    try {
+      const response = await api.put('/settings/eod', {
+        operationalDayStartHour: eodFormData.operationalDayStartHour,
+        allowAutoDayTransition: eodFormData.allowAutoDayTransition,
+        notificationEmails: emailsArray,
+      });
+      if (response.success) {
+        setEodSaveSuccess(true);
+        await fetchSettings();
+        setTimeout(() => setEodSaveSuccess(false), 3000);
+      }
+    } catch {
+      console.error('Failed to update EOD settings');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -273,6 +326,87 @@ export default function Settings() {
                   <>
                     <Save className="w-4 h-4 mr-2" />
                     Save Settings
+                  </>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sun className="w-5 h-5" />
+            End of Day Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleEodSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700">Operational Day Start Hour</label>
+                <select
+                  value={eodFormData.operationalDayStartHour}
+                  onChange={(e) => setEodFormData(prev => ({ ...prev, operationalDayStartHour: parseInt(e.target.value) }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i}:00</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500">Hour when new operational day begins</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                  Auto Day Transition
+                </label>
+                <button
+                  onClick={() => setEodFormData(prev => ({ ...prev, allowAutoDayTransition: !prev.allowAutoDayTransition }))}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    eodFormData.allowAutoDayTransition ? 'bg-blue-600' : 'bg-gray-200'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      eodFormData.allowAutoDayTransition ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+                <p className="text-xs text-gray-500">Automatically advance to next day after EOD</p>
+              </div>
+
+              <div className="col-span-1 md:col-span-2 space-y-2">
+                <label className="text-sm font-medium text-gray-700">Notification Emails</label>
+                <Textarea
+                  value={eodFormData.notificationEmails}
+                  onChange={(e) => setEodFormData(prev => ({ ...prev, notificationEmails: e.target.value }))}
+                  placeholder="email1@store.com, email2@store.com"
+                  rows={3}
+                />
+                <p className="text-xs text-gray-500">Comma-separated list of emails to receive EOD notifications</p>
+              </div>
+            </div>
+
+            {eodSaveSuccess && (
+              <div className="flex items-center gap-2 text-green-600 p-3 bg-green-50 rounded-lg">
+                <CheckCircle className="w-5 h-5" />
+                <span className="text-sm font-medium">EOD settings saved successfully</span>
+              </div>
+            )}
+
+            <div className="flex justify-end pt-4 border-t">
+              <Button type="submit" isLoading={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Save EOD Settings
                   </>
                 )}
               </Button>

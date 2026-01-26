@@ -14,7 +14,6 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  CalendarCheck,
   History,
   Monitor,
 } from 'lucide-react';
@@ -69,11 +68,6 @@ const navItems: NavItem[] = [
 ];
 
 const eodNavItems: NavItem[] = [
-  {
-    name: 'EOD Settings',
-    path: '/eod/settings',
-    icon: <CalendarCheck className="h-5 w-5" />,
-  },
   {
     name: 'Master Terminals',
     path: '/eod/master-terminals',

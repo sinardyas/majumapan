@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { db } from '../db';
+import { db, appSettings } from '../db';
 import { dayCloses, dayCloseShifts, operationalDays, pendingCartsQueue, shifts, transactions, stores } from '../db/schema';
 import { eq, and, gte, lte, desc, asc, or } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
@@ -11,6 +11,22 @@ import { csvExportService } from '../services/csv-export-service';
 import { emailService } from '../services/email-service';
 
 const dayCloseRouter = new Hono();
+
+async function getEODSettings() {
+  const [startHourResult, autoTransitionResult] = await Promise.all([
+    db.query.appSettings.findFirst({
+      where: eq(appSettings.key, 'eod_operational_day_start_hour'),
+    }),
+    db.query.appSettings.findFirst({
+      where: eq(appSettings.key, 'eod_allow_auto_transition'),
+    }),
+  ]);
+
+  return {
+    operationalDayStartHour: parseInt(startHourResult?.value || '6'),
+    allowAutoDayTransition: autoTransitionResult?.value === 'true',
+  };
+}
 
 const previewQuerySchema = z.object({
   storeId: z.string().uuid().optional(),
@@ -91,7 +107,7 @@ dayCloseRouter.get(
       });
 
       const today = new Date();
-      const operationalDayStartHour = 6;
+      const { operationalDayStartHour } = await getEODSettings();
 
       // Calculate local hours based on timezone offset from frontend
       const utcHours = today.getUTCHours();
@@ -227,7 +243,7 @@ dayCloseRouter.post(
       const user = c.get('user') as JwtPayload;
       const { storeId, operationalDate, pendingCarts } = validation.data;
       
-      const operationalDayStartHour = 6;
+      const { operationalDayStartHour } = await getEODSettings();
       const date = new Date(operationalDate);
       const periodStart = new Date(date);
       periodStart.setHours(operationalDayStartHour, 0, 0, 0);
