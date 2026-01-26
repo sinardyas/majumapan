@@ -8,7 +8,7 @@
 | **Feature** | Global EOD Settings |
 | **Version** | 1.0 |
 | **Status** | Draft |
-| **Parent PRD** | `../prd/prd-global-eod-settings.md` |
+| **Parent PRD** | `../prd/global-eod-settings-prd.md` |
 | **Created** | 2026-01-26 |
 
 ---
@@ -587,9 +587,10 @@ DELETE FROM app_settings WHERE key LIKE 'eod_%';
 
 | File | Change Type |
 |------|-------------|
-| `apps/api/src/db/seed.ts` | Add seed entries |
+| `apps/api/src/db/seed.ts` | Add EOD settings entries |
 | `apps/api/src/routes/stores.ts` | Remove EOD endpoints |
 | `apps/api/src/routes/day-close.ts` | Update settings lookup |
+| `apps/api/src/routes/settings.ts` | Add EOD settings endpoints |
 | `packages/shared/src/types/models.ts` | Update EODSettings interface |
 | `apps/admin/src/pages/Settings.tsx` | Add EOD settings section |
 | `apps/admin/src/App.tsx` | Remove route |
@@ -609,7 +610,79 @@ DELETE FROM app_settings WHERE key LIKE 'eod_%';
 |------|---------|
 | `apps/api/src/db/migrations/migrate-eod-settings.sql` | One-time migration script |
 | `docs/prd/prd-global-eod-settings.md` | Product requirements |
-| `docs/features/fsd-global-eod-settings.md` | This document |
+| `docs/features/global-eod-settings.md` | This document |
+
+---
+
+## 12. Implementation Tasks
+
+### 12.1 Phase 1: Backend - Database & Seed
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 1.1 | Add EOD settings to seed data | `apps/api/src/db/seed.ts` | ✅ Done |
+
+### 12.2 Phase 2: Backend - API Updates
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 2.1 | Remove EOD settings GET endpoint | `apps/api/src/routes/stores.ts` (lines 64-95) | ✅ Done |
+| 2.2 | Remove EOD settings PUT endpoint | `apps/api/src/routes/stores.ts` (lines 98-150) | ✅ Done |
+| 2.3 | Update day-close preview to use global settings | `apps/api/src/routes/day-close.ts` | ✅ Done |
+| 2.4 | Update day-close execute to use global settings | `apps/api/src/routes/day-close.ts` | ✅ Done |
+| 2.5 | Add dedicated GET /settings/eod endpoint | `apps/api/src/routes/settings.ts` | ✅ Done |
+| 2.6 | Add dedicated PUT /settings/eod endpoint | `apps/api/src/routes/settings.ts` | ✅ Done |
+
+### 12.3 Phase 3: Shared Types
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 3.1 | Remove `storeId` from EODSettings interface | `packages/shared/src/types/models.ts` | ✅ Done |
+
+### 12.4 Phase 4: Frontend - Admin Portal
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 4.1 | Add EOD settings section to Settings page | `apps/admin/src/pages/Settings.tsx` | ✅ Done |
+| 4.2 | Remove EOD Settings route | `apps/admin/src/App.tsx` | ✅ Done |
+| 4.3 | Remove EOD Settings from sidebar | `apps/admin/src/components/layout/Sidebar.tsx` | ✅ Done |
+| 4.4 | Delete EOD Settings page | `apps/admin/src/pages/EODSettings.tsx` | ✅ Done |
+
+### 12.5 Phase 5: Frontend - POS Web
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 5.1 | Update EndOfDay page to use global settings | `apps/web/src/pages/EndOfDay.tsx` | ✅ Done* |
+| 5.2 | Update eodStore to load global settings | `apps/web/src/stores/eodStore.ts` | ✅ Done* |
+
+*POS Web doesn't require changes - the backend API endpoints now read from global settings automatically.
+
+### 12.6 Phase 6: Data Migration (One-time)
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 6.1 | Create migration script | `apps/api/src/db/migrations/migrate-eod-settings.sql` | ✅ Done |
+| 6.2 | Run migration script on database | SQL execution | ✅ Done |
+
+### 12.7 Phase 7: Cleanup (Post-launch)
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 7.1 | Remove deprecated columns from stores table | Future migration | ☐ |
+
+### 12.8 Summary
+
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| 1 | 1 task | ✅ Complete |
+| 2 | 6 tasks | ✅ Complete |
+| 3 | 1 task | ✅ Complete |
+| 4 | 4 tasks | ✅ Complete |
+| 5 | 2 tasks | ✅ Complete |
+| 6 | 2 tasks | ✅ Complete |
+| 7 | 1 task | ☐ Pending |
+
+**Total: 17 tasks completed, 1 pending (post-launch cleanup)**
 
 ---
 
@@ -618,3 +691,5 @@ DELETE FROM app_settings WHERE key LIKE 'eod_%';
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-26 | Platform Team | Initial draft |
+| 1.1 | 2026-01-26 | Platform Team | Implemented Phases 1-3: Database seed, API updates, shared types |
+| 1.2 | 2026-01-26 | Platform Team | Implemented Phases 4-5: Admin portal and POS web updates |
