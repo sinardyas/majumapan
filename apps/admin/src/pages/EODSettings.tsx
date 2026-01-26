@@ -11,7 +11,7 @@ interface EODSettings {
 }
 
 export default function EODSettings() {
-  const { user } = useAuthStore();
+  const { user, selectedStoreId } = useAuthStore();
   const [settings, setSettings] = useState<EODSettings>({
     operationalDayStartHour: 6,
     allowAutoDayTransition: true,
@@ -21,20 +21,36 @@ export default function EODSettings() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.storeId) {
+    if (user) {
       fetchSettings();
     }
-  }, [user?.storeId]);
+  }, [user, selectedStoreId]);
 
   const fetchSettings = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    // Determine which store to use
+    let storeId = user?.storeId;
+    if (selectedStoreId && selectedStoreId !== 'all') {
+      storeId = selectedStoreId;
+    }
+
+    if (!storeId) {
+      setError('Please select a store to manage EOD settings.');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const response = await api.get<{
         operationalDayStartHour: number;
         allowAutoDayTransition: boolean;
         eodNotificationEmails: string[];
-      }>(`/stores/${user?.storeId}/eod-settings`);
+      }>(`/stores/${storeId}/eod-settings`);
 
       if (response.success && response.data) {
         setSettings({
@@ -43,19 +59,31 @@ export default function EODSettings() {
           eodNotificationEmails: response.data.eodNotificationEmails || [],
         });
       }
-    } catch (error) {
-      console.error('Error fetching settings:', error);
+    } catch (err) {
+      console.error('Error fetching settings:', err);
+      setError('Failed to load EOD settings.');
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleSave = async () => {
+    // Determine which store to use
+    let storeId = user?.storeId;
+    if (selectedStoreId && selectedStoreId !== 'all') {
+      storeId = selectedStoreId;
+    }
+
+    if (!storeId) {
+      setMessage({ type: 'error', text: 'Store not selected.' });
+      return;
+    }
+
     setIsSaving(true);
     setMessage(null);
     try {
       const response = await api.put(
-        `/stores/${user?.storeId}/eod-settings`,
+        `/stores/${storeId}/eod-settings`,
         settings
       );
 
@@ -92,6 +120,20 @@ export default function EODSettings() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">EOD Settings</h1>
+          <p className="text-gray-600">Configure End of Day behavior for this store</p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
+        </div>
       </div>
     );
   }

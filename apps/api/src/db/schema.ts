@@ -13,6 +13,7 @@ import {
   jsonb,
   date,
 } from 'drizzle-orm/pg-core';
+import { relations } from 'drizzle-orm';
 
 // Enums
 export const userRoleEnum = pgEnum('user_role', ['admin', 'manager', 'cashier']);
@@ -387,3 +388,194 @@ export const devices = pgTable('devices', {
   index('idx_devices_store').on(table.storeId),
   index('idx_devices_identifier').on(table.deviceIdentifier),
 ]);
+
+// =============================================================================
+// RELATIONS
+// =============================================================================
+
+// Stores relations
+export const storesRelations = relations(stores, ({ many }) => ({
+  dayCloses: many(dayCloses),
+  shifts: many(shifts),
+  transactions: many(transactions),
+  products: many(products),
+  categories: many(categories),
+  pendingCarts: many(pendingCartsQueue),
+  devices: many(devices),
+  users: many(users),
+  syncLogs: many(syncLog),
+  discounts: many(discounts),
+  auditLogs: many(auditLogTable),
+}));
+
+// Users relations
+export const usersRelations = relations(users, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [users.storeId],
+    references: [stores.id],
+  }),
+  shifts: many(shifts),
+  refreshTokens: many(refreshTokens),
+  auditLogs: many(auditLogTable),
+}));
+
+// Categories relations
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [categories.storeId],
+    references: [stores.id],
+  }),
+  products: many(products),
+}));
+
+// Products relations
+export const productsRelations = relations(products, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [products.storeId],
+    references: [stores.id],
+  }),
+  category: one(categories, {
+    fields: [products.categoryId],
+    references: [categories.id],
+  }),
+  transactionItems: many(transactionItems),
+  productDiscounts: many(productDiscounts),
+}));
+
+// Discounts relations
+export const discountsRelations = relations(discounts, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [discounts.storeId],
+    references: [stores.id],
+  }),
+  productDiscounts: many(productDiscounts),
+}));
+
+// Product Discounts relations
+export const productDiscountsRelations = relations(productDiscounts, ({ one }) => ({
+  discount: one(discounts, {
+    fields: [productDiscounts.discountId],
+    references: [discounts.id],
+  }),
+  product: one(products, {
+    fields: [productDiscounts.productId],
+    references: [products.id],
+  }),
+}));
+
+// Transactions relations
+export const transactionsRelations = relations(transactions, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [transactions.storeId],
+    references: [stores.id],
+  }),
+  user: one(users, {
+    fields: [transactions.cashierId],
+    references: [users.id],
+  }),
+  items: many(transactionItems),
+  payments: many(transactionPayments),
+}));
+
+// Transaction Items relations
+export const transactionItemsRelations = relations(transactionItems, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [transactionItems.transactionId],
+    references: [transactions.id],
+  }),
+  product: one(products, {
+    fields: [transactionItems.productId],
+    references: [products.id],
+  }),
+}));
+
+// Transaction Payments relations
+export const transactionPaymentsRelations = relations(transactionPayments, ({ one }) => ({
+  transaction: one(transactions, {
+    fields: [transactionPayments.transactionId],
+    references: [transactions.id],
+  }),
+}));
+
+// Sync Log relations
+export const syncLogRelations = relations(syncLog, ({ one }) => ({
+  store: one(stores, {
+    fields: [syncLog.storeId],
+    references: [stores.id],
+  }),
+}));
+
+// Refresh Tokens relations
+export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [refreshTokens.userId],
+    references: [users.id],
+  }),
+}));
+
+// Audit Logs relations
+export const auditLogTableRelations = relations(auditLogTable, ({ one }) => ({
+  user: one(users, {
+    fields: [auditLogTable.userId],
+    references: [users.id],
+  }),
+}));
+
+// Shifts relations
+export const shiftsRelations = relations(shifts, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [shifts.storeId],
+    references: [stores.id],
+  }),
+  dayCloseShifts: many(dayCloseShifts),
+}));
+
+// Operational Days relations
+export const operationalDaysRelations = relations(operationalDays, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [operationalDays.storeId],
+    references: [stores.id],
+  }),
+  dayCloses: many(dayCloses),
+}));
+
+// Day Closes relations
+export const dayClosesRelations = relations(dayCloses, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [dayCloses.storeId],
+    references: [stores.id],
+  }),
+  operationalDay: one(operationalDays, {
+    fields: [dayCloses.operationalDayId],
+    references: [operationalDays.id],
+  }),
+  shifts: many(dayCloseShifts),
+}));
+
+// Day Close Shifts relations
+export const dayCloseShiftsRelations = relations(dayCloseShifts, ({ one }) => ({
+  dayClose: one(dayCloses, {
+    fields: [dayCloseShifts.dayCloseId],
+    references: [dayCloses.id],
+  }),
+  shift: one(shifts, {
+    fields: [dayCloseShifts.shiftId],
+    references: [shifts.id],
+  }),
+}));
+
+// Pending Carts Queue relations
+export const pendingCartsQueueRelations = relations(pendingCartsQueue, ({ one }) => ({
+  store: one(stores, {
+    fields: [pendingCartsQueue.storeId],
+    references: [stores.id],
+  }),
+}));
+
+// Devices relations
+export const devicesRelations = relations(devices, ({ one }) => ({
+  store: one(stores, {
+    fields: [devices.storeId],
+    references: [stores.id],
+  }),
+}));

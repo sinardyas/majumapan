@@ -13,27 +13,44 @@ interface Device {
 }
 
 export default function MasterTerminals() {
-  const { user } = useAuthStore();
+  const { user, selectedStoreId } = useAuthStore();
   const [devices, setDevices] = useState<Device[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.storeId) {
+    if (user) {
       fetchDevices();
     }
-  }, [user?.storeId]);
+  }, [user, selectedStoreId]);
+
+  const getEffectiveStoreId = () => {
+    if (selectedStoreId && selectedStoreId !== 'all') {
+      return selectedStoreId;
+    }
+    return user?.storeId;
+  };
 
   const fetchDevices = async () => {
-    try {
-      const response = await api.get<Device[]>(`/stores/${user?.storeId}/devices`);
+    const storeId = getEffectiveStoreId();
+    if (!storeId) {
+      setError('Please select a store to manage master terminals.');
+      setIsLoading(false);
+      return;
+    }
 
-      if (response.success) {
-        setDevices(response.data || []);
+    try {
+      const response = await api.get<Device[]>(`/stores/${storeId}/devices`);
+
+      if (response.success && response.data) {
+        setDevices(response.data);
       }
-    } catch (error) {
-      console.error('Error fetching devices:', error);
+    } catch (err) {
+      console.error('Error fetching devices:', err);
+      setError('Failed to load devices.');
     } finally {
       setIsLoading(false);
     }
@@ -76,9 +93,16 @@ export default function MasterTerminals() {
   const addDevice = async () => {
     if (!newDeviceName.trim()) return;
 
+    const storeId = getEffectiveStoreId();
+    if (!storeId) {
+      setMessage({ type: 'error', text: 'Store not selected.' });
+      return;
+    }
+
+    setIsSaving(true);
     try {
       const response = await api.post(
-        `/stores/${user?.storeId}/devices`,
+        `/stores/${storeId}/devices`,
         {
           deviceName: newDeviceName,
           deviceIdentifier: `device-${Date.now()}`,
@@ -94,6 +118,8 @@ export default function MasterTerminals() {
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to add device' });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -103,6 +129,22 @@ export default function MasterTerminals() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Master Terminals</h1>
+          <p className="text-gray-600">
+            Configure which devices can perform End of Day operations
+          </p>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-red-700">{error}</p>
+        </div>
       </div>
     );
   }
@@ -222,9 +264,18 @@ export default function MasterTerminals() {
               onChange={(e) => setNewDeviceName(e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
-            <Button onClick={addDevice} disabled={!newDeviceName.trim()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Device
+            <Button onClick={addDevice} disabled={!newDeviceName.trim() || isSaving}>
+              {isSaving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Device
+                </>
+              )}
             </Button>
           </div>
           <p className="mt-2 text-sm text-gray-500">

@@ -1,26 +1,35 @@
 import { Hono } from 'hono';
-import { eq } from 'drizzle-orm';
-import { db, stores } from '../db';
+import { eq, asc } from 'drizzle-orm';
+import { z } from 'zod';
+import { db, stores, devices } from '../db';
 import { authMiddleware } from '../middleware/auth';
-import { requirePermission } from '../middleware/rbac';
+import { requireRole } from '../middleware/rbac';
 import { createAuditLog } from '../utils/audit';
 import { createStoreSchema, updateStoreSchema } from '@pos/shared';
 
 const storesRouter = new Hono();
 
+const createDeviceSchema = z.object({
+  deviceName: z.string().optional(),
+  deviceIdentifier: z.string().min(1),
+});
+
 // All routes require authentication
 storesRouter.use('*', authMiddleware);
 
 // List all stores (Admin only)
-storesRouter.get('/', requirePermission('stores:read'), async (c) => {
+storesRouter.get('/', requireRole('admin'), async (c) => {
   try {
     const allStores = await db.query.stores.findMany({
-      orderBy: (stores, { desc }) => [desc(stores.createdAt)],
+      orderBy: (stores, { asc }) => [asc(stores.name)],
     });
 
     return c.json({
       success: true,
-      data: allStores,
+      data: {
+        stores: allStores,
+        total: allStores.length,
+      },
     });
   } catch (error) {
     console.error('List stores error:', error);
@@ -29,7 +38,7 @@ storesRouter.get('/', requirePermission('stores:read'), async (c) => {
 });
 
 // Get store by ID
-storesRouter.get('/:id', requirePermission('stores:read'), async (c) => {
+storesRouter.get('/:id', requireRole('admin'), async (c) => {
   try {
     const { id } = c.req.param();
 
@@ -51,8 +60,97 @@ storesRouter.get('/:id', requirePermission('stores:read'), async (c) => {
   }
 });
 
+// GET /api/v1/stores/:storeId/eod-settings
+storesRouter.get('/:storeId/eod-settings', requireRole('admin', 'manager'), async (c) => {
+  try {
+    const { storeId } = c.req.param();
+    const user = c.get('user');
+
+    // Verify store exists
+    const store = await db.query.stores.findFirst({
+      where: eq(stores.id, storeId),
+    });
+
+    if (!store) {
+      return c.json({ success: false, error: 'Store not found' }, 404);
+    }
+
+    // Managers can only access their own store
+    if (user.role === 'manager' && user.storeId !== storeId) {
+      return c.json({ success: false, error: 'Access denied' }, 403);
+    }
+
+    return c.json({
+      success: true,
+      data: {
+        operationalDayStartHour: store.operationalDayStartHour,
+        allowAutoDayTransition: store.allowAutoDayTransition,
+        eodNotificationEmails: store.eodNotificationEmails || [],
+      },
+    });
+  } catch (error) {
+    console.error('Get EOD settings error:', error);
+    return c.json({ success: false, error: 'Failed to fetch EOD settings' }, 500);
+  }
+});
+
+// PUT /api/v1/stores/:storeId/eod-settings
+storesRouter.put('/:storeId/eod-settings', requireRole('admin', 'manager'), async (c) => {
+  try {
+    const { storeId } = c.req.param();
+    const user = c.get('user');
+    const body = await c.req.json();
+
+    // Verify store exists
+    const store = await db.query.stores.findFirst({
+      where: eq(stores.id, storeId),
+    });
+
+    if (!store) {
+      return c.json({ success: false, error: 'Store not found' }, 404);
+    }
+
+    // Managers can only update their own store
+    if (user.role === 'manager' && user.storeId !== storeId) {
+      return c.json({ success: false, error: 'Access denied' }, 403);
+    }
+
+    const [updatedStore] = await db.update(stores)
+      .set({
+        operationalDayStartHour: body.operationalDayStartHour ?? store.operationalDayStartHour,
+        allowAutoDayTransition: body.allowAutoDayTransition ?? store.allowAutoDayTransition,
+        eodNotificationEmails: body.eodNotificationEmails ?? store.eodNotificationEmails,
+        updatedAt: new Date(),
+      })
+      .where(eq(stores.id, storeId))
+      .returning();
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'update',
+      entityType: 'store_eod_settings',
+      entityId: storeId,
+      entityName: store.name,
+      c,
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        operationalDayStartHour: updatedStore.operationalDayStartHour,
+        allowAutoDayTransition: updatedStore.allowAutoDayTransition,
+        eodNotificationEmails: updatedStore.eodNotificationEmails || [],
+      },
+    });
+  } catch (error) {
+    console.error('Update EOD settings error:', error);
+    return c.json({ success: false, error: 'Failed to update EOD settings' }, 500);
+  }
+});
+
 // Create store (Admin only)
-storesRouter.post('/', requirePermission('stores:create'), async (c) => {
+storesRouter.post('/', requireRole('admin'), async (c) => {
   try {
     const user = c.get('user');
     const body = await c.req.json();
@@ -92,7 +190,7 @@ storesRouter.post('/', requirePermission('stores:create'), async (c) => {
 });
 
 // Update store (Admin only)
-storesRouter.put('/:id', requirePermission('stores:update'), async (c) => {
+storesRouter.put('/:id', requireRole('admin'), async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -144,7 +242,7 @@ storesRouter.put('/:id', requirePermission('stores:update'), async (c) => {
 });
 
 // Soft delete store (Admin only)
-storesRouter.delete('/:id', requirePermission('stores:delete'), async (c) => {
+storesRouter.delete('/:id', requireRole('admin'), async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -184,6 +282,70 @@ storesRouter.delete('/:id', requirePermission('stores:delete'), async (c) => {
   } catch (error) {
     console.error('Delete store error:', error);
     return c.json({ success: false, error: 'Failed to delete store' }, 500);
+  }
+});
+
+// GET /api/v1/stores/:storeId/devices - List store devices
+storesRouter.get('/:storeId/devices', requireRole('admin', 'manager'), async (c) => {
+  try {
+    const storeId = c.req.param('storeId');
+
+    const storeDevices = await db.query.devices.findMany({
+      where: eq(devices.storeId, storeId),
+      orderBy: [devices.createdAt],
+    });
+
+    return c.json({ success: true, data: storeDevices });
+  } catch (error) {
+    console.error('Error fetching store devices:', error);
+    return c.json({ success: false, error: 'Failed to fetch devices' }, 500);
+  }
+});
+
+// POST /api/v1/stores/:storeId/devices - Register new device
+storesRouter.post('/:storeId/devices', requireRole('admin', 'manager'), async (c) => {
+  try {
+    const storeId = c.req.param('storeId');
+    const user = c.get('user');
+    const body = await c.req.json();
+    const validation = createDeviceSchema.safeParse(body);
+
+    if (!validation.success) {
+      return c.json({ success: false, error: 'Invalid request body' }, 400);
+    }
+
+    const [newDevice] = await db.insert(devices).values({
+      storeId,
+      deviceName: validation.data.deviceName || null,
+      deviceIdentifier: validation.data.deviceIdentifier,
+      isMasterTerminal: false,
+      masterTerminalName: null,
+    }).returning();
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: 'create',
+      entityType: 'device',
+      entityId: newDevice.id,
+      entityName: validation.data.deviceName || newDevice.deviceIdentifier,
+      c,
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        id: newDevice.id,
+        storeId: newDevice.storeId,
+        deviceName: newDevice.deviceName,
+        deviceIdentifier: newDevice.deviceIdentifier,
+        isMasterTerminal: newDevice.isMasterTerminal,
+        masterTerminalName: newDevice.masterTerminalName,
+      },
+    }, 201);
+  } catch (error) {
+    console.error('Error creating device:', error);
+    return c.json({ success: false, error: 'Failed to create device' }, 500);
   }
 });
 

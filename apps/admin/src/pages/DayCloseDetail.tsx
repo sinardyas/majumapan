@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@pos/ui';
-import { 
-  ArrowLeft, 
-  Download, 
-  Mail, 
-  DollarSign, 
-  CreditCard, 
-  Package, 
-  FileText, 
+import { api } from '@/services/api';
+import {
+  ArrowLeft,
+  Download,
+  Mail,
+  DollarSign,
+  CreditCard,
+  Package,
+  FileText,
   Clock
 } from 'lucide-react';
 import type { DayClose, DailySalesReport, CashReconReport, InventoryMovementReport, TransactionAuditLogReport, ShiftAggregationReport } from '@pos/shared';
@@ -56,29 +57,22 @@ export default function DayCloseDetail() {
   const fetchDayCloseData = async () => {
     try {
       const [dayCloseRes, salesRes, cashRes, inventoryRes, auditRes, shiftsRes] = await Promise.all([
-        fetch(`/api/v1/day-close/${id}`),
-        fetch(`/api/v1/day-close/${id}/report/sales`),
-        fetch(`/api/v1/day-close/${id}/report/cash`),
-        fetch(`/api/v1/day-close/${id}/report/inventory`),
-        fetch(`/api/v1/day-close/${id}/report/audit`),
-        fetch(`/api/v1/day-close/${id}/report/shifts`),
+        api.get<DayClose>(`/day-close/${id}`),
+        api.get<DailySalesReport>(`/day-close/${id}/report/sales`),
+        api.get<CashReconReport>(`/day-close/${id}/report/cash`),
+        api.get<InventoryMovementReport>(`/day-close/${id}/report/inventory`),
+        api.get<TransactionAuditLogReport>(`/day-close/${id}/report/audit`),
+        api.get<ShiftAggregationReport>(`/day-close/${id}/report/shifts`),
       ]);
 
-      const dayCloseData = await dayCloseRes.json();
-      const salesData = await salesRes.json();
-      const cashData = await cashRes.json();
-      const inventoryData = await inventoryRes.json();
-      const auditData = await auditRes.json();
-      const shiftsData = await shiftsRes.json();
-
-      if (dayCloseData.success) {
-        setDayClose(dayCloseData.data);
+      if (dayCloseRes.success && dayCloseRes.data) {
+        setDayClose(dayCloseRes.data);
       }
-      if (salesData.success) setReports(prev => ({ ...prev, sales: salesData.data }));
-      if (cashData.success) setReports(prev => ({ ...prev, cash: cashData.data }));
-      if (inventoryData.success) setReports(prev => ({ ...prev, inventory: inventoryData.data }));
-      if (auditData.success) setReports(prev => ({ ...prev, audit: auditData.data }));
-      if (shiftsData.success) setReports(prev => ({ ...prev, shifts: shiftsData.data }));
+      if (salesRes.success && salesRes.data) setReports(prev => ({ ...prev, sales: salesRes.data! }));
+      if (cashRes.success && cashRes.data) setReports(prev => ({ ...prev, cash: cashRes.data! }));
+      if (inventoryRes.success && inventoryRes.data) setReports(prev => ({ ...prev, inventory: inventoryRes.data! }));
+      if (auditRes.success && auditRes.data) setReports(prev => ({ ...prev, audit: auditRes.data! }));
+      if (shiftsRes.success && shiftsRes.data) setReports(prev => ({ ...prev, shifts: shiftsRes.data! }));
     } catch (error) {
       console.error('Error fetching day close data:', error);
     } finally {
@@ -90,28 +84,39 @@ export default function DayCloseDetail() {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
 
-  const handleDownloadCSV = () => {
-    const endpoint = activeTab === 'sales' ? '/csv/sales' 
+  const handleDownloadCSV = async () => {
+    const endpoint = activeTab === 'sales' ? '/csv/sales'
       : activeTab === 'cash' ? '/csv/cash'
       : activeTab === 'inventory' ? '/csv/inventory'
       : activeTab === 'audit' ? '/csv/audit'
       : '/csv/shifts';
-    
-    window.open(`/api/v1/day-close/${id}${endpoint}`, '_blank');
+
+    try {
+      const response = await api.get<string>(`/day-close/${id}${endpoint}`, { responseType: 'text' });
+      if (response.success && response.data) {
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `eod-${activeTab}-report-${dayClose?.operationalDate || 'unknown'}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
+    }
   };
 
   const handleEmailReport = async () => {
     const email = prompt('Enter email address:');
     if (email) {
       try {
-        const response = await fetch(`/api/v1/day-close/${id}/email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ recipients: [email] }),
-        });
-        const data = await response.json();
-        if (data.success) alert('Report sent!');
-        else alert('Failed: ' + data.error);
+        const response = await api.post(`/day-close/${id}/email`, { recipients: [email] });
+        if (response.success) {
+          alert('Report sent!');
+        } else {
+          alert('Failed: ' + (response.error || 'Unknown error'));
+        }
       } catch (error) {
         console.error('Error sending email:', error);
       }
@@ -147,10 +152,12 @@ export default function DayCloseDetail() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{dayClose.dayCloseNumber}</h1>
-            <p className="text-gray-500">
+            <p className="text-gray-500 flex items-center gap-2">
               {new Date(dayClose.operationalDate).toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
               })}
+              <span className="text-gray-300">•</span>
+              <span className="text-gray-600 font-medium">{dayClose.storeName}</span>
             </p>
           </div>
         </div>

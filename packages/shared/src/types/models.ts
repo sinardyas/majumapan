@@ -199,6 +199,7 @@ export interface OperationalDay {
 export interface DayClose {
   id: string;
   storeId: string;
+  storeName?: string;
   operationalDayId: string;
   operationalDate: string;
   dayCloseNumber: string;
@@ -219,6 +220,7 @@ export interface DayClose {
   closedByUserName: string;
   closedAt: Date;
   createdAt: Date;
+  shifts?: DayCloseShift[];
 }
 
 export interface DayCloseShift {
@@ -423,6 +425,8 @@ export interface ShiftAggregationReport {
 
 export interface DayCloseHistoryItem {
   id: string;
+  storeId: string;
+  storeName?: string;
   dayCloseNumber: string;
   operationalDate: string;
   closedAt: string;
