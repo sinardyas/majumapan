@@ -14,6 +14,11 @@ const storeSchema = z.object({
 
 type StoreFormData = z.infer<typeof storeSchema>;
 
+interface StoresListData {
+  stores: Store[];
+  total: number;
+}
+
 export default function Stores() {
   const [stores, setStores] = useState<Store[]>([]);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
@@ -32,10 +37,11 @@ export default function Stores() {
   const fetchStores = async () => {
     setIsLoading(true);
     try {
-      const response = await api.get<Store[]>('/stores');
+      const response = await api.get<StoresListData>('/stores');
       if (response.success && response.data) {
-        setStores(response.data);
-        setFilteredStores(response.data);
+        const storesList = response.data.stores || [];
+        setStores(storesList);
+        setFilteredStores(storesList);
       }
     } catch {
       console.error('Failed to load stores');

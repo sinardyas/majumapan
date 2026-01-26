@@ -26,6 +26,11 @@ const productSchema = z.object({
 
 type ProductFormData = z.infer<typeof productSchema>;
 
+interface StoresListData {
+  stores: Store[];
+  total: number;
+}
+
 function toISODateTime(value: string | null | undefined): string | null {
   if (!value || value === '') return null;
   const date = new Date(value);
@@ -65,11 +70,12 @@ export default function Products() {
 
   const fetchStores = async () => {
     try {
-      const response = await api.get<Store[]>('/stores');
+      const response = await api.get<StoresListData>('/stores');
       if (response.success && response.data) {
-        setStores(response.data);
-        if (response.data.length > 0 && !selectedStoreId) {
-          setSelectedStoreId(response.data[0].id);
+        const storesList = response.data.stores || [];
+        setStores(storesList);
+        if (storesList.length > 0 && !selectedStoreId) {
+          setSelectedStoreId(storesList[0].id);
         }
       }
     } catch (error) {
