@@ -6,7 +6,7 @@ import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail } from 'lucide
 import { DayCloseHistoryItem } from '@pos/shared';
 
 export default function DayCloseHistory() {
-  const { user } = useAuthStore();
+  const { user, selectedStoreId } = useAuthStore();
   const [history, setHistory] = useState<DayCloseHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -16,23 +16,30 @@ export default function DayCloseHistory() {
   const totalPages = Math.ceil(total / pageSize);
 
   useEffect(() => {
-    if (user?.storeId) {
+    if (user) {
       fetchHistory();
     }
-  }, [user?.storeId, page]);
+  }, [user, selectedStoreId, page]);
 
   const fetchHistory = async () => {
     setIsLoading(true);
     try {
+      const queryParams: Record<string, string | number | boolean | undefined> = {
+        page,
+        pageSize,
+      };
+
+      if (selectedStoreId === 'all') {
+        queryParams.allStores = true;
+      } else if (selectedStoreId) {
+        queryParams.storeId = selectedStoreId;
+      } else if (user?.storeId) {
+        queryParams.storeId = user.storeId;
+      }
+
       const response = await api.get<{ dayCloses: DayCloseHistoryItem[]; total: number }>(
         '/day-close/history',
-        {
-          queryParams: {
-            storeId: user?.storeId || '',
-            page,
-            pageSize,
-          },
-        }
+        { queryParams }
       );
 
       if (response.success && response.data) {
@@ -59,9 +66,7 @@ export default function DayCloseHistory() {
 
   const handleDownloadCSV = async (dayClose: DayCloseHistoryItem) => {
     try {
-      const response = await api.get<string>(`/day-close/${dayClose.id}/export/csv/all`, {
-        responseType: 'text',
-      });
+      const response = await api.get<string>(`/day-close/${dayClose.id}/export/csv/all`, { responseType: 'text' });
 
       if (response.success && response.data) {
         const blob = new Blob([response.data], { type: 'text/csv' });
@@ -81,15 +86,12 @@ export default function DayCloseHistory() {
     const email = prompt('Enter email address to send report:');
     if (email) {
       try {
-        const response = await api.post(
-          `/day-close/${dayClose.id}/email`,
-          { recipients: [email] }
-        );
+        const response = await api.post(`/day-close/${dayClose.id}/email`, { recipients: [email] });
 
         if (response.success) {
           alert('Report sent successfully!');
         } else {
-          alert('Failed to send report: ' + response.error);
+          alert('Failed to send report: ' + (response.error || 'Unknown error'));
         }
       } catch (error) {
         console.error('Error sending email:', error);
@@ -130,6 +132,9 @@ export default function DayCloseHistory() {
                     Date
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Store
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Day Close #
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -149,62 +154,67 @@ export default function DayCloseHistory() {
                   </th>
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {history.map((dayClose) => (
-                  <tr key={dayClose.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {new Date(dayClose.operationalDate).toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-mono text-gray-900">
-                        {dayClose.dayCloseNumber}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {dayClose.totalTransactions}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatCurrency(dayClose.totalSales)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-500">
-                        {dayClose.closedByUserName || 'N/A'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        dayClose.syncStatus === 'clean' 
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                        {dayClose.syncStatus === 'clean' ? 'Synced' : 'Pending Sync'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleViewDetail(dayClose)}
-                          className="text-blue-600 hover:text-blue-900"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDownloadCSV(dayClose)}
-                          className="text-gray-600 hover:text-gray-900"
-                          title="Download CSV"
-                        >
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {history.map((dayClose) => (
+                    <tr key={dayClose.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {new Date(dayClose.operationalDate).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">
+                          {dayClose.storeName || 'Unknown Store'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-mono text-gray-900">
+                          {dayClose.dayCloseNumber}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">
+                          {dayClose.totalTransactions}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatCurrency(dayClose.totalSales)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-500">
+                          {dayClose.closedByUserName || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          dayClose.syncStatus === 'clean'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          {dayClose.syncStatus === 'clean' ? 'Synced' : 'Pending Sync'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button
+                            onClick={() => handleViewDetail(dayClose)}
+                            className="text-blue-600 hover:text-blue-900"
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadCSV(dayClose)}
+                            className="text-gray-600 hover:text-gray-900"
+                            title="Download CSV"
+                          >
                           <Download className="h-4 w-4" />
                         </button>
                         <button

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db';
-import { dayCloses, dayCloseShifts, operationalDays, pendingCartsQueue, shifts, transactions } from '../db/schema';
+import { dayCloses, dayCloseShifts, operationalDays, pendingCartsQueue, shifts, transactions, stores } from '../db/schema';
 import { eq, and, gte, lte, desc, asc, or } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
@@ -13,8 +13,9 @@ import { emailService } from '../services/email-service';
 const dayCloseRouter = new Hono();
 
 const previewQuerySchema = z.object({
-  storeId: z.string().uuid(),
+  storeId: z.string().uuid().optional(),
   timezoneOffset: z.coerce.number().optional(),
+  allStores: z.coerce.boolean().optional().default(false),
 });
 
 const executeBodySchema = z.object({
@@ -41,7 +42,8 @@ const executeBodySchema = z.object({
 });
 
 const historyQuerySchema = z.object({
-  storeId: z.string().uuid(),
+  storeId: z.string().uuid().optional(),
+  allStores: z.coerce.boolean().optional().default(false),
   page: z.coerce.number().min(1).default(1),
   pageSize: z.coerce.number().min(1).max(100).default(20),
   startDate: z.string().optional(),
@@ -55,33 +57,61 @@ dayCloseRouter.get(
   requireRole('manager', 'admin'),
   async (c) => {
     try {
-      const { storeId, timezoneOffset } = c.req.query();
-      if (!storeId) {
-        return c.json({ success: false, error: 'storeId is required' }, 400);
+      const query = c.req.query();
+      const validation = previewQuerySchema.safeParse(query);
+
+      if (!validation.success) {
+        return c.json({ success: false, error: 'Invalid query parameters' }, 400);
       }
-      
+
+      const { storeId: queryStoreId, allStores, timezoneOffset } = validation.data;
+
+      // Preview requires a specific store - reject allStores mode
+      if (allStores) {
+        return c.json({
+          success: false,
+          error: 'Preview requires a specific store. Please select a store.',
+        }, 400);
+      }
+
+      // Determine the store ID to use
+      let effectiveStoreId = queryStoreId;
+      if (!effectiveStoreId) {
+        const user = c.get('user');
+        if (user.storeId) {
+          effectiveStoreId = user.storeId;
+        } else {
+          return c.json({ success: false, error: 'storeId is required' }, 400);
+        }
+      }
+
+      // Get store name
+      const store = await db.query.stores.findFirst({
+        where: eq(stores.id, effectiveStoreId),
+      });
+
       const today = new Date();
       const operationalDayStartHour = 6;
-      
+
       // Calculate local hours based on timezone offset from frontend
       const utcHours = today.getUTCHours();
-      const offsetMinutes = timezoneOffset ? parseInt(timezoneOffset) : 0;
+      const offsetMinutes = timezoneOffset ? Number(timezoneOffset) : 0;
       const localHours = (utcHours * 60 + offsetMinutes) / 60;
-      
+
       const operationalDate = localHours < operationalDayStartHour
         ? new Date(today.setDate(today.getDate() - 1)).toISOString().split('T')[0]
         : today.toISOString().split('T')[0];
-      
+
       const periodStart = new Date(operationalDate);
       periodStart.setHours(operationalDayStartHour, 0, 0, 0);
-      
+
       const periodEnd = new Date(periodStart);
       periodEnd.setDate(periodEnd.getDate() + 1);
 
       const periodTransactions = await db.select()
         .from(transactions)
         .where(and(
-          eq(transactions.storeId, storeId),
+          eq(transactions.storeId, effectiveStoreId),
           gte(transactions.createdAt, periodStart),
           lte(transactions.createdAt, periodEnd)
         ));
@@ -111,10 +141,10 @@ dayCloseRouter.get(
       }
 
       const transactionCount = periodTransactions.length;
-      
+
       const shiftsData = await db.query.shifts.findMany({
         where: and(
-          eq(shifts.storeId, storeId),
+          eq(shifts.storeId, effectiveStoreId),
           or(
             and(
               gte(shifts.openingTimestamp, periodStart),
@@ -125,24 +155,24 @@ dayCloseRouter.get(
         ),
         orderBy: [asc(shifts.openingTimestamp)],
       });
-      
+
       const pendingTransactions = await db.$count(
         transactions,
         and(
-          eq(transactions.storeId, storeId),
+          eq(transactions.storeId, effectiveStoreId),
           eq(transactions.syncStatus, 'pending')
         )
       );
-      
+
       const totalVariance = shiftsData.reduce((sum, shift) => {
         return sum + (Number(shift.variance) || 0);
       }, 0);
-      
+
       return c.json({
         success: true,
         data: {
-          storeId,
-          storeName: '',
+          storeId: effectiveStoreId,
+          storeName: store?.name || 'Unknown Store',
           operationalDate,
           periodStart: periodStart.toISOString(),
           periodEnd: periodEnd.toISOString(),
@@ -335,34 +365,6 @@ dayCloseRouter.post(
   }
 );
 
-// GET /api/v1/day-close/:id
-dayCloseRouter.get(
-  '/:id',
-  authMiddleware,
-  requireRole('manager', 'admin'),
-  async (c) => {
-    try {
-      const dayCloseId = c.req.param('id');
-      
-      const dayClose = await db.query.dayCloses.findFirst({
-        where: eq(dayCloses.id, dayCloseId),
-        with: {
-          shifts: true,
-        },
-      });
-      
-      if (!dayClose) {
-        return c.json({ success: false, error: 'Day close not found' }, 404);
-      }
-      
-      return c.json({ success: true, data: dayClose });
-    } catch (error) {
-      console.error('Error fetching day close:', error);
-      return c.json({ success: false, error: 'Failed to fetch day close' }, 500);
-    }
-  }
-);
-
 // GET /api/v1/day-close/history
 dayCloseRouter.get(
   '/history',
@@ -372,22 +374,48 @@ dayCloseRouter.get(
     try {
       const query = c.req.query();
       const validation = historyQuerySchema.safeParse(query);
-      
+
       if (!validation.success) {
         return c.json({ success: false, error: 'Invalid query parameters' }, 400);
       }
-      
-      const { storeId, page, pageSize } = validation.data;
-      
-      const dayClosesData = await db.query.dayCloses.findMany({
-        where: eq(dayCloses.storeId, storeId),
-        orderBy: [desc(dayCloses.closedAt)],
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-      });
-      
-      const total = await db.$count(dayCloses, eq(dayCloses.storeId, storeId));
-      
+
+      const user = c.get('user');
+      const { storeId, allStores, page, pageSize } = validation.data;
+
+      // Fetch day closes based on mode
+      let dayClosesData;
+      if (allStores && user.role === 'admin') {
+        // For "All Stores" mode, query without where clause
+        dayClosesData = await db.query.dayCloses.findMany({
+          orderBy: [desc(dayCloses.closedAt)],
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+        });
+      } else {
+        // For specific store
+        const storeFilter = storeId || user.storeId;
+        if (!storeFilter) {
+          return c.json({
+            success: false,
+            error: 'Store access denied. Please contact administrator.',
+          }, 403);
+        }
+        dayClosesData = await db.query.dayCloses.findMany({
+          where: eq(dayCloses.storeId, storeFilter),
+          orderBy: [desc(dayCloses.closedAt)],
+          limit: pageSize,
+          offset: (page - 1) * pageSize,
+        });
+      }
+
+      // Count total
+      const effectiveStoreId = storeId || user.storeId;
+      const total = allStores && user.role === 'admin'
+        ? await db.$count(dayCloses)
+        : effectiveStoreId
+          ? await db.$count(dayCloses, eq(dayCloses.storeId, effectiveStoreId))
+          : 0;
+
       return c.json({
         success: true,
         data: {
@@ -395,6 +423,7 @@ dayCloseRouter.get(
           total,
           page,
           pageSize,
+          isAllStores: allStores && user.role === 'admin',
         },
       });
     } catch (error) {
@@ -403,6 +432,45 @@ dayCloseRouter.get(
     }
   }
 );
+
+// GET /api/v1/day-close/:id
+  dayCloseRouter.get(
+    '/:id',
+    authMiddleware,
+    requireRole('manager', 'admin'),
+    async (c) => {
+      try {
+        const dayCloseId = c.req.param('id');
+
+        const dayClose = await db.query.dayCloses.findFirst({
+          where: eq(dayCloses.id, dayCloseId),
+          with: {
+            shifts: true,
+          },
+        });
+
+        if (!dayClose) {
+          return c.json({ success: false, error: 'Day close not found' }, 404);
+        }
+
+        // Get store name
+        const store = await db.query.stores.findFirst({
+          where: eq(stores.id, dayClose.storeId),
+        });
+
+        return c.json({
+          success: true,
+          data: {
+            ...dayClose,
+            storeName: store?.name || 'Unknown Store',
+          },
+        });
+      } catch (error) {
+        console.error('Error fetching day close:', error);
+        return c.json({ success: false, error: 'Failed to fetch day close' }, 500);
+      }
+    }
+  );
 
 // GET /api/v1/day-close/:id/report/sales
 dayCloseRouter.get(
