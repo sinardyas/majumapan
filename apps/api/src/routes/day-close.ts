@@ -294,6 +294,11 @@ dayCloseRouter.post(
 
       const pendingCount = periodTransactions.filter(t => t.syncStatus === 'pending').length;
 
+      const currentUser = await db.query.users.findFirst({
+        where: eq(users.id, user.userId),
+      });
+      const closedByUserName = currentUser?.name || 'Unknown User';
+
       const dateStr = operationalDate.replace(/-/g, '');
       const uniqueId = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const dayCloseNumber = `DC-${dateStr}-${uniqueId}`;
@@ -306,7 +311,7 @@ dayCloseRouter.post(
           periodEnd,
           status: 'CLOSED',
           closedByUserId: user.userId,
-          closedByUserName: '',
+          closedByUserName: closedByUserName,
           closedAt: new Date(),
         }).returning({ id: operationalDays.id });
 
@@ -329,7 +334,7 @@ dayCloseRouter.post(
           pendingTransactionsAtClose: pendingCount,
           syncStatus: pendingCount > 0 ? 'warning' : 'clean',
           closedByUserId: user.userId,
-          closedByUserName: '',
+          closedByUserName: closedByUserName,
           closedAt: new Date(),
         } as any).returning({ id: dayCloses.id });
 
@@ -426,14 +431,13 @@ dayCloseRouter.get(
       // Fetch day closes based on mode
       let dayClosesData;
       if (allStores && user.role === 'admin') {
-        // For "All Stores" mode, query without where clause
         dayClosesData = await db.query.dayCloses.findMany({
           orderBy: [desc(dayCloses.closedAt)],
           limit: pageSize,
           offset: (page - 1) * pageSize,
+          with: { store: true },
         });
       } else {
-        // For specific store
         const storeFilter = storeId || user.storeId;
         if (!storeFilter) {
           return c.json({
@@ -446,8 +450,22 @@ dayCloseRouter.get(
           orderBy: [desc(dayCloses.closedAt)],
           limit: pageSize,
           offset: (page - 1) * pageSize,
+          with: { store: true },
         });
       }
+
+      const dayCloseList = dayClosesData.map(dc => ({
+        id: dc.id,
+        storeId: dc.storeId,
+        storeName: dc.store?.name || 'Unknown Store',
+        dayCloseNumber: dc.dayCloseNumber,
+        operationalDate: dc.operationalDate,
+        closedAt: dc.closedAt,
+        closedByUserName: dc.closedByUserName,
+        totalTransactions: dc.totalTransactions,
+        totalSales: dc.totalSales,
+        syncStatus: dc.syncStatus,
+      }));
 
       // Count total
       const effectiveStoreId = storeId || user.storeId;
@@ -460,7 +478,7 @@ dayCloseRouter.get(
       return c.json({
         success: true,
         data: {
-          dayCloses: dayClosesData,
+          dayCloses: dayCloseList,
           total,
           page,
           pageSize,
