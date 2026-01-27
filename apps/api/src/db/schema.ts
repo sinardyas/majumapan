@@ -13,6 +13,7 @@ import {
   jsonb,
   date,
 } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 
 // Enums
@@ -22,6 +23,13 @@ export const transactionStatusEnum = pgEnum('transaction_status', ['completed', 
 export const syncStatusEnum = pgEnum('sync_status', ['pending', 'synced', 'failed', 'rejected']);
 export const discountTypeEnum = pgEnum('discount_type', ['percentage', 'fixed']);
 export const discountScopeEnum = pgEnum('discount_scope', ['product', 'cart']);
+export const voucherTypeEnum = pgEnum('voucher_type', ['GC', 'PR']);
+export const voucherDiscountTypeEnum = pgEnum('voucher_discount_type', ['PERCENTAGE', 'FIXED', 'FREE_ITEM']);
+export const voucherScopeEnum = pgEnum('voucher_scope', ['ENTIRE_ORDER', 'ITEMS_ONLY', 'SUBTOTAL', 'SPECIFIC_ITEMS']);
+export const voucherFreeItemModeEnum = pgEnum('voucher_free_item_mode', ['AUTO_ADD', 'QUALIFY_FIRST']);
+export const voucherQualifierTypeEnum = pgEnum('voucher_qualifier_type', ['CATEGORY', 'PRODUCT', 'BOTH']);
+export const voucherItemTypeEnum = pgEnum('voucher_item_type', ['CATEGORY', 'PRODUCT']);
+export const voucherTransactionTypeEnum = pgEnum('voucher_transaction_type', ['usage', 'refund', 'adjustment', 'void', 'create']);
 
 // App Settings
 export const appSettings = pgTable('app_settings', {
@@ -225,6 +233,99 @@ export const syncLog = pgTable('sync_log', {
   timestamp: timestamp('timestamp').defaultNow().notNull(),
 }, (table) => [
   index('idx_sync_log_store_timestamp').on(table.storeId, table.timestamp),
+]);
+
+// =============================================================================
+// VOUCHER TABLES
+// =============================================================================
+
+// Vouchers
+export const vouchers = pgTable('vouchers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: varchar('code', { length: 19 }).notNull().unique(),
+  type: voucherTypeEnum('type').notNull(),
+  discountType: voucherDiscountTypeEnum('discount_type'),
+  initialValue: decimal('initial_value', { precision: 12, scale: 2 }),
+  currentBalance: decimal('current_balance', { precision: 12, scale: 2 }),
+  currency: varchar('currency', { length: 3 }).default('IDR').notNull(),
+  percentageValue: decimal('percentage_value', { precision: 5, scale: 2 }),
+  fixedValue: decimal('fixed_value', { precision: 12, scale: 2 }),
+  scope: voucherScopeEnum('scope'),
+  freeItemId: uuid('free_item_id').references(() => products.id),
+  freeItemMode: voucherFreeItemModeEnum('free_item_mode'),
+  minPurchase: decimal('min_purchase', { precision: 12, scale: 2 }),
+  maxDiscount: decimal('max_discount', { precision: 12, scale: 2 }),
+  expiresAt: timestamp('expires_at'),
+  isActive: boolean('is_active').default(true).notNull(),
+  isVoid: boolean('is_void').default(false).notNull(),
+  customerId: uuid('customer_id'),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  voidedAt: timestamp('voided_at'),
+  voidedBy: uuid('voided_by').references(() => users.id),
+  voidReason: text('void_reason'),
+  notes: text('notes'),
+}, (table) => [
+  index('idx_vouchers_code').on(table.code),
+  index('idx_vouchers_customer').on(table.customerId),
+  index('idx_vouchers_expires').on(table.expiresAt).where(sql`${table.expiresAt} IS NOT NULL`),
+  index('idx_vouchers_active').on(table.isActive, table.isVoid),
+  index('idx_vouchers_type').on(table.type),
+]);
+
+// Voucher Applicable Items (for SPECIFIC_ITEMS scope)
+export const voucherApplicableItems = pgTable('voucher_applicable_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id, { onDelete: 'cascade' }).notNull(),
+  itemType: voucherItemTypeEnum('item_type').notNull(),
+  itemId: uuid('item_id').notNull(),
+}, (table) => [
+  index('idx_voucher_applicable_voucher').on(table.voucherId),
+  index('idx_voucher_applicable_item').on(table.itemType, table.itemId),
+]);
+
+// Voucher Qualifier Items (for FREE_ITEM QUALIFY_FIRST mode)
+export const voucherQualifierItems = pgTable('voucher_qualifier_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id, { onDelete: 'cascade' }).notNull(),
+  qualifierType: voucherQualifierTypeEnum('qualifier_type').notNull(),
+  itemType: voucherItemTypeEnum('item_type').notNull(),
+  itemId: uuid('item_id').notNull(),
+}, (table) => [
+  index('idx_voucher_qualifier_voucher').on(table.voucherId),
+]);
+
+// Voucher Transactions (ledger for audit trail)
+export const voucherTransactions = pgTable('voucher_transactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id).notNull(),
+  type: voucherTransactionTypeEnum('type').notNull(),
+  amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+  orderId: uuid('order_id'),
+  createdBy: uuid('created_by').references(() => users.id),
+  balanceBefore: decimal('balance_before', { precision: 12, scale: 2 }),
+  balanceAfter: decimal('balance_after', { precision: 12, scale: 2 }),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_voucher_transactions_voucher').on(table.voucherId),
+  index('idx_voucher_transactions_order').on(table.orderId),
+  index('idx_voucher_transactions_created').on(table.createdAt),
+]);
+
+// Order Vouchers (links vouchers to orders)
+export const orderVouchers = pgTable('order_vouchers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  orderId: uuid('order_id').references(() => transactions.id, { onDelete: 'cascade' }).notNull(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id).notNull(),
+  amountApplied: decimal('amount_applied', { precision: 12, scale: 2 }).notNull(),
+  discountDetails: jsonb('discount_details'),
+  type: voucherTypeEnum('type').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_order_vouchers_order').on(table.orderId),
+  index('idx_order_vouchers_voucher').on(table.voucherId),
 ]);
 
 // Refresh Tokens
@@ -577,5 +678,77 @@ export const devicesRelations = relations(devices, ({ one }) => ({
   store: one(stores, {
     fields: [devices.storeId],
     references: [stores.id],
+  }),
+}));
+
+// =============================================================================
+// VOUCHER RELATIONS
+// =============================================================================
+
+// Vouchers relations
+export const vouchersRelations = relations(vouchers, ({ one, many }) => ({
+  customer: one(users, {
+    fields: [vouchers.customerId],
+    references: [users.id],
+  }),
+  createdByUser: one(users, {
+    fields: [vouchers.createdBy],
+    references: [users.id],
+  }),
+  voidedByUser: one(users, {
+    fields: [vouchers.voidedBy],
+    references: [users.id],
+  }),
+  freeItem: one(products, {
+    fields: [vouchers.freeItemId],
+    references: [products.id],
+  }),
+  applicableItems: many(voucherApplicableItems),
+  qualifierItems: many(voucherQualifierItems),
+  transactions: many(voucherTransactions),
+  orderVouchers: many(orderVouchers),
+}));
+
+// Voucher Applicable Items relations
+export const voucherApplicableItemsRelations = relations(voucherApplicableItems, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [voucherApplicableItems.voucherId],
+    references: [vouchers.id],
+  }),
+}));
+
+// Voucher Qualifier Items relations
+export const voucherQualifierItemsRelations = relations(voucherQualifierItems, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [voucherQualifierItems.voucherId],
+    references: [vouchers.id],
+  }),
+}));
+
+// Voucher Transactions relations
+export const voucherTransactionsRelations = relations(voucherTransactions, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [voucherTransactions.voucherId],
+    references: [vouchers.id],
+  }),
+  createdBy: one(users, {
+    fields: [voucherTransactions.createdBy],
+    references: [users.id],
+  }),
+  order: one(transactions, {
+    fields: [voucherTransactions.orderId],
+    references: [transactions.id],
+  }),
+}));
+
+// Order Vouchers relations
+export const orderVouchersRelations = relations(orderVouchers, ({ one }) => ({
+  order: one(transactions, {
+    fields: [orderVouchers.orderId],
+    references: [transactions.id],
+  }),
+  voucher: one(vouchers, {
+    fields: [orderVouchers.voucherId],
+    references: [vouchers.id],
   }),
 }));
