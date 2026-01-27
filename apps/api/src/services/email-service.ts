@@ -1,5 +1,11 @@
 import type { DayClose, DailySalesReport } from '@pos/shared';
 
+interface EmailAttachment {
+  filename: string;
+  content: Buffer | Uint8Array;
+  contentType: string;
+}
+
 interface EmailConfig {
   smtpHost: string;
   smtpPort: number;
@@ -22,7 +28,8 @@ export const emailService = {
   async sendEODNotification(
     recipients: string[],
     dayClose: DayClose,
-    salesReport: DailySalesReport
+    salesReport: DailySalesReport,
+    pdfBuffer?: Buffer | Uint8Array
   ): Promise<boolean> {
     const config = getConfig();
     
@@ -36,11 +43,24 @@ export const emailService = {
     const htmlBody = this.generateEODEmailHTML(dayClose, salesReport);
     const textBody = this.generateEODEmailText(dayClose, salesReport);
 
+    const attachments: EmailAttachment[] = [];
+    if (pdfBuffer) {
+      const dateStr = dayClose.operationalDate.replace(/-/g, '');
+      attachments.push({
+        filename: `eod-report-${dateStr}.pdf`,
+        content: pdfBuffer,
+        contentType: 'application/pdf',
+      });
+    }
+
     try {
       for (const recipient of recipients) {
-        await this.sendEmail(config, recipient, subject, textBody, htmlBody);
+        await this.sendEmail(config, recipient, subject, textBody, htmlBody, attachments);
       }
       console.log(`[Email] EOD notification sent to ${recipients.length} recipients`);
+      if (attachments.length > 0) {
+        console.log(`[Email] PDF attachment included`);
+      }
       return true;
     } catch (error) {
       console.error('[Email] Failed to send EOD notification:', error);
@@ -53,21 +73,32 @@ export const emailService = {
     to: string,
     subject: string,
     textBody: string,
-    htmlBody: string
+    htmlBody: string,
+    attachments?: EmailAttachment[]
   ): Promise<void> {
+    const body: Record<string, any> = {
+      from: `${config.fromName} <${config.fromEmail}>`,
+      to,
+      subject,
+      text: textBody,
+      html: htmlBody,
+    };
+
+    if (attachments && attachments.length > 0) {
+      body.attachments = attachments.map((att) => ({
+        filename: att.filename,
+        content: att.content.toString('base64'),
+        contentType: att.contentType,
+      }));
+    }
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.RESEND_API_KEY || ''}`,
       },
-      body: JSON.stringify({
-        from: `${config.fromName} <${config.fromEmail}>`,
-        to,
-        subject,
-        text: textBody,
-        html: htmlBody,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!response.ok) {

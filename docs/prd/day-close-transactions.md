@@ -224,8 +224,8 @@ Voided transactions must be shown prominently with:
 
 | Phase | Duration | Deliverables | Status |
 |-------|----------|--------------|--------|
-| Documentation | 0.5 day | PRD, FSD | ☐ In Progress |
-| Implementation | 2-3 days | Code changes | ☐ Pending |
+| Documentation | 0.5 day | PRD, FSD | ✅ Complete |
+| Implementation | 2-3 days | Code changes | ✅ Complete |
 | Testing | 1 day | QA, UAT | ☐ Pending |
 | Deployment | 0.5 day | Release | ☐ Pending |
 
@@ -248,3 +248,153 @@ Voided transactions must be shown prominently with:
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-26 | Platform Team | Initial draft |
+| 1.1 | 2026-01-27 | Platform Team | Implementation complete - Enhanced Audit tab with pagination, filters, expandable rows, and line items |
+| 1.2 | 2026-01-27 | Platform Team | Fixed navigation path from /admin/day-close/ to /eod/day-close/ |
+| 1.3 | 2026-01-27 | Platform Team | Fixed time period filters in Sales, Cash, Inventory, Audit tabs |
+| 1.4 | 2026-01-27 | Platform Team | Fixed shift breakdown - overlapping shifts query, cashier name lookup, auto-close active shifts |
+| 1.6-01-5 | 20227 | Platform Team | Fixed back button navigation path |
+
+---
+
+## 11. Future Enhancement: PDF Export for Day Close Reports
+
+### 11.1 Overview
+
+Add PDF export capability for Day Close History and Day Close Detail pages, enabling users to download comprehensive PDF reports with all sales, cash, inventory, audit, and shift data.
+
+### 11.2 Requirements
+
+| Requirement | Description |
+|-------------|-------------|
+| 11.2.1 | PDF export from Day Close History page |
+| 11.2.2 | PDF export from Day Close Detail page |
+| 11.2.3 | Email report includes PDF attachment |
+| 11.2.4 | Comprehensive PDF content (all 5 reports + full transaction list) |
+
+### 11.3 PDF Content Layout
+
+```
+┌─────────────────────────────────────────────────────┐
+│  MAJUMAPAN - DAY CLOSE REPORT                       │
+│  Date: January 27, 2026                             │
+│  Store: Main Store                                  │
+│  Day Close #: DC-20260127-001                       │
+├─────────────────────────────────────────────────────┤
+│  SUMMARY                                            │
+│  ─────────────────────────────────────────────────  │
+│  Total Sales: $12,345.67                            │
+│  Transactions: 156                                  │
+│  Cash Revenue: $8,234.50                            │
+│  Card Revenue: $4,111.17                            │
+├─────────────────────────────────────────────────────┤
+│  CASH RECONCILIATION                                │
+│  ─────────────────────────────────────────────────  │
+│  Opening Float: $500.00                             │
+│  Cash Sales: $8,234.50                              │
+│  Expected Cash: $8,734.50                           │
+│  Total Variance: $12.50                             │
+├─────────────────────────────────────────────────────┤
+│  INVENTORY MOVEMENT                                 │
+│  ─────────────────────────────────────────────────  │
+│  Top Products Sold:                                 │
+│  - Coffee: 245 sold                                 │
+│  - Tea: 189 sold                                    │
+│  Low Stock Alerts: 3 items                          │
+├─────────────────────────────────────────────────────┤
+│  TRANSACTIONS (Full List)                           │
+│  ─────────────────────────────────────────────────  │
+│  #001  09:15  John    $45.00  Cash  ✓               │
+│  #002  09:30  Jane    $82.50  Card ✓                │
+│  ... (all transactions with line items)             │
+├─────────────────────────────────────────────────────┤
+│  SHIFT BREAKDOWN                                    │
+│  ─────────────────────────────────────────────────  │
+│  John: Opening $200, Closing $445, Variance $0      │
+│  Jane: Opening $300, Closing $580, Variance -$5     │
+├─────────────────────────────────────────────────────┤
+│  Generated: January 27, 2026 14:30                  │
+│  Closed By: Admin User                              │
+└─────────────────────────────────────────────────────┘
+```
+
+### 11.4 Technical Implementation
+
+#### 11.4.1 Backend
+
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| PDF Library | pdfkit ^0.15.0 | Generate PDF documents |
+| Export Service | `pdf-export-service.ts` | New service for PDF generation |
+| API Endpoint | `GET /day-close/:id/export/pdf/all` | Download PDF endpoint |
+| Email Service | Update `sendEODNotification()` | Support PDF attachment |
+
+#### 11.4.2 Frontend
+
+| Component | Description |
+|-----------|-------------|
+| Download Button | Add PDF button in Day Close History actions column |
+| Download Handler | `handleDownloadPDF()` function |
+| Icon | FileText icon from lucide-react |
+
+### 11.5 File Changes
+
+| File | Action |
+|------|--------|
+| `apps/api/package.json` | Add `pdfkit: ^0.15.0` |
+| `apps/api/src/services/pdf-export-service.ts` | Create new file |
+| `apps/api/src/routes/day-close.ts` | Add PDF endpoint, modify email endpoint |
+| `apps/api/src/services/email-service.ts` | Support PDF attachment |
+| `apps/admin/src/pages/DayCloseHistory.tsx` | Add PDF download button |
+| `apps/admin/src/pages/DayCloseDetail.tsx` | Add PDF download button |
+
+### 11.6 API Endpoints
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/day-close/:id/export/pdf/all` | Download comprehensive PDF report |
+| POST | `/day-close/:id/email` | Send email with PDF attachment |
+
+### 11.7 Estimated Effort
+
+| Phase | Tasks | Time |
+|-------|-------|------|
+| Backend PDF Service | Create pdf-export-service.ts with all report sections | 2-3 hours |
+| Backend Endpoint | Add PDF export endpoint | 30 minutes |
+| Frontend UI | Add PDF download button | 30 minutes |
+| Email Integration | Update email to attach PDF | 1 hour |
+| Testing | Manual testing and fixes | 30 minutes |
+| **Total** | | **4-5 hours** |
+
+### 11.8 Dependencies
+
+```json
+// apps/api/package.json
+{
+  "dependencies": {
+    "pdfkit": "^0.15.0"
+  }
+}
+```
+
+### 11.9 PDF Sections
+
+| Section | Content |
+|---------|---------|
+| Cover Page | Store name, day close number, date, operational date |
+| Summary | Total sales, transactions, cash/card revenue, status |
+| Daily Sales | Top products, sales by hour |
+| Cash Reconciliation | Opening float, cash sales, expected cash, variance, shift breakdown |
+| Inventory Movement | Items sold, low stock alerts, reorder recommendations |
+| Transactions | Full list with transaction number, time, cashier, items, total, payment, status |
+| Shifts | Shift aggregation with variance per cashier |
+
+### 11.10 Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-01-26 | Platform Team | Initial draft |
+| 1.1 | 2026-01-27 | Platform Team | Implementation complete - Enhanced Audit tab |
+| 1.2 | 2026-01-27 | Platform Team | Fixed navigation paths and time period filters |
+| 1.3 | 2026-01-27 | Platform Team | Fixed shift breakdown issues |
+| 1.4 | 2026-01-27 | Platform Team | Fixed back button navigation |
+| 1.5 | 2026-01-27 | Platform Team | Added PDF Export feature plan |

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
 import { Button } from '@pos/ui';
-import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail, FileText } from 'lucide-react';
 import { DayCloseHistoryItem } from '@pos/shared';
 
 export default function DayCloseHistory() {
@@ -61,7 +61,7 @@ export default function DayCloseHistory() {
   };
 
   const handleViewDetail = (dayClose: DayCloseHistoryItem) => {
-    window.location.href = `/admin/day-close/${dayClose.id}`;
+    window.location.href = `/eod/day-close/${dayClose.id}`;
   };
 
   const handleDownloadCSV = async (dayClose: DayCloseHistoryItem) => {
@@ -96,6 +96,32 @@ export default function DayCloseHistory() {
       } catch (error) {
         console.error('Error sending email:', error);
       }
+    }
+  };
+
+  const handleDownloadPDF = async (dayClose: DayCloseHistoryItem) => {
+    try {
+      const { accessToken } = useAuthStore.getState();
+      
+      const response = await fetch(`/api/v1/day-close/${dayClose.id}/export/pdf/all`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `eod-report-${dayClose.operationalDate}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error('Error downloading PDF:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
     }
   };
 
@@ -216,6 +242,13 @@ export default function DayCloseHistory() {
                             title="Download CSV"
                           >
                           <Download className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDownloadPDF(dayClose)}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="Download PDF"
+                        >
+                          <FileText className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => handleEmailReport(dayClose)}
