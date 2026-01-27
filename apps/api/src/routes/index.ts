@@ -16,6 +16,7 @@ import shifts from './shifts';
 import dayClose from './day-close';
 import pendingCarts from './pending-carts';
 import devices from './devices';
+import vouchers from './vouchers';
 
 const routes = new Hono();
 
@@ -37,6 +38,7 @@ routes.route('/shifts', shifts);
 routes.route('/day-close', dayClose);
 routes.route('/pending-carts', pendingCarts);
 routes.route('/devices', devices);
+routes.route('/vouchers', vouchers);
 
 // Health check
 routes.get('/health', (c) => {

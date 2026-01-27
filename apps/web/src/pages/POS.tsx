@@ -957,6 +957,12 @@ export default function POS() {
         onClose={() => setShowPaymentModal(false)}
         onConfirm={handlePaymentConfirm}
         total={total}
+        cartItems={items.map(item => ({
+          id: item.productId,
+          productId: item.productId,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        }))}
       />
 
       {showReceipt && completedTransaction && (
