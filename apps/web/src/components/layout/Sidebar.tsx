@@ -17,6 +17,7 @@ import {
   LogOut,
   Clock,
   CalendarCheck,
+  Gift,
 } from 'lucide-react';
 
 interface NavItem {
@@ -59,6 +60,17 @@ const navItems: NavItem[] = [
     path: '/discounts',
     icon: <Percent className="h-5 w-5" />,
     permission: 'discounts:create',
+  },
+  {
+    name: 'Vouchers',
+    path: '/vouchers',
+    icon: <Gift className="h-5 w-5" />,
+    permission: 'vouchers:create',
+  },
+  {
+    name: 'My Vouchers',
+    path: '/customer-vouchers',
+    icon: <Gift className="h-5 w-5" />,
   },
   {
     name: 'Pending Carts',

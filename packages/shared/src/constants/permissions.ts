@@ -59,6 +59,12 @@ export const PERMISSIONS = {
 
   // End of Day
   'eod:manage': ['admin', 'manager'],
+
+  // Vouchers
+  'vouchers:create': ['admin', 'manager'],
+  'vouchers:read': ['admin', 'manager', 'cashier'],
+  'vouchers:use': ['admin', 'manager', 'cashier'],
+  'vouchers:void': ['admin', 'manager'],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

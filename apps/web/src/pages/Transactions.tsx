@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { Button } from '@pos/ui';
-import { AlertTriangle, X, Clipboard } from 'lucide-react';
+import { AlertTriangle, X, Clipboard, RefreshCw } from 'lucide-react';
+import { RefundModal } from '@/components/pos/RefundModal';
 
 export default function Transactions() {
   const { user } = useAuthStore();
@@ -11,52 +12,53 @@ export default function Transactions() {
   const [selectedTransaction, setSelectedTransaction] = useState<LocalTransaction | null>(null);
   const [filter, setFilter] = useState<'all' | 'completed' | 'voided' | 'pending'>('all');
   const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [showRefundModal, setShowRefundModal] = useState(false);
+
+  const loadTransactions = async () => {
+    if (!user?.storeId) {
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      let query = db.transactions
+        .where('storeId')
+        .equals(user.storeId);
+
+      let txns = await query.reverse().toArray();
+
+      // Apply date filter
+      if (dateFilter !== 'all') {
+        const filterDate = new Date();
+        if (dateFilter === 'today') {
+          filterDate.setHours(0, 0, 0, 0);
+        } else if (dateFilter === 'week') {
+          filterDate.setDate(filterDate.getDate() - 7);
+        } else if (dateFilter === 'month') {
+          filterDate.setMonth(filterDate.getMonth() - 1);
+        }
+        const filterStr = filterDate.toISOString();
+        txns = txns.filter(t => t.clientTimestamp >= filterStr);
+      }
+
+      // Apply status filter
+      if (filter !== 'all') {
+        if (filter === 'pending') {
+          txns = txns.filter(t => t.syncStatus === 'pending');
+        } else {
+          txns = txns.filter(t => t.status === filter);
+        }
+      }
+
+      setTransactions(txns);
+    } catch (error) {
+      console.error('Error loading transactions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadTransactions = async () => {
-      if (!user?.storeId) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        let query = db.transactions
-          .where('storeId')
-          .equals(user.storeId);
-
-        let txns = await query.reverse().toArray();
-
-        // Apply date filter
-        if (dateFilter !== 'all') {
-          const filterDate = new Date();
-          if (dateFilter === 'today') {
-            filterDate.setHours(0, 0, 0, 0);
-          } else if (dateFilter === 'week') {
-            filterDate.setDate(filterDate.getDate() - 7);
-          } else if (dateFilter === 'month') {
-            filterDate.setMonth(filterDate.getMonth() - 1);
-          }
-          const filterStr = filterDate.toISOString();
-          txns = txns.filter(t => t.clientTimestamp >= filterStr);
-        }
-
-        // Apply status filter
-        if (filter !== 'all') {
-          if (filter === 'pending') {
-            txns = txns.filter(t => t.syncStatus === 'pending');
-          } else {
-            txns = txns.filter(t => t.status === filter);
-          }
-        }
-
-        setTransactions(txns);
-      } catch (error) {
-        console.error('Error loading transactions:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     loadTransactions();
   }, [user?.storeId, filter, dateFilter]);
 
@@ -359,6 +361,18 @@ export default function Transactions() {
               <Button variant="outline" onClick={() => setSelectedTransaction(null)}>
                 Close
               </Button>
+              {selectedTransaction.status === 'completed' && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRefundModal(true);
+                    setSelectedTransaction(null);
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refund
+                </Button>
+              )}
               <Button>
                 Print Receipt
               </Button>
@@ -366,6 +380,15 @@ export default function Transactions() {
           </div>
         </div>
       )}
+
+      <RefundModal
+        isOpen={showRefundModal}
+        onClose={() => setShowRefundModal(false)}
+        transaction={selectedTransaction}
+        onRefundComplete={() => {
+          loadTransactions();
+        }}
+      />
     </div>
   );
 }
