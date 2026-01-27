@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@pos/ui';
 import { api } from '@/services/api';
+import { useAuthStore } from '@/stores/authStore';
 import {
   ArrowLeft,
   Download,
@@ -10,9 +11,14 @@ import {
   CreditCard,
   Package,
   FileText,
-  Clock
+  Clock,
+  ChevronLeft,
+  ChevronRight,
+  Search
 } from 'lucide-react';
-import type { DayClose, DailySalesReport, CashReconReport, InventoryMovementReport, TransactionAuditLogReport, ShiftAggregationReport } from '@pos/shared';
+import type { DayClose, DailySalesReport, CashReconReport, InventoryMovementReport, ShiftAggregationReport, TransactionSummary } from '@pos/shared';
+import { TransactionRow } from '@/components/day-close/TransactionRow';
+import { TransactionLineItems } from '@/components/day-close/TransactionLineItems';
 
 interface Tab {
   id: 'sales' | 'cash' | 'inventory' | 'audit' | 'shifts';
@@ -37,16 +43,36 @@ export default function DayCloseDetail() {
     sales: DailySalesReport | null;
     cash: CashReconReport | null;
     inventory: InventoryMovementReport | null;
-    audit: TransactionAuditLogReport | null;
     shifts: ShiftAggregationReport | null;
   }>({
     sales: null,
     cash: null,
     inventory: null,
-    audit: null,
     shifts: null,
   });
+
+  const [transactions, setTransactions] = useState<TransactionSummary[]>([]);
+  const [txSummary, setTxSummary] = useState<{
+    total: number;
+    completed: number;
+    voided: number;
+    totalAmount: number;
+    totalRefunds: number;
+  } | null>(null);
+  const [txPagination, setTxPagination] = useState<{
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  } | null>(null);
+  const [txFilters, setTxFilters] = useState({
+    status: 'all',
+    paymentMethod: 'all',
+    search: '',
+  });
+  const [expandedTxId, setExpandedTxId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTx, setIsLoadingTx] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -56,12 +82,11 @@ export default function DayCloseDetail() {
 
   const fetchDayCloseData = async () => {
     try {
-      const [dayCloseRes, salesRes, cashRes, inventoryRes, auditRes, shiftsRes] = await Promise.all([
+      const [dayCloseRes, salesRes, cashRes, inventoryRes, shiftsRes] = await Promise.all([
         api.get<DayClose>(`/day-close/${id}`),
         api.get<DailySalesReport>(`/day-close/${id}/report/sales`),
         api.get<CashReconReport>(`/day-close/${id}/report/cash`),
         api.get<InventoryMovementReport>(`/day-close/${id}/report/inventory`),
-        api.get<TransactionAuditLogReport>(`/day-close/${id}/report/audit`),
         api.get<ShiftAggregationReport>(`/day-close/${id}/report/shifts`),
       ]);
 
@@ -69,9 +94,8 @@ export default function DayCloseDetail() {
         setDayClose(dayCloseRes.data);
       }
       if (salesRes.success && salesRes.data) setReports(prev => ({ ...prev, sales: salesRes.data! }));
-      if (cashRes.success && cashRes.data) setReports(prev => ({ ...prev, cash: cashRes.data! }));
+      if (cashRes.success && salesRes.data) setReports(prev => ({ ...prev, cash: cashRes.data! }));
       if (inventoryRes.success && inventoryRes.data) setReports(prev => ({ ...prev, inventory: inventoryRes.data! }));
-      if (auditRes.success && auditRes.data) setReports(prev => ({ ...prev, audit: auditRes.data! }));
       if (shiftsRes.success && shiftsRes.data) setReports(prev => ({ ...prev, shifts: shiftsRes.data! }));
     } catch (error) {
       console.error('Error fetching day close data:', error);
@@ -79,6 +103,42 @@ export default function DayCloseDetail() {
       setIsLoading(false);
     }
   };
+
+  const fetchTransactions = async (page: number = 1) => {
+    if (!id) return;
+    setIsLoadingTx(true);
+    try {
+      const response = await api.get<{
+        transactions: TransactionSummary[];
+        summary: { total: number; completed: number; voided: number; totalAmount: number; totalRefunds: number };
+        pagination: { page: number; pageSize: number; total: number; totalPages: number };
+      }>(`/day-close/${id}/transactions`, {
+        queryParams: {
+          page,
+          pageSize: 25,
+          status: txFilters.status,
+          paymentMethod: txFilters.paymentMethod,
+          search: txFilters.search,
+        }
+      });
+
+      if (response.success && response.data) {
+        setTransactions(response.data.transactions);
+        setTxSummary(response.data.summary);
+        setTxPagination(response.data.pagination);
+      }
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+    } finally {
+      setIsLoadingTx(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'audit' && id) {
+      fetchTransactions(1);
+    }
+  }, [activeTab, id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
@@ -123,6 +183,32 @@ export default function DayCloseDetail() {
     }
   };
 
+  const handleDownloadPDF = async () => {
+    try {
+      const { accessToken } = useAuthStore.getState();
+      
+      const response = await fetch(`/api/v1/day-close/${id}/export/pdf/all`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+        },
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `eod-report-${dayClose?.operationalDate || 'unknown'}.pdf`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      } else {
+        console.error('Error downloading PDF:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -135,7 +221,7 @@ export default function DayCloseDetail() {
     return (
       <div className="p-6 text-center">
         <p className="text-gray-500">Day close not found</p>
-        <Button onClick={() => navigate('/admin/day-close-history')} className="mt-4">
+        <Button onClick={() => navigate('/eod/day-close-history')} className="mt-4">
           Back to History
         </Button>
       </div>
@@ -146,7 +232,7 @@ export default function DayCloseDetail() {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <Button variant="outline" onClick={() => navigate('/admin/day-close-history')}>
+          <Button variant="outline" onClick={() => navigate('/eod/day-close-history')}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
@@ -165,6 +251,10 @@ export default function DayCloseDetail() {
           <Button variant="outline" onClick={handleDownloadCSV}>
             <Download className="h-4 w-4 mr-2" />
             CSV
+          </Button>
+          <Button variant="outline" onClick={handleDownloadPDF}>
+            <FileText className="h-4 w-4 mr-2" />
+            PDF
           </Button>
           <Button variant="outline" onClick={handleEmailReport}>
             <Mail className="h-4 w-4 mr-2" />
@@ -297,43 +387,162 @@ export default function DayCloseDetail() {
             </div>
           )}
 
-          {activeTab === 'audit' && reports.audit && (
+          {activeTab === 'audit' && (
             <div>
               <h3 className="text-lg font-semibold mb-4">Transaction Audit Log</h3>
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <p className="text-sm text-gray-500">Total Volume</p>
-                <p className="text-xl font-bold">{formatCurrency(reports.audit.summary.totalVolume)}</p>
+
+              {txSummary && (
+                <div className="grid grid-cols-5 gap-4 mb-6">
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500">Total</p>
+                    <p className="text-xl font-bold">{txSummary.total}</p>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <p className="text-sm text-green-600">Completed</p>
+                    <p className="text-xl font-bold text-green-700">{txSummary.completed}</p>
+                  </div>
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <p className="text-sm text-red-600">Voided</p>
+                    <p className="text-xl font-bold text-red-700">{txSummary.voided}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500">Total Sales</p>
+                    <p className="text-xl font-bold">{formatCurrency(txSummary.totalAmount)}</p>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <p className="text-sm text-gray-500">Refunds</p>
+                    <p className="text-xl font-bold">{formatCurrency(txSummary.totalRefunds)}</p>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-4 mb-4">
+                <div className="w-40">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    value={txFilters.status}
+                    onChange={(e) => setTxFilters(f => ({ ...f, status: e.target.value }))}
+                  >
+                    <option value="all">All Status</option>
+                    <option value="completed">Completed</option>
+                    <option value="voided">Voided</option>
+                    <option value="pending_sync">Pending Sync</option>
+                  </select>
+                </div>
+                <div className="w-40">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Payment</label>
+                  <select
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    value={txFilters.paymentMethod}
+                    onChange={(e) => setTxFilters(f => ({ ...f, paymentMethod: e.target.value }))}
+                  >
+                    <option value="all">All Payments</option>
+                    <option value="cash">Cash</option>
+                    <option value="card">Card</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Transaction number..."
+                      className="w-full border border-gray-300 rounded-md pl-10 pr-3 py-2 text-sm"
+                      value={txFilters.search}
+                      onChange={(e) => setTxFilters(f => ({ ...f, search: e.target.value }))}
+                      onKeyDown={(e) => e.key === 'Enter' && fetchTransactions(1)}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" onClick={() => fetchTransactions(1)}>
+                    Search
+                  </Button>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="px-3 py-2 text-left">Transaction</th>
-                      <th className="px-3 py-2 text-left">Time</th>
-                      <th className="px-3 py-2 text-left">Amount</th>
-                      <th className="px-3 py-2 text-left">Method</th>
-                      <th className="px-3 py-2 text-left">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reports.audit.transactions.slice(0, 20).map((txn, i) => (
-                      <tr key={i} className="border-b">
-                        <td className="px-3 py-2 font-mono">{txn.transactionNumber}</td>
-                        <td className="px-3 py-2">{new Date(txn.timestamp).toLocaleTimeString()}</td>
-                        <td className="px-3 py-2">{formatCurrency(txn.amount)}</td>
-                        <td className="px-3 py-2">{txn.paymentMethod}</td>
-                        <td className="px-3 py-2">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            txn.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                          }`}>
-                            {txn.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+
+              {isLoadingTx ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                </div>
+              ) : transactions.length === 0 ? (
+                <div className="text-center py-12 bg-gray-50 rounded-lg">
+                  <p className="text-gray-500">No transactions found</p>
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="px-4 py-2 text-left">Transaction</th>
+                          <th className="px-4 py-2 text-left">Time</th>
+                          <th className="px-4 py-2 text-left">Cashier</th>
+                          <th className="px-4 py-2 text-left">Items</th>
+                          <th className="px-4 py-2 text-left">Total</th>
+                          <th className="px-4 py-2 text-left">Payment</th>
+                          <th className="px-4 py-2 text-left">Status</th>
+                          <th className="px-4 py-2 text-right"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {transactions.map((txn) => (
+                          <TransactionRow
+                            key={txn.id}
+                            transaction={txn}
+                            isExpanded={expandedTxId === txn.id}
+                            onToggle={() => setExpandedTxId(
+                              expandedTxId === txn.id ? null : txn.id
+                            )}
+                          />
+                        ))}
+                        {expandedTxId && (
+                          <tr className="bg-gray-50">
+                            <td colSpan={8} className="px-4 py-4">
+                              <TransactionLineItems
+                                transactionId={expandedTxId}
+                                dayCloseId={id!}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {txPagination && txPagination.totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                      <div className="text-sm text-gray-500">
+                        Showing {(txPagination.page - 1) * txPagination.pageSize + 1} to{' '}
+                        {Math.min(txPagination.page * txPagination.pageSize, txPagination.total)} of {txPagination.total} transactions
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={txPagination.page === 1}
+                          onClick={() => fetchTransactions(txPagination.page - 1)}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm text-gray-600">
+                          Page {txPagination.page} of {txPagination.totalPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={txPagination.page === txPagination.totalPages}
+                          onClick={() => fetchTransactions(txPagination.page + 1)}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 

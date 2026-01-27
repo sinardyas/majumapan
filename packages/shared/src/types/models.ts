@@ -434,3 +434,77 @@ export interface DayCloseHistoryItem {
   totalSales: number;
   syncStatus: DayCloseSyncStatus;
 }
+
+export interface TransactionSummary {
+  id: string;
+  transactionNumber: string;
+  createdAt: string;
+  cashierName: string;
+  itemCount: number;
+  subtotal: number;
+  taxAmount: number;
+  discountAmount: number;
+  total: number;
+  paymentMethod: 'cash' | 'card';
+  status: TransactionStatus;
+}
+
+export interface TransactionDetail extends TransactionSummary {
+  cashierId: string;
+  amountPaid: number;
+  changeAmount: number;
+  voidReason?: string;
+}
+
+export interface TransactionItem {
+  id: string;
+  transactionId: string;
+  productId: string;
+  productName: string;
+  productSku: string;
+  quantity: number;
+  unitPrice: number;
+  discountValue: number;
+  subtotal: number;
+}
+
+export interface TransactionPayment {
+  id: string;
+  transactionId: string;
+  paymentMethod: 'cash' | 'card';
+  amount: number;
+  changeAmount: number;
+}
+
+export interface TransactionListResponse {
+  transactions: TransactionSummary[];
+  summary: {
+    total: number;
+    completed: number;
+    voided: number;
+    totalAmount: number;
+    totalRefunds: number;
+  };
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+export interface TransactionDetailResponse {
+  transaction: TransactionDetail;
+  items: TransactionItem[];
+  payment: TransactionPayment;
+}
+
+export interface TransactionItemsResponse {
+  items: TransactionItem[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
+}

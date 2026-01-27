@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db, appSettings } from '../db';
-import { dayCloses, dayCloseShifts, operationalDays, pendingCartsQueue, shifts, transactions, stores } from '../db/schema';
-import { eq, and, gte, lte, desc, asc, or } from 'drizzle-orm';
+import { dayCloses, dayCloseShifts, operationalDays, pendingCartsQueue, shifts, transactions, stores, users } from '../db/schema';
+import { eq, and, gte, lte, desc, asc, or, sql, isNull } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
 import type { JwtPayload } from '@pos/shared';
 import { dayCloseService } from '../services/day-close-service';
 import { csvExportService } from '../services/csv-export-service';
+import { pdfExportService } from '../services/pdf-export-service';
 import { emailService } from '../services/email-service';
 
 const dayCloseRouter = new Hono();
@@ -271,21 +272,32 @@ dayCloseRouter.post(
         }
         summary.total++;
       }
-      
+
       const periodShifts = await db.select()
         .from(shifts)
         .where(and(
           eq(shifts.storeId, storeId),
-          gte(shifts.openingTimestamp, periodStart),
-          lte(shifts.openingTimestamp, periodEnd)
+          or(
+            and(
+              gte(shifts.openingTimestamp, periodStart),
+              lte(shifts.openingTimestamp, periodEnd)
+            ),
+            and(
+              lte(shifts.openingTimestamp, periodStart),
+              or(
+                gte(shifts.closingTimestamp, periodStart),
+                isNull(shifts.closingTimestamp)
+              )
+            )
+          )
         ));
-      
+
       const pendingCount = periodTransactions.filter(t => t.syncStatus === 'pending').length;
-      
+
       const dateStr = operationalDate.replace(/-/g, '');
       const uniqueId = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
       const dayCloseNumber = `DC-${dateStr}-${uniqueId}`;
-      
+
       const result = await db.transaction(async (tx) => {
         const [operationalDayRecord] = await tx.insert(operationalDays).values({
           storeId,
@@ -297,7 +309,7 @@ dayCloseRouter.post(
           closedByUserName: '',
           closedAt: new Date(),
         }).returning({ id: operationalDays.id });
-        
+
         const [dayCloseRecord] = await tx.insert(dayCloses).values({
           storeId,
           operationalDayId: operationalDayRecord.id,
@@ -320,19 +332,32 @@ dayCloseRouter.post(
           closedByUserName: '',
           closedAt: new Date(),
         } as any).returning({ id: dayCloses.id });
-        
+
         const dayCloseId = dayCloseRecord.id;
-        
+
         for (const shift of periodShifts) {
+          const cashier = await tx.query.users.findFirst({
+            where: eq(users.id, shift.cashierId),
+          });
+
           await tx.insert(dayCloseShifts).values({
             dayCloseId,
             shiftId: shift.id,
             cashierId: shift.cashierId,
-            cashierName: shift.cashierId,
+            cashierName: cashier?.name || shift.cashierId,
             openingFloat: Number(shift.openingFloat),
             closingCash: Number(shift.endingCash || 0),
             variance: Number(shift.variance || 0),
           } as any);
+
+          if (shift.status === 'ACTIVE') {
+            await tx.update(shifts)
+              .set({
+                status: 'CLOSED',
+                closingTimestamp: periodEnd,
+              })
+              .where(eq(shifts.id, shift.id));
+          }
         }
 
         if (pendingCarts && pendingCarts.length > 0) {
@@ -349,7 +374,7 @@ dayCloseRouter.post(
             });
           }
         }
-        
+
         return {
           dayCloseId,
           dayCloseNumber,
@@ -372,7 +397,7 @@ dayCloseRouter.post(
           closedAt: new Date().toISOString(),
         };
       });
-      
+
       return c.json({ success: true, data: result });
     } catch (error) {
       console.error('Error executing EOD:', error);
@@ -782,28 +807,49 @@ dayCloseRouter.post(
         return c.json({ success: false, error: 'recipients array is required' }, 400);
       }
       
-      const dayClose = await db.query.dayCloses.findFirst({
-        where: eq(dayCloses.id, dayCloseId),
-      });
+      const [dayCloseData, sales, cash, inventory, audit, shifts] = await Promise.all([
+        db.query.dayCloses.findFirst({
+          where: eq(dayCloses.id, dayCloseId),
+          with: { store: true },
+        }),
+        dayCloseService.getDailySalesReport(dayCloseId),
+        dayCloseService.getCashReconReport(dayCloseId),
+        dayCloseService.getInventoryMovementReport(dayCloseId),
+        dayCloseService.getTransactionAuditLogReport(dayCloseId),
+        dayCloseService.getShiftAggregationReport(dayCloseId),
+      ]);
       
-      if (!dayClose) {
+      if (!dayCloseData) {
         return c.json({ success: false, error: 'Day close not found' }, 404);
       }
       
-      const salesReport = await dayCloseService.getDailySalesReport(dayCloseId);
-      
-      if (!salesReport) {
+      if (!sales) {
         return c.json({ success: false, error: 'Failed to generate sales report' }, 500);
       }
+
+      const dayClose = {
+        ...dayCloseData,
+        storeName: (dayCloseData as any).store?.name || 'Unknown Store',
+      } as any;
+
+      const pdfBuffer = await pdfExportService.generateAllReportsPDF({
+        sales,
+        cash,
+        inventory,
+        audit,
+        shifts,
+        dayClose,
+      });
       
       const success = await emailService.sendEODNotification(
         recipients,
-        dayClose as any,
-        salesReport
+        dayClose,
+        sales,
+        pdfBuffer
       );
       
       if (success) {
-        return c.json({ success: true, message: 'Email sent successfully' });
+        return c.json({ success: true, message: 'Email sent successfully with PDF attachment' });
       } else {
         return c.json({ success: false, error: 'Failed to send email' }, 500);
       }
@@ -844,6 +890,148 @@ dayCloseRouter.get(
     } catch (error) {
       console.error('Error fetching sync status:', error);
       return c.json({ success: false, error: 'Failed to fetch sync status' }, 500);
+    }
+  }
+);
+
+// GET /api/v1/day-close/:id/transactions
+dayCloseRouter.get(
+  '/:id/transactions',
+  authMiddleware,
+  requireRole('manager', 'admin'),
+  async (c) => {
+    try {
+      const dayCloseId = c.req.param('id');
+      const query = c.req.query();
+      
+      const page = parseInt(query.page as string) || 1;
+      const pageSize = parseInt(query.pageSize as string) || 25;
+      const status = query.status as string || 'all';
+      const paymentMethod = query.paymentMethod as string || 'all';
+      const search = query.search as string || '';
+      
+      const result = await dayCloseService.getDayCloseTransactions(
+        dayCloseId,
+        { status, paymentMethod, search },
+        { page, pageSize }
+      );
+      
+      if (!result) {
+        return c.json({ success: false, error: 'Day close not found' }, 404);
+      }
+      
+      return c.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error fetching transactions:', error);
+      return c.json({ success: false, error: 'Failed to fetch transactions' }, 500);
+    }
+  }
+);
+
+// GET /api/v1/day-close/:id/transactions/:txId
+dayCloseRouter.get(
+  '/:id/transactions/:txId',
+  authMiddleware,
+  requireRole('manager', 'admin'),
+  async (c) => {
+    try {
+      const transactionId = c.req.param('txId');
+      
+      const result = await dayCloseService.getTransactionDetails(transactionId);
+      
+      if (!result) {
+        return c.json({ success: false, error: 'Transaction not found' }, 404);
+      }
+      
+      return c.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error fetching transaction details:', error);
+      return c.json({ success: false, error: 'Failed to fetch transaction details' }, 500);
+    }
+  }
+);
+
+// GET /api/v1/day-close/:id/transactions/:txId/items
+dayCloseRouter.get(
+  '/:id/transactions/:txId/items',
+  authMiddleware,
+  requireRole('manager', 'admin'),
+  async (c) => {
+    try {
+      const transactionId = c.req.param('txId');
+      const query = c.req.query();
+      
+      const page = parseInt(query.page as string) || 1;
+      const pageSize = parseInt(query.pageSize as string) || 20;
+      
+      const result = await dayCloseService.getTransactionItems(
+        transactionId,
+        { page, pageSize }
+      );
+      
+      if (!result) {
+        return c.json({ success: false, error: 'Transaction not found' }, 404);
+      }
+      
+      return c.json({ success: true, data: result });
+    } catch (error) {
+      console.error('Error fetching transaction items:', error);
+      return c.json({ success: false, error: 'Failed to fetch transaction items' }, 500);
+    }
+  }
+);
+
+// GET /api/v1/day-close/:id/export/pdf/all
+dayCloseRouter.get(
+  '/:id/export/pdf/all',
+  authMiddleware,
+  requireRole('manager', 'admin'),
+  async (c) => {
+    try {
+      const dayCloseId = c.req.param('id');
+
+      const [dayClose, sales, cash, inventory, audit, shifts] = await Promise.all([
+        db.query.dayCloses.findFirst({
+          where: eq(dayCloses.id, dayCloseId),
+          with: {
+            store: true,
+          },
+        }),
+        dayCloseService.getDailySalesReport(dayCloseId),
+        dayCloseService.getCashReconReport(dayCloseId),
+        dayCloseService.getInventoryMovementReport(dayCloseId),
+        dayCloseService.getTransactionAuditLogReport(dayCloseId),
+        dayCloseService.getShiftAggregationReport(dayCloseId),
+      ]);
+
+      if (!dayClose) {
+        return c.json({ success: false, error: 'Day close not found' }, 404);
+      }
+
+      const dayCloseWithStore = {
+        ...dayClose,
+        storeName: (dayClose as any).store?.name || 'Unknown Store',
+      } as any;
+
+      const pdfBuffer = await pdfExportService.generateAllReportsPDF({
+        sales,
+        cash,
+        inventory,
+        audit,
+        shifts,
+        dayClose: dayCloseWithStore,
+      });
+
+      const dateStr = dayClose.operationalDate.replace(/-/g, '');
+      const filename = `eod-report-${dateStr}.pdf`;
+
+      return c.body(new Uint8Array(pdfBuffer), 200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      return c.json({ success: false, error: 'Failed to export PDF' }, 500);
     }
   }
 );

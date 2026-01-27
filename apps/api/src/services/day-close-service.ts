@@ -4,17 +4,26 @@ import {
   dayCloseShifts, 
   transactions, 
   transactionItems,
+  transactionPayments,
   shifts,
   stock as stocks,
-  products
+  products,
+  users
 } from '../db/schema';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, asc, sql, like, or, inArray } from 'drizzle-orm';
 import type { 
   DailySalesReport,
   CashReconReport,
   InventoryMovementReport,
   TransactionAuditLogReport,
-  ShiftAggregationReport
+  ShiftAggregationReport,
+  TransactionListResponse,
+  TransactionDetailResponse,
+  TransactionItemsResponse,
+  TransactionSummary,
+  TransactionDetail,
+  TransactionItem,
+  TransactionPayment
 } from '@pos/shared';
 
 function toNumber(value: string | number | null | undefined): number {
@@ -33,6 +42,8 @@ export const dayCloseService = {
 
     const dayClose = dayCloseRecord as any;
     const storeId = dayClose.storeId;
+    const periodStart = dayClose.periodStart;
+    const periodEnd = dayClose.periodEnd;
 
     const periodTransactions = await db
       .select({
@@ -43,7 +54,11 @@ export const dayCloseService = {
         status: transactions.status,
       })
       .from(transactions)
-      .where(eq(transactions.storeId, storeId))
+      .where(and(
+        eq(transactions.storeId, storeId),
+        gte(transactions.createdAt, periodStart),
+        lte(transactions.createdAt, periodEnd)
+      ))
       .orderBy(transactions.createdAt);
 
     let cashRevenue = 0;
@@ -85,7 +100,9 @@ export const dayCloseService = {
       .innerJoin(transactions, eq(transactionItems.transactionId, transactions.id))
       .where(and(
         eq(transactions.storeId, storeId),
-        eq(transactions.status, 'completed')
+        eq(transactions.status, 'completed'),
+        gte(transactions.createdAt, periodStart),
+        lte(transactions.createdAt, periodEnd)
       ))
       .groupBy(transactionItems.productName)
       .orderBy(desc(sql`sum(${transactionItems.quantity})`))
@@ -133,6 +150,8 @@ export const dayCloseService = {
 
     const dayClose = dayCloseRecord as any;
     const storeId = dayClose.storeId;
+    const periodStart = dayClose.periodStart;
+    const periodEnd = dayClose.periodEnd;
     const shiftsData = dayClose.shifts || [];
 
     const periodTransactions = await db
@@ -143,7 +162,11 @@ export const dayCloseService = {
         amountPaid: transactions.amountPaid,
       })
       .from(transactions)
-      .where(eq(transactions.storeId, storeId));
+      .where(and(
+        eq(transactions.storeId, storeId),
+        gte(transactions.createdAt, periodStart),
+        lte(transactions.createdAt, periodEnd)
+      ));
 
     const cashTransactions = periodTransactions.filter(
       (t) => t.status === 'completed' && t.paymentMethod === 'cash'
@@ -204,6 +227,8 @@ export const dayCloseService = {
 
     const dayClose = dayCloseRecord as any;
     const storeId = dayClose.storeId;
+    const periodStart = dayClose.periodStart;
+    const periodEnd = dayClose.periodEnd;
 
     const itemsSoldResult = await db
       .select({
@@ -215,7 +240,9 @@ export const dayCloseService = {
       .innerJoin(transactions, eq(transactionItems.transactionId, transactions.id))
       .where(and(
         eq(transactions.storeId, storeId),
-        eq(transactions.status, 'completed')
+        eq(transactions.status, 'completed'),
+        gte(transactions.createdAt, periodStart),
+        lte(transactions.createdAt, periodEnd)
       ))
       .groupBy(transactionItems.productId, transactionItems.productName)
       .orderBy(desc(sql`sum(${transactionItems.quantity})`));
@@ -268,6 +295,8 @@ export const dayCloseService = {
 
     const dayClose = dayCloseRecord as any;
     const storeId = dayClose.storeId;
+    const periodStart = dayClose.periodStart;
+    const periodEnd = dayClose.periodEnd;
 
     const periodTransactions = await db
       .select({
@@ -278,7 +307,11 @@ export const dayCloseService = {
         status: transactions.status,
       })
       .from(transactions)
-      .where(eq(transactions.storeId, storeId))
+      .where(and(
+        eq(transactions.storeId, storeId),
+        gte(transactions.createdAt, periodStart),
+        lte(transactions.createdAt, periodEnd)
+      ))
       .orderBy(transactions.createdAt);
 
     const voidTransactions = periodTransactions.filter((t) => t.status === 'voided');
@@ -349,6 +382,273 @@ export const dayCloseService = {
         totalClosingCash,
         combinedVariance: totalVariance,
         status: Math.abs(totalVariance) < 5 ? 'Within tolerance' : 'Requires review',
+      },
+    };
+  },
+
+  async getDayCloseTransactions(
+    dayCloseId: string,
+    filters: {
+      status?: string;
+      paymentMethod?: string;
+      search?: string;
+    },
+    pagination: {
+      page: number;
+      pageSize: number;
+    }
+  ): Promise<TransactionListResponse | null> {
+    const dayCloseRecord = await db.query.dayCloses.findFirst({
+      where: eq(dayCloses.id, dayCloseId),
+    });
+
+    if (!dayCloseRecord) return null;
+
+    const dayClose = dayCloseRecord as any;
+    const storeId = dayClose.storeId;
+    const { periodStart, periodEnd } = dayClose;
+
+    const conditions: any[] = [
+      eq(transactions.storeId, storeId),
+      gte(transactions.createdAt, periodStart),
+      lte(transactions.createdAt, periodEnd),
+    ];
+
+    if (filters.status && filters.status !== 'all') {
+      conditions.push(eq(transactions.status, filters.status as any));
+    }
+
+    if (filters.paymentMethod && filters.paymentMethod !== 'all') {
+      conditions.push(eq(transactions.paymentMethod, filters.paymentMethod as any));
+    }
+
+    if (filters.search) {
+      conditions.push(
+        or(
+          like(transactions.transactionNumber, `%${filters.search}%`)
+        )
+      );
+    }
+
+    const { page, pageSize } = pagination;
+    const offset = (page - 1) * pageSize;
+
+    const transactionsResult = await db
+      .select({
+        id: transactions.id,
+        transactionNumber: transactions.transactionNumber,
+        createdAt: transactions.createdAt,
+        cashierId: transactions.cashierId,
+        subtotal: transactions.subtotal,
+        taxAmount: transactions.taxAmount,
+        discountAmount: transactions.discountAmount,
+        total: transactions.total,
+        paymentMethod: transactions.paymentMethod,
+        status: transactions.status,
+        amountPaid: transactions.amountPaid,
+        changeAmount: transactions.changeAmount,
+      })
+      .from(transactions)
+      .where(and(...conditions))
+      .orderBy(desc(transactions.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    const transactionsWithCashier = await Promise.all(
+      transactionsResult.map(async (txn) => {
+        const cashier = await db.query.users.findFirst({
+          where: eq(users.id, txn.cashierId),
+        });
+        return {
+          id: txn.id,
+          transactionNumber: txn.transactionNumber,
+          createdAt: txn.createdAt.toISOString(),
+          cashierName: cashier?.name || 'Unknown',
+          subtotal: toNumber(txn.subtotal),
+          taxAmount: toNumber(txn.taxAmount),
+          discountAmount: toNumber(txn.discountAmount),
+          total: toNumber(txn.total),
+          paymentMethod: txn.paymentMethod as 'cash' | 'card',
+          status: txn.status as 'completed' | 'voided' | 'pending_sync',
+        };
+      })
+    );
+
+    const itemCounts = await db
+      .select({
+        transactionId: transactionItems.transactionId,
+        count: sql<number>`count(*)`,
+      })
+      .from(transactionItems)
+      .where(inArray(transactionItems.transactionId, transactionsResult.map((t) => t.id)))
+      .groupBy(transactionItems.transactionId);
+
+    const itemCountMap = new Map<string, number>();
+    itemCounts.forEach((item) => {
+      itemCountMap.set(item.transactionId, Number(item.count));
+    });
+
+    const transactionsWithCounts: TransactionSummary[] = transactionsWithCashier.map((txn) => ({
+      ...txn,
+      itemCount: itemCountMap.get(txn.id) || 0,
+    }));
+
+    const countsResult = await db
+      .select({
+        total: sql<number>`COUNT(*)`,
+        completed: sql<number>`SUM(CASE WHEN ${transactions.status} = 'completed' THEN 1 ELSE 0 END)`,
+        voided: sql<number>`SUM(CASE WHEN ${transactions.status} = 'voided' THEN 1 ELSE 0 END)`,
+        totalAmount: sql<number>`COALESCE(SUM(${transactions.total}), 0)`,
+        totalRefunds: sql<number>`COALESCE(SUM(CASE WHEN ${transactions.status} = 'voided' THEN ${transactions.total} ELSE 0 END), 0)`,
+      })
+      .from(transactions)
+      .where(and(...conditions));
+
+    const counts = countsResult[0];
+
+    const total = Number(counts?.total || 0);
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      transactions: transactionsWithCounts,
+      summary: {
+        total: Number(counts?.total || 0),
+        completed: Number(counts?.completed || 0),
+        voided: Number(counts?.voided || 0),
+        totalAmount: toNumber(counts?.totalAmount),
+        totalRefunds: toNumber(counts?.totalRefunds),
+      },
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
+      },
+    };
+  },
+
+  async getTransactionDetails(transactionId: string): Promise<TransactionDetailResponse | null> {
+    const transaction = await db.query.transactions.findFirst({
+      where: eq(transactions.id, transactionId),
+      with: {
+        items: true,
+        payments: true,
+      },
+    });
+
+    if (!transaction) return null;
+
+    const txn = transaction as any;
+    const cashier = await db.query.users.findFirst({
+      where: eq(users.id, txn.cashierId),
+    });
+
+    const detail: TransactionDetail = {
+      id: txn.id,
+      transactionNumber: txn.transactionNumber,
+      createdAt: txn.createdAt.toISOString(),
+      cashierId: txn.cashierId,
+      cashierName: cashier?.name || 'Unknown',
+      itemCount: txn.items?.length || 0,
+      subtotal: toNumber(txn.subtotal),
+      taxAmount: toNumber(txn.taxAmount),
+      discountAmount: toNumber(txn.discountAmount),
+      total: toNumber(txn.total),
+      paymentMethod: txn.paymentMethod as 'cash' | 'card',
+      status: txn.status as 'completed' | 'voided' | 'pending_sync',
+      amountPaid: toNumber(txn.amountPaid),
+      changeAmount: toNumber(txn.changeAmount),
+      voidReason: txn.rejectionReason || undefined,
+    };
+
+    const items: TransactionItem[] = (txn.items || []).map((item: any) => ({
+      id: item.id,
+      transactionId: txn.id,
+      productId: item.productId,
+      productName: item.productName,
+      productSku: item.productSku,
+      quantity: item.quantity,
+      unitPrice: toNumber(item.unitPrice),
+      discountId: item.discountId || null,
+      discountName: item.discountName || null,
+      discountValue: toNumber(item.discountValue),
+      subtotal: toNumber(item.subtotal),
+      createdAt: item.createdAt,
+    }));
+
+    const payment: TransactionPayment = {
+      id: txn.payments?.[0]?.id || '',
+      transactionId: txn.id,
+      paymentMethod: txn.paymentMethod as 'cash' | 'card',
+      amount: toNumber(txn.amountPaid),
+      changeAmount: toNumber(txn.changeAmount),
+    };
+
+    return {
+      transaction: detail,
+      items,
+      payment,
+    };
+  },
+
+  async getTransactionItems(
+    transactionId: string,
+    pagination: { page: number; pageSize: number }
+  ): Promise<TransactionItemsResponse | null> {
+    const { page, pageSize } = pagination;
+    const offset = (page - 1) * pageSize;
+
+    const itemsResult = await db
+      .select({
+        id: transactionItems.id,
+        transactionId: transactionItems.transactionId,
+        productId: transactionItems.productId,
+        productName: transactionItems.productName,
+        productSku: transactionItems.productSku,
+        quantity: transactionItems.quantity,
+        unitPrice: transactionItems.unitPrice,
+        discountValue: transactionItems.discountValue,
+        subtotal: transactionItems.subtotal,
+        createdAt: transactionItems.createdAt,
+      })
+      .from(transactionItems)
+      .where(eq(transactionItems.transactionId, transactionId))
+      .orderBy(transactionItems.createdAt)
+      .limit(pageSize)
+      .offset(offset);
+
+    const items: TransactionItem[] = itemsResult.map((item) => ({
+      id: item.id,
+      transactionId: item.transactionId,
+      productId: item.productId,
+      productName: item.productName,
+      productSku: item.productSku,
+      quantity: item.quantity,
+      unitPrice: toNumber(item.unitPrice),
+      discountId: null,
+      discountName: null,
+      discountValue: toNumber(item.discountValue),
+      subtotal: toNumber(item.subtotal),
+      createdAt: item.createdAt,
+    }));
+
+    const [countResult] = await db
+      .select({
+        total: sql<number>`COUNT(*)`,
+      })
+      .from(transactionItems)
+      .where(eq(transactionItems.transactionId, transactionId));
+
+    const total = Number(countResult?.total || 0);
+    const totalPages = Math.ceil(total / pageSize);
+
+    return {
+      items,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages,
       },
     };
   },

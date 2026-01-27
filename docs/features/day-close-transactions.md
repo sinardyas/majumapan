@@ -828,43 +828,246 @@ export interface TransactionItemsResponse {
 
 | Task | Description | File | Status |
 |------|-------------|------|--------|
-| 1.1 | Add GET /day-close/:id/transactions endpoint | `apps/api/src/routes/day-close.ts` | ☐ |
-| 1.2 | Add query params handling (filters, pagination) | `apps/api/src/routes/day-close.ts` | ☐ |
-| 1.3 | Add getDayCloseTransactions service function | `apps/api/src/services/day-close-service.ts` | ☐ |
-| 1.4 | Add GET /day-close/:id/transactions/:txId endpoint | `apps/api/src/routes/day-close.ts` | ☐ |
-| 1.5 | Add GET /day-close/:id/transactions/:txId/items endpoint | `apps/api/src/routes/day-close.ts` | ☐ |
-| 1.6 | Add Transaction types to shared models | `packages/shared/src/types/models.ts` | ☐ |
+| 1.1 | Add Transaction types to shared models | `packages/shared/src/types/models.ts` | ✅ |
+| 1.2 | Add getDayCloseTransactions service function | `apps/api/src/services/day-close-service.ts` | ✅ |
+| 1.3 | Add getTransactionDetails service function | `apps/api/src/services/day-close-service.ts` | ✅ |
+| 1.4 | Add getTransactionItems service function | `apps/api/src/services/day-close-service.ts` | ✅ |
+| 1.5 | Add GET /day-close/:id/transactions endpoint | `apps/api/src/routes/day-close.ts` | ✅ |
+| 1.6 | Add GET /day-close/:id/transactions/:txId endpoint | `apps/api/src/routes/day-close.ts` | ✅ |
+| 1.7 | Add GET /day-close/:id/transactions/:txId/items endpoint | `apps/api/src/routes/day-close.ts` | ✅ |
 
 ### Phase 2: Frontend Components
 
 | Task | Description | File | Status |
 |------|-------------|------|--------|
-| 2.1 | Create TransactionsTab component | `apps/admin/src/components/day-close/TransactionsTab.tsx` | ☐ |
-| 2.2 | Create TransactionRow component | `apps/admin/src/components/day-close/TransactionRow.tsx` | ☐ |
-| 2.3 | Create TransactionLineItems component | `apps/admin/src/components/day-close/TransactionLineItems.tsx` | ☐ |
-| 2.4 | Add Transactions tab to DayCloseDetail | `apps/admin/src/pages/DayCloseDetail.tsx` | ☐ |
+| 2.1 | Create TransactionRow component | `apps/admin/src/components/day-close/TransactionRow.tsx` | ✅ |
+| 2.2 | Create TransactionLineItems component | `apps/admin/src/components/day-close/TransactionLineItems.tsx` | ✅ |
+| 2.3 | Enhance Audit tab in DayCloseDetail | `apps/admin/src/pages/DayCloseDetail.tsx` | ✅ |
+| 2.4 | Fix navigation path from /admin/day-close/ to /eod/day-close/ | `apps/admin/src/pages/DayCloseHistory.tsx` | ✅ |
 
 ### Phase 3: Testing
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 3.1 | Unit tests for API endpoints | ☐ |
-| 3.2 | Integration tests for components | ☐ |
-| 3.3 | Manual testing | ☐ |
+| 3.1 | Unit tests for API endpoints | ☐ Pending |
+| 3.2 | Integration tests for components | ☐ Pending |
+| 3.3 | Manual testing | ☐ Pending |
 
 ### Summary
 
 | Phase | Tasks | Status |
 |-------|-------|--------|
-| 1 | 6 tasks | ☐ Pending |
-| 2 | 4 tasks | ☐ Pending |
+| 1 | 7 tasks | ✅ Complete |
+| 2 | 4 tasks | ✅ Complete |
 | 3 | 3 tasks | ☐ Pending |
-| **Total** | **13 tasks** | |
+| **Total** | **14 tasks** | **10 complete, 4 pending** |
 
 ---
 
-## 13. Revision History
+## 13. Design Changes
+
+### Architecture Decision: Enhanced Audit Tab
+
+Instead of adding a new "Transactions" tab, the existing "Audit" tab was enhanced:
+
+**Before:**
+- Simple table with first 20 transactions
+- No pagination, filtering, or expandable rows
+- Limited data (transaction number, time, amount, method, status)
+
+**After:**
+- Summary cards showing total, completed, voided, total sales, refunds
+- Filters: status, payment method, search by transaction number
+- Pagination: 25 transactions per page
+- Expandable rows showing transaction details (subtotal, tax, discount, total)
+- Click to expand and see line items with 20 items pagination
+
+### API Response Format
+
+```typescript
+// GET /day-close/:id/transactions
+{
+  success: true,
+  data: {
+    transactions: TransactionSummary[],
+    summary: {
+      total: number,
+      completed: number,
+      voided: number,
+      totalAmount: number,
+      totalRefunds: number
+    },
+    pagination: {
+      page: number,
+      pageSize: number,
+      total: number,
+      totalPages: number
+    }
+  }
+}
+```
+
+### Components Created
+
+1. **TransactionRow.tsx** - Expandable transaction row with voided styling
+2. **TransactionLineItems.tsx** - Paginated line items table for expanded transactions
+
+---
+
+## 14. Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2026-01-26 | Platform Team | Initial draft |
+| 1.1 | 2026-01-27 | Platform Team | Implemented - Enhanced Audit tab with pagination, filters, expandable rows |
+| 1.2 | 2026-01-27 | Platform Team | Fixed navigation path issue |
+| 1.3 | 2026-01-27 | Platform Team | Fixed time period filters in all reports |
+| 1.4 | 2026-01-27 | Platform Team | Fixed shift breakdown - overlapping shifts, cashier name, auto-close |
+| 1.5 | 2026-01-27 | Platform Team | Fixed back button navigation |
+| 1.6 | 2026-01-27 | Platform Team | Added PDF Export feature plan |
+
+---
+
+## 15. Future Enhancement: PDF Export for Day Close Reports
+
+### 15.1 Overview
+
+Add PDF export capability for Day Close History and Day Close Detail pages, enabling users to download comprehensive PDF reports with all sales, cash, inventory, audit, and shift data.
+
+### 15.2 Requirements Confirmed
+
+| # | Requirement | Status |
+|---|-------------|--------|
+| 15.2.1 | PDF export from Day Close History page | ✅ Confirmed |
+| 15.2.2 | PDF export from Day Close Detail page | ✅ Confirmed |
+| 15.2.3 | Email report includes PDF attachment | ✅ Confirmed |
+| 15.2.4 | Comprehensive PDF content (all 5 reports + full transaction list) | ✅ Confirmed |
+
+### 15.3 Implementation Tasks
+
+#### Phase 1: Backend - PDF Service
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 15.1.1 | Install pdfkit dependency | `apps/api/package.json` | ☐ Pending |
+| 15.1.2 | Create pdf-export-service.ts | `apps/api/src/services/` | ☐ Pending |
+| 15.1.3 | Generate cover page with store info | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.4 | Generate Daily Sales Report section | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.5 | Generate Cash Reconciliation section | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.6 | Generate Inventory Movement section | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.7 | Generate Transaction List section (all transactions) | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.8 | Generate Shift Aggregation section | `pdf-export-service.ts` | ☐ Pending |
+| 15.1.9 | Add page numbers and footer | `pdf-export-service.ts` | ☐ Pending |
+
+#### Phase 2: Backend - API Endpoints
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 15.2.1 | Add GET /day-close/:id/export/pdf/all endpoint | `apps/api/src/routes/day-close.ts` | ☐ Pending |
+| 15.2.2 | Update email endpoint to attach PDF | `apps/api/src/routes/day-close.ts` | ☐ Pending |
+| 15.2.3 | Update email service to support PDF attachment | `apps/api/src/services/email-service.ts` | ☐ Pending |
+
+#### Phase 3: Frontend
+
+| Task | Description | File | Status |
+|------|-------------|------|--------|
+| 15.3.1 | Add handleDownloadPDF function | `apps/admin/src/pages/DayCloseHistory.tsx` | ☐ Pending |
+| 15.3.2 | Add PDF button to actions column | `apps/admin/src/pages/DayCloseHistory.tsx` | ☐ Pending |
+| 15.3.3 | Add PDF button to Day Close Detail | `apps/admin/src/pages/DayCloseDetail.tsx` | ☐ Pending |
+
+### 15.4 API Endpoints
+
+| Method | Endpoint | Purpose | Status |
+|--------|----------|---------|--------|
+| GET | `/day-close/:id/export/pdf/all` | Download comprehensive PDF report | ☐ Pending |
+| POST | `/day-close/:id/email` | Send email with PDF attachment (update) | ☐ Pending |
+
+### 15.5 PDF Document Structure
+
+```
+┌─────────────────────────────────────────────────────┐
+│  MAJUMAPAN - DAY CLOSE REPORT                       │
+│  Date: January 27, 2026                             │
+│  Store: Main Store                                  │
+│  Day Close #: DC-20260127-001                       │
+├─────────────────────────────────────────────────────┤
+│  1. SUMMARY                                         │
+│     • Total Sales, Transactions, Cash/Card Revenue  │
+├─────────────────────────────────────────────────────┤
+│  2. DAILY SALES                                     │
+│     • Top Products (quantity sold)                  │
+│     • Sales by Hour                                 │
+├─────────────────────────────────────────────────────┤
+│  3. CASH RECONCILIATION                             │
+│     • Cash Handling Summary                         │
+│     • Shift Breakdown (cashier, float, variance)    │
+├─────────────────────────────────────────────────────┤
+│  4. INVENTORY MOVEMENT                              │
+│     • Items Sold                                    │
+│     • Low Stock Alerts                              │
+│     • Reorder Recommendations                       │
+├─────────────────────────────────────────────────────┤
+│  5. TRANSACTIONS (Full List)                        │
+│     • Transaction Number, Time, Cashier             │
+│     • Items, Total, Payment Method, Status          │
+├─────────────────────────────────────────────────────┤
+│  6. SHIFTS                                          │
+│     • Shift Aggregation                             │
+└─────────────────────────────────────────────────────┘
+```
+
+### 15.6 File Changes Summary
+
+| File | Action | Status |
+|------|--------|--------|
+| `apps/api/package.json` | Add `pdfkit: ^0.15.0` | ☐ Pending |
+| `apps/api/src/services/pdf-export-service.ts` | Create new file | ☐ Pending |
+| `apps/api/src/routes/day-close.ts` | Add PDF endpoint, modify email | ☐ Pending |
+| `apps/api/src/services/email-service.ts` | Support PDF attachment | ☐ Pending |
+| `apps/admin/src/pages/DayCloseHistory.tsx` | Add PDF download button | ☐ Pending |
+| `apps/admin/src/pages/DayCloseDetail.tsx` | Add PDF download button | ☐ Pending |
+
+### 15.7 Dependencies
+
+```json
+// apps/api/package.json
+{
+  "dependencies": {
+    "pdfkit": "^0.15.0"
+  }
+}
+```
+
+### 15.8 Estimated Effort
+
+| Phase | Tasks | Time |
+|-------|-------|------|
+| Phase 1: PDF Service | 9 tasks | 2-3 hours |
+| Phase 2: API Endpoints | 3 tasks | 1.5 hours |
+| Phase 3: Frontend | 3 tasks | 1 hour |
+| **Total** | **15 tasks** | **4-5 hours** |
+
+### 15.9 Components Created
+
+1. **pdf-export-service.ts** - Backend PDF generation service
+   - `generateAllReportsPDF()` - Main function generating comprehensive PDF
+
+### 15.10 Testing Checklist
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 15.T.1 | PDF generation produces valid PDF file | ☐ Pending |
+| 15.T.2 | PDF contains all 5 report sections | ☐ Pending |
+| 15.T.3 | PDF contains full transaction list | ☐ Pending |
+| 15.T.4 | PDF download works from History page | ☐ Pending |
+| 15.T.5 | Email attachment includes PDF | ☐ Pending |
+| 15.T.6 | PDF formatting is professional | ☐ Pending |
+
+### 15.11 Revision History
+
+| Version | Date | Author | Changes |
+|---------|------|--------|---------|
+| 1.0 | 2026-01-26 | Platform Team | Initial draft |
+| 1.1 | 2026-01-27 | Platform Team | Implemented - Enhanced Audit tab |
+| 1.2 | 2026-01-27 | Platform Team | Fixed navigation path, time period filters, shift breakdown |
+| 1.3 | 2026-01-27 | Platform Team | Added PDF Export feature plan |
