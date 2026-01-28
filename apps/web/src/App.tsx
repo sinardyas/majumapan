@@ -18,7 +18,6 @@ import SyncStatus from '@/pages/SyncStatus';
 import PendingCarts from '@/pages/PendingCarts';
 import EndOfDay from '@/pages/EndOfDay';
 import Vouchers from '@/pages/Vouchers';
-import CustomerVouchers from '@/pages/CustomerVouchers';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -147,17 +146,6 @@ export default function App() {
               <Vouchers />
             </AuthenticatedLayout>
           </ManagerRoute>
-        }
-      />
-
-      <Route
-        path="/customer-vouchers"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
-              <CustomerVouchers />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
         }
       />
 
