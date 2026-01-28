@@ -68,11 +68,6 @@ const navItems: NavItem[] = [
     permission: 'vouchers:create',
   },
   {
-    name: 'My Vouchers',
-    path: '/customer-vouchers',
-    icon: <Gift className="h-5 w-5" />,
-  },
-  {
     name: 'Pending Carts',
     path: '/pending-carts',
     icon: <Clock className="h-5 w-5" />,
