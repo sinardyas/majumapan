@@ -5,7 +5,7 @@
 | Attribute | Value |
 |-----------|-------|
 | **Feature** | Voucher Payment |
-| **Status** | In Development |
+| **Status** | Phase 2: Customer Management In Progress |
 | **Version** | 2.5 |
 | **Created** | 2026-01-27 |
 | **Updated** | 2026-01-28 |
@@ -1829,6 +1829,7 @@ CREATE INDEX idx_vouchers_batch_expired ON vouchers(batch_id, is_distributed, ex
 | 2.3 | 2026-01-27 | POS Team | Phase 2 Complete: VoucherEntryModal, RuleBuilder, PaymentModal integration, Vouchers page. Phase 3 Complete: Refund flow, RefundModal, CustomerVouchers page. Phase 4 Complete: 22 unit tests passing. POS.tsx updated to pass cartItems. Database migration executed. |
 | 2.4 | 2026-01-28 | POS Team | Added Section 4.7: Voucher Batch Distribution - quota system, physical vouchers, distribution tracking, auto-void, batch management UI, print/export functionality. |
 | 2.5 | 2026-01-28 | POS Team | Section 4.1.5: Manual creation at POS changed from Cashier/Manager to Manager only. Added batch creation by Manager. Updated permissions to Manager-only for voucher:create. Added Phase 6 for implementation.
+| 2.6 | 2026-01-28 | POS Team | **Phase 2A Progress:** Customer management tables (customers, customer_groups, message_templates, distribution_history), customer service with auto-assignment, customer API routes. Phase 2B (Frontend) and Phase 2C (Distribution) pending. |
 
 ---
 

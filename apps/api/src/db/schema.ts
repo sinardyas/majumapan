@@ -752,3 +752,96 @@ export const orderVouchersRelations = relations(orderVouchers, ({ one }) => ({
     references: [vouchers.id],
   }),
 }));
+
+// =============================================================================
+// PHASE 2: CUSTOMER & DISTRIBUTION TABLES
+// =============================================================================
+
+// Customer Groups
+export const customerGroups = pgTable('customer_groups', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 50 }).notNull(),
+  minSpend: decimal('min_spend', { precision: 15, scale: 2 }).default('0').notNull(),
+  minVisits: integer('min_visits').default(0).notNull(),
+  priority: integer('priority').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_customer_groups_priority').on(table.priority),
+]);
+
+// Customers
+export const customers = pgTable('customers', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  phone: varchar('phone', { length: 20 }).notNull().unique(),
+  name: varchar('name', { length: 100 }),
+  email: varchar('email', { length: 100 }),
+  customerGroupId: uuid('customer_group_id').references(() => customerGroups.id),
+  totalSpend: decimal('total_spend', { precision: 15, scale: 2 }).default('0').notNull(),
+  visitCount: integer('visit_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_customers_phone').on(table.phone),
+  index('idx_customers_name').on(table.name),
+  index('idx_customers_group').on(table.customerGroupId),
+]);
+
+// Message Templates
+export const messageTemplates = pgTable('message_templates', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: varchar('name', { length: 50 }).notNull(),
+  subject: varchar('subject', { length: 200 }),
+  message: text('message').notNull(),
+  isDefault: boolean('is_default').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_templates_default').on(table.isDefault).where(sql`${table.isDefault} = TRUE`),
+]);
+
+// Distribution History
+export const distributionHistory = pgTable('distribution_history', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id).notNull(),
+  channel: varchar('channel', { length: 20 }).notNull(), // 'whatsapp', 'email', 'print'
+  recipientCount: integer('recipient_count').notNull(),
+  createdBy: uuid('created_by').references(() => users.id).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_distribution_voucher').on(table.voucherId),
+  index('idx_distribution_created').on(table.createdAt),
+]);
+
+// =============================================================================
+// PHASE 2 RELATIONS
+// =============================================================================
+
+// Customer Groups relations
+export const customerGroupsRelations = relations(customerGroups, ({ many }) => ({
+  customers: many(customers),
+}));
+
+// Customers relations
+export const customersRelations = relations(customers, ({ one, many }) => ({
+  group: one(customerGroups, {
+    fields: [customers.customerGroupId],
+    references: [customerGroups.id],
+  }),
+  vouchers: many(vouchers),
+}));
+
+// Message Templates relations
+export const messageTemplatesRelations = relations(messageTemplates, () => ({}));
+
+// Distribution History relations
+export const distributionHistoryRelations = relations(distributionHistory, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [distributionHistory.voucherId],
+    references: [vouchers.id],
+  }),
+  createdByUser: one(users, {
+    fields: [distributionHistory.createdBy],
+    references: [users.id],
+  }),
+}));
