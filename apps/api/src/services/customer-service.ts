@@ -264,4 +264,31 @@ export const customerService = {
     );
     return results;
   },
+
+  async checkAndAssignGroup(customerId: string) {
+    const customer = await this.getById(customerId);
+    if (!customer) return null;
+
+    const matchingGroup = await db.query.customerGroups.findFirst({
+      where: and(
+        sql`${customerGroups.minSpend} <= ${customer.totalSpend}`,
+        sql`${customerGroups.minVisits} <= ${customer.visitCount}`
+      ),
+      orderBy: [desc(customerGroups.priority)],
+    });
+
+    if (matchingGroup && matchingGroup.id !== customer.customerGroupId) {
+      const [updated] = await db.update(customers)
+        .set({
+          customerGroupId: matchingGroup.id,
+          updatedAt: new Date(),
+        })
+        .where(eq(customers.id, customerId))
+        .returning();
+
+      return updated;
+    }
+
+    return customer;
+  },
 };

@@ -225,3 +225,52 @@ customerRoutes.delete('/groups/:id', async (c) => {
     return c.json({ success: false, error: 'Failed to delete group' }, 500);
   }
 });
+
+customerRoutes.post('/auto-assign', async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const phone = body.phone as string | undefined;
+
+    if (phone) {
+      const customer = await customerService.getByPhone(phone);
+      if (!customer) {
+        return c.json({ success: false, error: 'Customer not found' }, 404);
+      }
+      const updated = await customerService.checkAndAssignGroup(customer.id);
+      return c.json({ 
+        success: true, 
+        data: { 
+          customerId: customer.id,
+          previousGroupId: customer.customerGroupId,
+          newGroupId: updated?.customerGroupId,
+          changed: customer.customerGroupId !== updated?.customerGroupId
+        } 
+      });
+    } else {
+      const customers = await customerService.list({ limit: 10000 });
+      let assignedCount = 0;
+      let changedCount = 0;
+
+      for (const customer of customers) {
+        if (customer.phone) {
+          const updated = await customerService.checkAndAssignGroup(customer.id);
+          assignedCount++;
+          if (customer.customerGroupId !== updated?.customerGroupId) {
+            changedCount++;
+          }
+        }
+      }
+
+      return c.json({ 
+        success: true, 
+        data: { 
+          processedCount: assignedCount,
+          changedCount
+        } 
+      });
+    }
+  } catch (error) {
+    console.error('Auto-assign error:', error);
+    return c.json({ success: false, error: 'Failed to run auto-assignment' }, 500);
+  }
+});

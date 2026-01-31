@@ -18,6 +18,7 @@ import pendingCarts from './pending-carts';
 import devices from './devices';
 import vouchers from './vouchers';
 import { customerRoutes } from './customers';
+import { distributionRoutes } from './distribution';
 
 const routes = new Hono();
 
@@ -41,6 +42,7 @@ routes.route('/pending-carts', pendingCarts);
 routes.route('/devices', devices);
 routes.route('/vouchers', vouchers);
 routes.route('/customers', customerRoutes);
+routes.route('/distribution', distributionRoutes);
 
 // Health check
 routes.get('/health', (c) => {
