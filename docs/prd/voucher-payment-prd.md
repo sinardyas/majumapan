@@ -1,14 +1,14 @@
-# Product Requirements Document: Voucher Payment
+# Product Requirements Document: Voucher Payment & Customer Management
 
 ## Document Information
 
 | Attribute | Value |
 |-----------|-------|
-| **Feature** | Voucher Payment |
-| **Status** | Phase 2: Customer Management In Progress |
-| **Version** | 2.5 |
+| **Feature** | Voucher Payment, Customer Management & Distribution |
+| **Status** | Phases 1-6: COMPLETED ✓ | Phase 7: PENDING |
+| **Version** | 4.0 |
 | **Created** | 2026-01-27 |
-| **Updated** | 2026-01-28 |
+| **Updated** | 2026-01-31 |
 | **Priority** | P1 (Must Have) |
 
 ---
@@ -17,15 +17,23 @@
 
 ### Overview
 
-The Voucher Payment feature enables customers to pay for transactions using vouchers (Gift Cards and Promotional Vouchers). This addresses customer demand for flexible payment options and provides businesses with tools for promotions and refund alternatives.
+The Voucher Payment feature enables customers to pay for transactions using vouchers (Gift Cards and Promotional Vouchers). Combined with Customer Management and Voucher Distribution, this provides a complete system for flexible payments, customer relationship building, and promotional campaigns.
 
 ### Key Outcomes
 
+**Payment & Promotions:**
 - **Payment flexibility**: Support for Gift Cards and Promotional Vouchers
 - **Promotional capability**: Multiple promotional voucher types (percentage, fixed, free item) with flexible rules
 - **Refund mechanism**: Generate Gift Cards as alternative to cash refunds
 - **Clear audit trail**: Complete transaction history for voucher usage
 - **Multi-entry methods**: Support scan, manual entry, and customer voucher selection
+
+**Customer Management & Distribution:**
+- **Customer Database**: Track customers by phone number with auto-segmentation into groups
+- **Voucher Vault**: Customers have a "vault" of assigned vouchers accessible across visits
+- **Distribution Channel**: Send vouchers via WhatsApp and Email to targeted customers
+- **Auto-Assignment**: Customers automatically assigned to groups (Bronze/Silver/Gold/VIP) based on spend/visits
+- **Seamless Checkout**: Optional customer lookup for personalized experience and rewards
 
 ### Quick Reference
 
@@ -38,6 +46,11 @@ The Voucher Payment feature enables customers to pay for transactions using vouc
 | **Partial payment** | Yes (Gift Card only) |
 | **Expiration** | Yes, configurable |
 | **Promo Rules** | Min purchase, max discount, applicable items |
+| **Customer ID** | Phone number (unique identifier) |
+| **Customer Groups** | Bronze, Silver, Gold, VIP (auto-assigned) |
+| **Auto-Assignment** | Real-time when transaction completes |
+| **Distribution Channels** | WhatsApp, Email |
+| **Message Templates** | 3 editable templates with variables |
 
 ---
 
@@ -65,6 +78,15 @@ The current POS system does not support voucher payments:
 | **Manual workarounds** | Staff manually track voucher balances (error-prone) |
 | **No audit trail** | Voucher usage not recorded for reconciliation |
 
+### Gaps Identified (Customer & Distribution)
+
+| Gap | Impact |
+|-----|--------|
+| No customer database | Can't build customer relationships or track loyalty |
+| No voucher distribution | Can't send vouchers to customers digitally |
+| No customer segmentation | Can't target VIP customers with special offers |
+| No customer vault | Customers can't store/use vouchers across visits |
+
 ### User Stories
 
 | ID | As a... | I want to... | So that... |
@@ -84,6 +106,14 @@ The current POS system does not support voucher payments:
 | US-13 | Manager | Void lost/stolen vouchers | I can prevent unauthorized usage |
 | US-14 | Admin | Generate Gift Cards for refunds | I can offer alternatives to cash refunds |
 | US-15 | Customer | View my available vouchers | I know what vouchers I have |
+| US-16 | Cashier | Ask for customer phone at checkout | Regular customers can earn rewards |
+| US-17 | System | Auto-assign customer to group based on spend | VIP customers get better treatment |
+| US-18 | Customer | Have vouchers assigned to my phone | I can use them across visits |
+| US-19 | Manager | Send vouchers via WhatsApp | Customers receive promotions instantly |
+| US-20 | Manager | Send vouchers via Email | Customers have digital record |
+| US-21 | Manager | Create customer groups | I can target segments (VIP, new customers) |
+| US-22 | Cashier | Select customer by phone at checkout | I can see their vouchers and apply one |
+| US-23 | Manager | Edit message templates | I can customize voucher delivery |
 
 ---
 
@@ -98,6 +128,10 @@ The current POS system does not support voucher payments:
 | Enable refund alternative | Gift Cards issued from refunds | 100% of refund-to-credit cases |
 | Reduce manual work | Staff time on voucher management | <30 seconds per voucher |
 | Accurate balance tracking | Voucher balance accuracy | 100% (no discrepancies) |
+| Customer adoption | % of transactions with customer phone | 30-50% |
+| VIP recognition | VIP customers auto-identified | 100% accuracy |
+| Distribution reach | Vouchers sent vs redeemed | 20% redemption rate |
+| Customer satisfaction | Repeat customer rate | +10% increase |
 
 ### Secondary Goals
 
@@ -107,6 +141,10 @@ The current POS system does not support voucher payments:
 - Customer voucher history
 - Admin voucher management reports
 - Flexible promotional rules for targeted campaigns
+- Clear customer history at checkout
+- Personalized voucher offers
+- Easy customer lookup by phone
+- Multi-channel distribution
 
 ---
 
@@ -1085,6 +1123,210 @@ Voucher Balance: Rp  50,000
 
 ---
 
+### 4.7 Customer Management
+
+#### 4.7.1 Customer Data Model
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `id` | UUID | Yes | Primary key |
+| `phone` | VARCHAR(20) | Yes | Unique, customer's phone number |
+| `name` | VARCHAR(100) | No | Customer's name |
+| `email` | VARCHAR(100) | No | Customer's email |
+| `customer_group_id` | UUID | No | Reference to group |
+| `total_spend` | DECIMAL | No | Lifetime spend (default: 0) |
+| `visit_count` | INT | No | Number of visits (default: 0) |
+| `created_at` | TIMESTAMP | Yes | First visit date |
+| `updated_at` | TIMESTAMP | Yes | Last update |
+
+#### 4.7.2 Customer Groups
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Primary key |
+| `name` | VARCHAR(50) | Group name (e.g., "Bronze", "Silver", "Gold", "VIP") |
+| `min_spend` | DECIMAL | Minimum lifetime spend to qualify |
+| `min_visits` | INT | Minimum visits to qualify |
+| `priority` | INT | Higher = more valuable (used for auto-assignment) |
+| `created_at` | TIMESTAMP | Creation date |
+
+**Default Groups:**
+
+| Name | Min Spend | Min Visits | Priority |
+|------|-----------|------------|----------|
+| Bronze | Rp 0 | 1 | 0 |
+| Silver | Rp 500,000 | 5 | 1 |
+| Gold | Rp 1,000,000 | 10 | 2 |
+| VIP | Rp 2,500,000 | 25 | 3 |
+
+#### 4.7.3 Auto-Assignment Logic
+
+When a customer completes a transaction:
+
+```typescript
+async function autoAssignGroup(customerId: string) {
+  const customer = await getCustomer(customerId);
+  const groups = await getGroupsOrderedByPriority();
+  
+  for (const group of groups) {
+    if (customer.total_spend >= group.min_spend && 
+        customer.visit_count >= group.min_visits) {
+      await updateCustomer(customerId, { customer_group_id: group.id });
+      return group;
+    }
+  }
+  
+  const bronze = await getGroupByName('Bronze');
+  await updateCustomer(customerId, { customer_group_id: bronze.id });
+}
+```
+
+**Trigger:** Real-time, immediately after transaction completion.
+
+#### 4.7.4 Customer Management Page
+
+**Path:** `/admin/customers` (Manager/Admin only)
+
+| Feature | Description |
+|---------|-------------|
+| List customers | Table with phone, name, group, spend, visits, created |
+| Search | By phone or name |
+| Filter | By customer group |
+| Add customer | Phone (required), name, email |
+| Edit customer | Update name/email, manual group override |
+| View details | Transaction history, assigned vouchers |
+| Delete customer | Soft delete |
+
+#### 4.7.5 Customer Groups Page
+
+**Path:** `/admin/customer-groups` (Admin only)
+
+| Feature | Description |
+|---------|-------------|
+| List groups | With member count |
+| Create group | Name, min spend, min visits, priority |
+| Edit group | Adjust rules (affects all members) |
+| Delete group | Only if no customers assigned |
+
+---
+
+### 4.8 Voucher Distribution
+
+#### 4.8.1 Distribution Page
+
+**Path:** `/admin/distribute` (Manager/Admin only)
+
+**UI Flow:**
+
+1. **Choose Voucher**: Select from available promotional vouchers
+2. **Select Recipients**: All customers, specific group, individual, or manual list
+3. **Select Channels**: WhatsApp, Email, or both
+4. **Message Template**: Choose and customize template with variables
+5. **Preview & Send**: Generate distribution links
+
+#### 4.8.2 Message Templates
+
+**Template Variables:**
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{name}` | Customer name | "John" |
+| `{code}` | Voucher code | "PR20-OFF-COFFEE" |
+| `{discount}` | Discount value | "20% off" |
+| `{expires}` | Expiration date | "28 Feb 2026" |
+| `{store_name}` | Store name | "Majumapan" |
+
+**Default Templates:**
+
+| Name | Subject | Message Style |
+|------|---------|---------------|
+| Formal | Your Exclusive Voucher from {store_name} | Professional, detailed |
+| Casual | 🎁 Your voucher is here! | Friendly, concise |
+| Limited Time | ⏰ {name}, your voucher expires soon! | Urgent, time-sensitive |
+
+#### 4.8.3 Distribution Channels
+
+**WhatsApp Integration**
+
+Approach: Generate WhatsApp link (no API, no cost)
+
+```typescript
+function generateWhatsAppLink(phone: string, message: string): string {
+  const cleanPhone = phone.replace(/^0/, '62');
+  const encodedMessage = encodeURIComponent(message);
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
+}
+```
+
+**Email Integration**
+
+Approach: `mailto:` link (client email opens)
+
+```typescript
+function generateMailToLink(emails: string[], subject: string, body: string): string {
+  return `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+```
+
+#### 4.8.4 Checkout Integration
+
+**Customer Lookup Flow:**
+
+```
+1. Cart Complete
+        │
+        ▼
+2. Customer Section (Optional)
+   ┌─────────────────────────┐
+   │ Phone: [ ______ ]       │
+   │         [ Search ]      │
+   └─────────────────────────┘
+        │
+        ▼ (if customer found)
+3. Customer Details Shown
+   ┌─────────────────────────┐
+   │ John Doe - Gold Member  │
+   │ [ Apply ] [ Change ]    │
+   └─────────────────────────┘
+        │
+        ▼ (if applied)
+4. Vouchers Available
+   ┌─────────────────────────┐
+   │ 3 vouchers in vault     │
+   │ [ Apply Voucher ]       │
+   └─────────────────────────┘
+        │
+        ▼
+5. Continue to Payment
+```
+
+---
+
+### 4.9 Analytics Dashboard (PENDING)
+
+**Path:** `/admin/vouchers/analytics` (Manager/Admin only)
+
+| Component | Description |
+|-----------|-------------|
+| Summary Cards | 6 key metrics (Total Created, Used, Value, GC Value, Refunds, Net) |
+| Date Filter | Quick presets + custom range |
+| Type Filter | All, Gift Card, Promotional |
+| Charts | Usage trends, promo distribution, top 10 promos |
+| Recent Transactions | Maximum 10 rows |
+| Export | CSV and PDF download |
+
+#### 4.9.1 Effort Estimate (PENDING)
+
+| Task | Effort |
+|------|--------|
+| Analytics API endpoints | 1.5 days |
+| Dashboard frontend UI | 2 days |
+| Charts integration | 1 day |
+| Export functionality | 0.5 day |
+| **Total** | **5 days** |
+
+---
+
 ## 5. User Experience
 
 ### 5.1 Happy Path Scenarios
@@ -1159,6 +1401,50 @@ Voucher Balance: Rp  50,000
 5. Customer receives Gift Card worth $50
 6. Customer can use Gift Card for future purchases
 
+#### Scenario 8: New Customer Registration
+
+1. Customer comes to checkout
+2. Cashier asks: "Do you have a phone number for rewards?"
+3. Customer provides phone number
+4. Cashier enters phone → "Customer not found"
+5. Cashier clicks "Create New"
+6. Enters phone, name, email
+7. Customer created with Bronze status
+8. Transaction proceeds
+
+#### Scenario 9: Returning Customer Lookup
+
+1. Customer comes to checkout
+2. Cashier asks phone number
+3. Customer provides number
+4. Cashier searches
+5. System finds customer (Gold member)
+6. Customer's 3 vouchers shown
+7. Customer selects a voucher to apply
+8. Discount applied, transaction continues
+
+#### Scenario 10: VIP Auto-Assignment
+
+1. Customer makes Rp 300,000 purchase
+2. Total spend now Rp 1,200,000
+3. Visit count now 12
+4. Auto-assignment triggered
+5. Customer promoted from Silver to Gold
+6. Next visit shows Gold status
+
+#### Scenario 11: Voucher Distribution
+
+1. Manager creates "20% off Coffee" promo
+2. Opens Distribution page
+3. Selects voucher
+4. Selects "Gold" customer group (45 customers)
+5. Selects WhatsApp + Email channels
+6. Selects "Casual" template
+7. Previews message
+8. Clicks "Generate & Send"
+9. 45 WhatsApp links generated
+10. Manager sends to all customers
+
 ### 5.2 Error Handling
 
 | Error | User Message | Resolution |
@@ -1173,6 +1459,11 @@ Voucher Balance: Rp  50,000
 | Offline | "Voucher validation requires internet connection" | Retry when online |
 | Voucher already used | "This promotional voucher has already been used" | Use different voucher |
 | Max discount exceeded | "Discount capped at Rp 20,000" | Inform customer |
+| Phone already exists | "This phone number is already registered" | Use "Change" to update existing |
+| Customer not found | "Customer not found" | Create new or skip |
+| No vouchers for customer | "No vouchers available" | Continue without voucher |
+| Template save failed | "Failed to save template" | Try again |
+| Distribution failed | "Failed to send to X customers" | Retry or contact admin |
 
 ---
 
@@ -1222,7 +1513,35 @@ Voucher Balance: Rp  50,000
 | Voucher code validation tests | Check digit algorithm tests | ✅ Done | `apps/api/src/services/voucher-service.test.ts` |
 | TypeScript checks | All typechecks passing | ✅ Done | `bun run typecheck` |
 
-### Phase 5: Analytics Dashboard (PENDING)
+### Phase 5: Customer Management (COMPLETED ✓)
+
+| Task | Description | Status | Files |
+|------|-------------|--------|-------|
+| Database Schema | Added customers, customer_groups, message_templates, distribution_history tables | ✅ Done | `apps/api/src/db/schema.ts` |
+| Migration File | Created SQL migration with default groups and templates | ✅ Done | `apps/api/drizzle/0012_phase2_customer_distribution.sql` |
+| Customer Service | CRUD operations, lookup, auto-assignment logic | ✅ Done | `apps/api/src/services/customer-service.ts` |
+| Customer API Routes | All 14 endpoints for customers, groups, vouchers | ✅ Done | `apps/api/src/routes/customers.ts` |
+| Routes Mounted | Mounted customers route to API | ✅ Done | `apps/api/src/routes/index.ts` |
+| Customer Management Page | List, search, add, edit, delete customers | ✅ Done | `apps/web/src/pages/admin/Customers.tsx` |
+| Customer Groups Page | CRUD groups with member counts | ✅ Done | `apps/web/src/pages/admin/CustomerGroups.tsx` |
+| Customer Lookup Component | Search by phone at checkout | ✅ Done | `apps/web/src/components/pos/CustomerLookup.tsx` |
+| Auto-Assignment Endpoint | POST /api/v1/customers/auto-assign | ✅ Done | `apps/api/src/routes/customers.ts` |
+| CheckAndAssignGroup | Function to re-evaluate customer group | ✅ Done | `apps/api/src/services/customer-service.ts` |
+
+### Phase 6: Voucher Distribution (COMPLETED ✓)
+
+| Task | Description | Status | Files |
+|------|-------------|--------|-------|
+| Distribution Service | Template CRUD, WhatsApp/Email link generation | ✅ Done | `apps/api/src/services/distribution-service.ts` |
+| Distribution API Routes | Templates, distribute, history, preview endpoints | ✅ Done | `apps/api/src/routes/distribution.ts` |
+| Routes Mounted | Mounted distribution route to API | ✅ Done | `apps/api/src/routes/index.ts` |
+| Distribution Page | Multi-step wizard UI for voucher distribution | ✅ Done | `apps/web/src/pages/admin/Distribute.tsx` |
+| Distribution API Service | API client for distribution endpoints | ✅ Done | `apps/web/src/services/distribution.ts` |
+| Route Registration | Added /admin/distribute route | ✅ Done | `apps/web/src/App.tsx` |
+| Sidebar Navigation | Added "Distribute" menu item | ✅ Done | `apps/web/src/components/layout/Sidebar.tsx` |
+| Type Fix | Fixed expiresAt type mismatch in distribution service | ✅ Done | `apps/api/src/services/distribution-service.ts` |
+
+### Phase 7: Analytics Dashboard (PENDING)
 
 | Task | Description | Effort |
 |------|-------------|--------|
@@ -1231,21 +1550,19 @@ Voucher Balance: Rp  50,000
 | Charts integration | Usage trend, promo distribution, top promos | 1 day |
 | Export functionality | CSV, PDF export options | 0.5 day |
 
-### Phase 6: Batch Distribution & Permissions Fix (NEXT)
+### Effort Summary
 
-| Task | Description | Effort |
-|------|-------------|--------|
-| Permissions fix | Restrict vouchers:create to Manager only | 0.25 day |
-| Database schema (batches) | Add voucher_batches table, update vouchers columns | 0.5 day |
-| Batch service logic | Create batch, distribute, auto-void, claim logic | 1 day |
-| Batch API endpoints | 8 new endpoints for batch management | 0.5 day |
-| Frontend batch creation | Add batch option to Rule Builder | 1 day |
-| Frontend batch management | Batch list, detail, distribution UI | 1 day |
-| Print/export functionality | CSV and PDF for physical vouchers | 0.5 day |
-| Auto-void cron job | Daily cleanup of expired undistributed vouchers | 0.5 day |
-| Testing | Integration tests for batch flow | 0.75 day |
-
-### Estimated Total Effort: 23.5-26.5 days (Phases 1-4 completed: ~21.5 days)
+| Phase | Deliverables | Status | Effort |
+|-------|--------------|--------|--------|
+| 1: Database & Backend | 5 tables, 10 API endpoints, voucher service | ✅ Done | ~10 days |
+| 2: Frontend Integration | Entry modal, rule builder, checkout integration | ✅ Done | ~5 days |
+| 3: Refund Flow | Refund to GC, transactions integration | ✅ Done | ~2 days |
+| 4: Testing | Unit tests, typecheck | ✅ Done | ~0.5 days |
+| 5: Customer Management | Customers, groups, auto-assignment | ✅ Done | ~4.5 days |
+| 6: Distribution | Templates, channels, wizard UI | ✅ Done | ~4 days |
+| 7: Analytics Dashboard | Dashboard, charts, export | ⏳ Pending | ~5 days |
+| **Phase 1-6 Complete** | | **✅ DONE** | **~26 days** |
+| **Remaining** | | | **~5 days** |
 
 ---
 
@@ -1319,6 +1636,16 @@ Voucher Balance: Rp  50,000
 - [ ] Vouchers can be assigned to customers
 - [ ] Void operation records audit trail
 - [ ] Refund-to-Gift Card metrics shown separately from promo metrics
+- [ ] Customers can be created with phone (required), name, email
+- [ ] Customer lookup by phone returns correct customer
+- [ ] Auto-assignment promotes customer to correct group based on spend/visits
+- [ ] Customer groups can be created with custom rules (min_spend, min_visits, priority)
+- [ ] Voucher distribution page allows selecting voucher, recipients, channel, template
+- [ ] WhatsApp links generate correctly for each recipient
+- [ ] Email links generate correctly for each recipient
+- [ ] Templates can be edited and saved
+- [ ] Checkout shows customer lookup option
+- [ ] Customer's vouchers appear in vault at checkout
 
 ### Non-Functional Acceptance Criteria
 
@@ -1329,6 +1656,11 @@ Voucher Balance: Rp  50,000
 - [ ] Online-only mode works without errors
 - [ ] Receipt shows voucher details and discounts correctly
 - [ ] Error messages are clear and actionable
+- [ ] Customer lookup response < 200ms
+- [ ] Distribution page loads < 1s
+- [ ] Auto-assignment completes within transaction commit
+- [ ] Offline: Customer lookup works from local cache
+- [ ] 100% accuracy in group assignment
 
 ### UI Acceptance Criteria
 
@@ -1341,6 +1673,10 @@ Voucher Balance: Rp  50,000
 - [ ] Applicable items selector works for categories and products
 - [ ] Free Item qualifier selector works correctly
 - [ ] Min purchase and max discount fields work correctly
+- [ ] Customer management page is intuitive
+- [ ] Customer groups page shows member counts
+- [ ] Distribution wizard guides through steps
+- [ ] Templates preview correctly
 
 ### Dashboard Acceptance Criteria
 
@@ -1792,7 +2128,7 @@ CREATE INDEX idx_vouchers_batch_expired ON vouchers(batch_id, is_distributed, ex
 | Print/export functionality | 0.5 day |
 | Auto-void cron job | 0.5 day |
 | Testing | 1 day |
-| **Total** | **6 days** |
+| **Total** | **5 days** |
 
 ---
 
@@ -1815,6 +2151,12 @@ CREATE INDEX idx_vouchers_batch_expired ON vouchers(batch_id, is_distributed, ex
 | **Qualifier** | Item required to activate free item voucher |
 | **Min Purchase** | Minimum order subtotal required to use voucher |
 | **Max Discount** | Maximum discount amount cap |
+| **Customer Vault** | Collection of vouchers assigned to a customer |
+| **Auto-Assignment** | Automatic customer group assignment based on rules (spend/visits) |
+| **Blast Distribution** | Sending vouchers to multiple customers at once |
+| **Message Template** | Pre-defined message with variables for distribution |
+| **Channel** | Distribution method (WhatsApp, Email) |
+| **Priority** | Customer group ordering for auto-assignment (higher = more valuable) |
 
 ---
 
@@ -1828,8 +2170,10 @@ CREATE INDEX idx_vouchers_batch_expired ON vouchers(batch_id, is_distributed, ex
 | 2.2 | 2026-01-27 | POS Team | Phase 1 Complete: Database schema, voucher service, API endpoints, permissions, check digit algorithm |
 | 2.3 | 2026-01-27 | POS Team | Phase 2 Complete: VoucherEntryModal, RuleBuilder, PaymentModal integration, Vouchers page. Phase 3 Complete: Refund flow, RefundModal, CustomerVouchers page. Phase 4 Complete: 22 unit tests passing. POS.tsx updated to pass cartItems. Database migration executed. |
 | 2.4 | 2026-01-28 | POS Team | Added Section 4.7: Voucher Batch Distribution - quota system, physical vouchers, distribution tracking, auto-void, batch management UI, print/export functionality. |
-| 2.5 | 2026-01-28 | POS Team | Section 4.1.5: Manual creation at POS changed from Cashier/Manager to Manager only. Added batch creation by Manager. Updated permissions to Manager-only for voucher:create. Added Phase 6 for implementation.
+| 2.5 | 2026-01-28 | POS Team | Section 4.1.5: Manual creation at POS changed from Cashier/Manager to Manager only. Added batch creation by Manager. Updated permissions to Manager-only for voucher:create. Added Phase 6 for implementation. |
 | 2.6 | 2026-01-28 | POS Team | **Phase 2A Progress:** Customer management tables (customers, customer_groups, message_templates, distribution_history), customer service with auto-assignment, customer API routes. Phase 2B (Frontend) and Phase 2C (Distribution) pending. |
+| 3.0 | 2026-01-31 | POS Team | **Phase 2 COMPLETED:** Customers page, CustomerGroups page, CustomerLookup component, Distribution service (templates, WhatsApp/Email link generation), Distribution API routes, Distribute page (multi-step wizard), Distribution API service, Auto-assignment endpoint, Route registration, Sidebar navigation, Type fixes. All typechecks passing. Phase 1-6 effort: ~26 days. Phase 7 (Analytics) pending. |
+| 4.0 | 2026-01-31 | POS Team | **Merged PRD Documents:** Consolidated voucher-payment-prd.md and voucher-phase2-prd.md into single document. Added Customer Management (4.7), Voucher Distribution (4.8) sections. Removed unimplemented Section 4.7 Batch Distribution. Added customer scenarios 8-11, distribution error handling, customer/distribution acceptance criteria, glossary terms (Customer Vault, Auto-Assignment, Blast Distribution, Message Template, Channel, Priority). Added appendices F (Customer Group Priority Logic) and G (Distribution Link Generation). Phase 1-6 complete, Phase 7 pending. |
 
 ---
 
@@ -1952,3 +2296,104 @@ Step 4: Format as XXXX-XXXX-XXXX-XXXX
 - PRD: Split Payment (for payment combination)
 - PRD: End of Day (voucher reconciliation)
 - API Documentation: Voucher Endpoints
+
+### Appendix F: Customer Group Priority Logic
+
+```typescript
+interface AutoAssignmentResult {
+  customerId: string;
+  previousGroupId: string | null;
+  newGroupId: string;
+  reason: string;
+}
+
+async function assignCustomerToGroup(customerId: string): Promise<AutoAssignmentResult> {
+  const customer = await db.customers.findUnique({ where: { id: customerId } });
+  const groups = await db.customer_groups.findMany({
+    orderBy: { priority: 'desc' }
+  });
+  
+  for (const group of groups) {
+    if (customer.total_spend >= group.min_spend && 
+        customer.visit_count >= group.min_visits) {
+      
+      if (customer.customer_group_id !== group.id) {
+        const previousGroupId = customer.customer_group_id;
+        
+        await db.customers.update({
+          where: { id: customerId },
+          data: { customer_group_id: group.id }
+        });
+        
+        return {
+          customerId,
+          previousGroupId,
+          newGroupId: group.id,
+          reason: `Promoted from ${previousGroupId || 'none'} to ${group.name}`
+        };
+      }
+      break;
+    }
+  }
+  
+  return {
+    customerId,
+    previousGroupId: customer.customer_group_id,
+    newGroupId: customer.customer_group_id,
+    reason: 'No group change needed'
+  };
+}
+```
+
+### Appendix G: Distribution Link Generation
+
+```typescript
+interface DistributionRecipient {
+  phone?: string;
+  email?: string;
+  name?: string;
+}
+
+interface MessageData {
+  template: MessageTemplate;
+  voucher: Voucher;
+  customerName?: string;
+}
+
+function generateWhatsAppLink(recipient: DistributionRecipient, data: MessageData): string {
+  const message = renderTemplate(data.template.message, {
+    name: recipient.name || 'Customer',
+    code: data.voucher.code,
+    discount: formatDiscount(data.voucher),
+    expires: formatDate(data.voucher.expiresAt),
+    store_name: 'Majumapan'
+  });
+  
+  const cleanPhone = (recipient.phone || '').replace(/^0/, '62');
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+}
+
+function generateEmailLinks(recipients: DistributionRecipient[], data: MessageData): string {
+  const emails = recipients
+    .filter(r => r.email)
+    .map(r => r.email!);
+  
+  const subject = renderTemplate(data.template.subject, {
+    name: data.customerName || 'Customer',
+    code: data.voucher.code,
+    discount: formatDiscount(data.voucher),
+    expires: formatDate(data.voucher.expiresAt),
+    store_name: 'Majumapan'
+  });
+  
+  const body = renderTemplate(data.template.message, {
+    name: data.customerName || 'Customer',
+    code: data.voucher.code,
+    discount: formatDiscount(data.voucher),
+    expires: formatDate(data.voucher.expiresAt),
+    store_name: 'Majumapan'
+  });
+  
+  return `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+```

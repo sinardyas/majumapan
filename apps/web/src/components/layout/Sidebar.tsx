@@ -18,6 +18,9 @@ import {
   Clock,
   CalendarCheck,
   Gift,
+  Users,
+  Star,
+  Send,
 } from 'lucide-react';
 
 interface NavItem {
@@ -65,6 +68,24 @@ const navItems: NavItem[] = [
     name: 'Vouchers',
     path: '/vouchers',
     icon: <Gift className="h-5 w-5" />,
+    permission: 'vouchers:create',
+  },
+  {
+    name: 'Customers',
+    path: '/admin/customers',
+    icon: <Users className="h-5 w-5" />,
+    permission: 'vouchers:create',
+  },
+{
+    name: 'Customer Groups',
+    path: '/admin/customer-groups',
+    icon: <Star className="h-5 w-5" />,
+    permission: 'admin',
+  },
+  {
+    name: 'Distribute',
+    path: '/admin/distribute',
+    icon: <Send className="h-5 w-5" />,
     permission: 'vouchers:create',
   },
   {
