@@ -4,6 +4,7 @@ import { db, type LocalTransaction } from '@/db';
 import { Button } from '@pos/ui';
 import { AlertTriangle, X, Clipboard, RefreshCw } from 'lucide-react';
 import { RefundModal } from '@/components/pos/RefundModal';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 export default function Transactions() {
   const { user } = useAuthStore();
@@ -61,13 +62,6 @@ export default function Transactions() {
   useEffect(() => {
     loadTransactions();
   }, [user?.storeId, filter, dateFilter]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const formatDateTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('en-US', {

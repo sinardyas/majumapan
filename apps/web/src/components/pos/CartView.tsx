@@ -3,6 +3,7 @@ import { Search, X, Trash2, Plus, Minus } from 'lucide-react';
 import type { LocalProduct } from '@/db';
 import type { CartItem } from '@/stores/cartStore';
 import { SkuSearchPopover } from './SkuSearchPopover';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
@@ -93,13 +94,6 @@ function CartItemCard({
       </div>
     </div>
   );
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
 }
 
 export function CartView({

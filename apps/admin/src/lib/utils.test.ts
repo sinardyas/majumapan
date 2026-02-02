@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { cn, formatCurrency, formatDate, truncate, generateId } from '../lib/utils';
+import { cn, formatDate, truncate, generateId } from '../lib/utils';
+import { formatCurrency } from '@pos/shared/utils/currency';
 
 describe('cn', () => {
   it('joins class names correctly', () => {
@@ -20,16 +21,16 @@ describe('cn', () => {
 });
 
 describe('formatCurrency', () => {
-  it('formats number as USD by default', () => {
-    expect(formatCurrency(100)).toBe('$100.00');
+  it('formats number as IDR by default', () => {
+    expect(formatCurrency(100000)).toBe('Rp 100.000');
   });
 
   it('formats with custom currency', () => {
-    expect(formatCurrency(100, 'EUR', 'de-DE')).toContain('100');
+    expect(formatCurrency(100, { currency: 'USD' })).toContain('100');
   });
 
-  it('handles decimals', () => {
-    expect(formatCurrency(99.99)).toContain('99');
+  it('handles decimals for currencies that use them', () => {
+    expect(formatCurrency(99.99, { currency: 'USD' })).toContain('99');
   });
 });
 

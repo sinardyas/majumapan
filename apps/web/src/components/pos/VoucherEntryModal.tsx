@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { Button, Input } from '@pos/ui';
 import { voucherApi, type Voucher, type CartItem } from '@/services/voucher';
 import { QrCode, Keyboard, User, Gift, Tag, X, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface VoucherEntryModalProps {
   isOpen: boolean;
@@ -42,13 +43,6 @@ export function VoucherEntryModal({
     };
     error?: string;
   } | null>(null);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(amount);
-  };
 
   const handleScan = useCallback(() => {
     setActiveTab('scan');

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@pos/ui';
 import { api } from '@/services/api';
 import { useAuthStore } from '@/stores/authStore';
+import { formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft,
   Download,
@@ -139,10 +140,6 @@ export default function DayCloseDetail() {
       fetchTransactions(1);
     }
   }, [activeTab, id]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
 
   const handleDownloadCSV = async () => {
     const endpoint = activeTab === 'sales' ? '/csv/sales'

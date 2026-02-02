@@ -6,6 +6,7 @@ import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
 import { AlertTriangle, X, Package } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
@@ -219,13 +220,6 @@ export default function Products() {
       console.error('Error deleting product:', error);
       alert('An error occurred');
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   if (isLoading) {

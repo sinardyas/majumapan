@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSync } from '@/hooks/useSync';
 import { db, type LocalTransaction } from '@/db';
 import { Button } from '@pos/ui';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface RejectedTransactionsProps {
   isOpen: boolean;
@@ -63,13 +64,6 @@ export function RejectedTransactions({ isOpen, onClose }: RejectedTransactionsPr
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const formatDate = (dateString: string) => {

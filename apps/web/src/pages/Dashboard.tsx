@@ -4,6 +4,7 @@ import { db, type LocalTransaction } from '@/db';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { Button } from '@pos/ui';
 import { DollarSign, Clipboard, RefreshCw, AlertTriangle, CalendarCheck } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface DashboardStats {
   todaySales: number;
@@ -155,13 +156,6 @@ export default function Dashboard() {
 
     loadDashboardData();
   }, [user?.storeId]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('en-US', {

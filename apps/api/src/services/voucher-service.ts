@@ -533,6 +533,27 @@ export const voucherService = {
     return customerVouchers;
   },
 
+  async getAllVouchers(options?: { type?: 'GC' | 'PR'; isActive?: boolean; limit?: number; offset?: number }) {
+    const conditions = [];
+    
+    if (options?.type) {
+      conditions.push(eq(vouchers.type, options.type));
+    }
+    
+    if (typeof options?.isActive === 'boolean') {
+      conditions.push(eq(vouchers.isActive, options.isActive));
+    }
+
+    const allVouchers = await db.query.vouchers.findMany({
+      where: conditions.length > 0 ? and(...conditions) : undefined,
+      orderBy: [desc(vouchers.createdAt)],
+      limit: options?.limit || 100,
+      offset: options?.offset || 0,
+    });
+
+    return allVouchers;
+  },
+
   async createFromRefund(orderId: string, refundAmount: number, customerId?: string, refundedBy?: string) {
     const code = generateVoucherCode('GC');
     const now = new Date();

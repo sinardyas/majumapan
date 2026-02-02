@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi } from '@/services/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatCompact } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, Badge, Button, Skeleton } from '@pos/ui';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { RefreshCw, TrendingUp, TrendingDown, DollarSign, ShoppingCart, Store, Users, AlertTriangle } from 'lucide-react';
@@ -35,24 +35,6 @@ interface AuditLog {
 }
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444'];
-
-const formatChartValue = (value: number | string) => {
-  if (typeof value === 'string') value = parseFloat(value);
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatCompactValue = (value: number | string) => {
-  if (typeof value === 'string') value = parseFloat(value);
-  if (value >= 1000000000) return `Rp ${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `Rp ${(value / 1000).toFixed(1)}K`;
-  return formatCurrency(value);
-};
 
 export default function Dashboard() {
   const [overview, setOverview] = useState<SystemOverview | null>(null);
@@ -236,10 +218,10 @@ export default function Dashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={storeChartData} layout="vertical" margin={{ left: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                    <XAxis type="number" tickFormatter={formatCompactValue} />
+                    <XAxis type="number" tickFormatter={(value) => formatCompact(value as number)} />
                     <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                     <Tooltip
-                      formatter={(value: any) => formatChartValue(value)}
+                      formatter={(value: any) => [formatCurrency(value as number), '']}
                       labelFormatter={(label: any) => label}
                     />
                     <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>

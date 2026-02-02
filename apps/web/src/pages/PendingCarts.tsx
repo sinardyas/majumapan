@@ -4,6 +4,7 @@ import { useEODStore } from '@/stores/eodStore';
 import { useCartStore } from '@/stores/cartStore';
 import { Button } from '@pos/ui';
 import { Clock, RotateCcw, Trash2, ShoppingCart, AlertCircle } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface PendingCartItem {
   cartId: string;
@@ -38,13 +39,6 @@ export default function PendingCarts() {
       });
     }
   }, [user?.storeId, fetchPendingCarts, operationalDate]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const formatDateTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleString('en-US', {

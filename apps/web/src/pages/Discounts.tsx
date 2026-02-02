@@ -5,6 +5,7 @@ import { api } from '@/services/api';
 import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface DiscountFormData {
   id?: string;
@@ -179,13 +180,6 @@ export default function Discounts() {
       console.error('Error deleting discount:', error);
       alert('An error occurred');
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const formatDate = (dateString: string | null) => {

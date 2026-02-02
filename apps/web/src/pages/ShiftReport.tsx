@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@pos/ui';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ShiftReport {
   id: string;
@@ -139,13 +140,6 @@ export default function ShiftReport() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const formatDateTime = (dateStr: string) => {

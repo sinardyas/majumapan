@@ -2,6 +2,7 @@ import { useEffect, useRef, KeyboardEvent } from 'react';
 import { Search } from 'lucide-react';
 import { cn } from '@pos/ui';
 import type { LocalProduct } from '@/db';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
@@ -159,7 +160,7 @@ export function SkuSearchPopover({
                 </div>
                 <div className="flex items-center justify-between mt-1">
                   <span className="text-sm font-medium text-gray-900">
-                    ${product.price.toFixed(2)}
+                    {formatCurrency(product.price)}
                   </span>
                   <StockBadge quantity={product.stockQuantity} />
                 </div>

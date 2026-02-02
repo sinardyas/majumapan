@@ -1,15 +1,11 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { formatCurrency, formatCompact } from '@pos/shared/utils/currency';
+
+export { formatCurrency, formatCompact };
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
-}
-
-export function formatCurrency(value: number, currency = 'USD', locale = 'en-US'): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).format(value);
 }
 
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {
