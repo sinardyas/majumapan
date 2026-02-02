@@ -3,6 +3,7 @@ import { Button } from '@pos/ui';
 import { CheckCircle, FileText, Download, Mail } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEODStore } from '@/stores/eodStore';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface DayClosedOverlayProps {
   dayClose: DayClose;
@@ -12,13 +13,6 @@ export function DayClosedOverlay({ dayClose }: DayClosedOverlayProps) {
   const navigate = useNavigate();
   const { clearCurrentDayClose } = useEODStore();
   
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
   const handleDone = () => {
     clearCurrentDayClose();
     navigate('/dashboard');

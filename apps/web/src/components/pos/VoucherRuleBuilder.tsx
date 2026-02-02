@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Button, Input } from '@pos/ui';
+import { useToast } from '@pos/ui';
 import { voucherApi, type Voucher } from '@/services/voucher';
 import { X, Gift, Percent, Tag, DollarSign } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export function VoucherRuleBuilder({
   categories = [],
   products = [],
 }: VoucherRuleBuilderProps) {
+  const toast = useToast();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +181,8 @@ export function VoucherRuleBuilder({
       }
 
       if (response.success && response.data) {
-        const voucherData = (response.data as { data: Voucher }).data;
+        const voucherData = response.data as Voucher;
+        toast.success(`Voucher created: ${voucherData.code}`);
         onSuccess(voucherData);
         onClose();
       } else {

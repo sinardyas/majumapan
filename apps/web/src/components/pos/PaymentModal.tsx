@@ -4,6 +4,7 @@ import { PAYMENT_METHODS, type PaymentMethod } from '@pos/shared';
 import { Banknote, CreditCard, Gift, X } from 'lucide-react';
 import { VoucherEntryModal } from './VoucherEntryModal';
 import type { Voucher } from '@/services/voucher';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -173,13 +174,6 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
   const handleRemoveVoucher = useCallback((code: string) => {
     setAppliedVouchers(prev => prev.filter(v => v.voucher.code !== code));
   }, []);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(amount);
-  };
 
   if (!isOpen) return null;
 

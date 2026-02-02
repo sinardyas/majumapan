@@ -1,5 +1,6 @@
 import { TransactionSummary } from '@pos/shared';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
 interface TransactionRowProps {
   transaction: TransactionSummary;
@@ -8,10 +9,6 @@ interface TransactionRowProps {
 }
 
 export function TransactionRow({ transaction, isExpanded, onToggle }: TransactionRowProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
-  };
-
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleTimeString('en-US', {
       hour: '2-digit',

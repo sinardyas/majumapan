@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { Button } from '@pos/ui';
 import { getHeldOrdersForCashier, type HeldOrder } from '@/db';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface HeldOrdersListProps {
   isOpen: boolean;
@@ -49,13 +50,6 @@ export function HeldOrdersList({
       setDeleteConfirmId(null);
     }
   }, [isOpen]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const formatOrderTitle = (order: HeldOrder): string => {
     if (order.customerName) {

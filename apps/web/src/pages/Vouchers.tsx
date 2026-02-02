@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useAuthStore } from '@/stores/authStore';
 import { voucherApi, type Voucher } from '@/services/voucher';
 import { voucherApi as voucherApiService } from '@/services/voucher';
 import { Button, Input } from '@pos/ui';
 import { Gift, Search, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { VoucherRuleBuilder } from '@/components/pos/VoucherRuleBuilder';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface Category {
   id: string;
@@ -18,8 +18,6 @@ interface Product {
 }
 
 export default function Vouchers() {
-  const { user } = useAuthStore();
-  
   const [vouchers, setVouchers] = useState<Voucher[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -33,14 +31,6 @@ export default function Vouchers() {
   const [voidReason, setVoidReason] = useState('');
   const [voiding, setVoiding] = useState(false);
   const [voidError, setVoidError] = useState<string | null>(null);
-
-  const formatCurrency = (amount: number | string | undefined) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(num);
-  };
 
   const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return 'N/A';
@@ -56,7 +46,7 @@ export default function Vouchers() {
   const loadVouchers = useCallback(async () => {
     setIsLoading(true);
     try {
-      const response = await voucherApi.getCustomerVouchers(user?.id || '');
+      const response = await voucherApi.getAllVouchers();
       if (response.success && response.data) {
         const vouchersData = Array.isArray(response.data) ? response.data : [];
         setVouchers(vouchersData);
@@ -66,7 +56,7 @@ export default function Vouchers() {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     loadVouchers();
@@ -234,13 +224,13 @@ export default function Vouchers() {
                   <td className="px-4 py-3">
                     {getTypeBadge(voucher)}
                   </td>
-                  <td className="px-4 py-3">
+                    <td className="px-4 py-3">
                     {voucher.type === 'GC' ? (
-                      <span className="font-medium">{formatCurrency(voucher.currentBalance)}</span>
+                      <span className="font-medium">{formatCurrency(voucher.currentBalance || 0)}</span>
                     ) : (
                       <span>
                         {voucher.discountType === 'PERCENTAGE' && `${voucher.percentageValue}% off`}
-                        {voucher.discountType === 'FIXED' && formatCurrency(voucher.fixedValue)}
+                        {voucher.discountType === 'FIXED' && formatCurrency(voucher.fixedValue || 0)}
                         {voucher.discountType === 'FREE_ITEM' && 'Free Item'}
                       </span>
                     )}

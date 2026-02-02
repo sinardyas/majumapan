@@ -119,6 +119,15 @@ class VoucherApiService {
     return api.post('/vouchers/validate', data);
   }
 
+  async getAllVouchers(options?: { type?: 'GC' | 'PR'; isActive?: boolean; limit?: number; offset?: number }): Promise<ApiResponse<{ data: Voucher[] }>> {
+    const params = new URLSearchParams();
+    if (options?.type) params.append('type', options.type);
+    if (typeof options?.isActive === 'boolean') params.append('active', String(options.isActive));
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.offset) params.append('offset', String(options.offset));
+    return api.get(`/vouchers?${params.toString()}`);
+  }
+
   async getByCode(code: string): Promise<ApiResponse<{ data: Voucher }>> {
     return api.get(`/vouchers/code/${encodeURIComponent(code)}`);
   }
@@ -131,11 +140,11 @@ class VoucherApiService {
     return api.get(`/vouchers/customer/${customerId}`);
   }
 
-  async createGiftCard(data: CreateGiftCardRequest): Promise<ApiResponse<{ data: Voucher }>> {
+  async createGiftCard(data: CreateGiftCardRequest): Promise<ApiResponse<Voucher>> {
     return api.post('/vouchers/gift-card', data);
   }
 
-  async createPromo(data: CreatePromoRequest): Promise<ApiResponse<{ data: Voucher }>> {
+  async createPromo(data: CreatePromoRequest): Promise<ApiResponse<Voucher>> {
     return api.post('/vouchers/promo', data);
   }
 

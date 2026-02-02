@@ -3,6 +3,7 @@ import { Button, Input } from '@pos/ui';
 import { Search, X, User, Users, Gift } from 'lucide-react';
 import { customerApi, type Customer } from '@/services/customer';
 import type { Voucher } from '@/services/voucher';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface CustomerLookupProps {
   onCustomerSelect: (customer: Customer) => void;
@@ -23,14 +24,6 @@ export function CustomerLookup({ onCustomerSelect, onVoucherSelect, onSkip }: Cu
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
   const [showVouchers, setShowVouchers] = useState(false);
-
-  const formatCurrency = (amount: string | number | undefined) => {
-    const num = typeof amount === 'string' ? parseFloat(amount) : (amount || 0);
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(num);
-  };
 
   const handleSearch = useCallback(async () => {
     if (!phone.trim()) return;
@@ -249,9 +242,9 @@ export function CustomerLookup({ onCustomerSelect, onVoucherSelect, onSkip }: Cu
                       </span>
                     )}
                   </div>
-                  <div className="text-right text-sm text-gray-600">
+                    <div className="text-right text-sm text-gray-600">
                     <p>{customer.visitCount} visits</p>
-                    <p className="font-medium">{formatCurrency(customer.totalSpend)} spent</p>
+                    <p className="font-medium">{formatCurrency(customer.totalSpend || 0)} spent</p>
                   </div>
                 </div>
               </div>
@@ -286,10 +279,10 @@ export function CustomerLookup({ onCustomerSelect, onVoucherSelect, onSkip }: Cu
                               </p>
                               <p className="text-sm text-gray-600">
                                 {voucher.type === 'GC' 
-                                  ? `Balance: ${formatCurrency(voucher.currentBalance)}`
+                                  ? `Balance: ${formatCurrency(voucher.currentBalance || 0)}`
                                   : voucher.discountType === 'PERCENTAGE'
                                     ? `${voucher.percentageValue}% OFF`
-                                    : `${formatCurrency(voucher.fixedValue)} OFF`
+                                    : `${formatCurrency(voucher.fixedValue || 0)} OFF`
                                 }
                               </p>
                             </div>

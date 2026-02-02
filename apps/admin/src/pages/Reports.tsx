@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi } from '@/services/api';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatCompact } from '@/lib/utils';
 import { Card, CardContent, Button, Badge, Skeleton } from '@pos/ui';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts';
 import { RefreshCw, Calendar, TrendingUp, Tag, Percent, DollarSign } from 'lucide-react';
 
 interface SalesData {
@@ -46,24 +46,6 @@ interface ActivePromo {
 type TabType = 'stores' | 'sales' | 'top' | 'promo';
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316'];
-
-const formatChartValue = (value: number | string) => {
-  if (typeof value === 'string') value = parseFloat(value);
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatCompactValue = (value: number | string) => {
-  if (typeof value === 'string') value = parseFloat(value);
-  if (value >= 1000000000) return `Rp ${(value / 1000000000).toFixed(1)}B`;
-  if (value >= 1000000) return `Rp ${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `Rp ${(value / 1000).toFixed(1)}K`;
-  return formatCurrency(value);
-};
 
 export default function Reports() {
   const [activeTab, setActiveTab] = useState<TabType>('stores');
@@ -291,9 +273,9 @@ function PromoPerformanceView({ promoStats, activePromos }: { promoStats: PromoS
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData.slice(0, 10)} layout="vertical" margin={{ left: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                    <XAxis type="number" tickFormatter={formatCompactValue} />
+                    <XAxis type="number" tickFormatter={(value) => formatCompact(value as number)} />
                     <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
-                    <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                    <Tooltip formatter={(value: any) => [formatCurrency(value as number), '']} />
                     <Bar dataKey="revenue" fill="#10b981" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -455,12 +437,12 @@ function StoreComparisonView({ data }: { data: StoreStats[] }) {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData} layout="vertical" margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
-                  <XAxis type="number" tickFormatter={formatCompactValue} />
+                  <XAxis type="number" tickFormatter={(value) => formatCompact(value as number)} />
                   <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <Tooltip formatter={(value: any) => [formatCurrency(value as number), '']} />
                   <Bar dataKey="revenue" radius={[0, 4, 4, 0]}>
                     {chartData.map((entry, index) => (
-                      <Bar key={`bar-${index}`} dataKey="revenue" fill={entry.fill} radius={[0, 4, 4, 0]} />
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -578,10 +560,10 @@ function SalesByStoreView({ data }: { data: SalesData[] }) {
             <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-              <YAxis yAxisId="left" tickFormatter={formatCompactValue} />
+              <YAxis yAxisId="left" tickFormatter={(value) => formatCompact(value as number)} />
               <YAxis yAxisId="right" orientation="right" />
               <Tooltip formatter={(value: any, name?: string) => [
-                name === 'revenue' ? formatChartValue(value) : value?.toLocaleString(),
+                name === 'revenue' ? formatCurrency(value as number) : value?.toLocaleString(),
                 name === 'revenue' ? 'Revenue' : 'Transactions'
               ]} />
               <Legend />
@@ -629,8 +611,8 @@ function TopStoresView({ data }: { data: StoreStats[] }) {
                 <BarChart data={chartData.slice(0, 5)} margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={formatCompactValue} />
-                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <YAxis tickFormatter={(value) => formatCompact(value as number)} />
+                  <Tooltip formatter={(value: any) => [formatCurrency(value as number), '']} />
                   <Bar dataKey="revenue" fill="#10b981" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -646,8 +628,8 @@ function TopStoresView({ data }: { data: StoreStats[] }) {
                 <BarChart data={chartData.slice(0, 5)} margin={{ left: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tickFormatter={formatCompactValue} />
-                  <Tooltip formatter={(value: any) => formatChartValue(value)} />
+                  <YAxis tickFormatter={(value) => formatCompact(value as number)} />
+                  <Tooltip formatter={(value: any) => [formatCurrency(value as number), '']} />
                   <Bar dataKey="avgTransaction" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

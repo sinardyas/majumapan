@@ -65,6 +65,10 @@ export const PERMISSIONS = {
   'vouchers:read': ['admin', 'manager', 'cashier'],
   'vouchers:use': ['admin', 'manager', 'cashier'],
   'vouchers:void': ['admin', 'manager'],
+
+  // Customers
+  'customers:read': ['admin', 'manager'],
+  'customers:manage': ['admin'],
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;

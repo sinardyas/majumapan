@@ -19,6 +19,7 @@ import devices from './devices';
 import vouchers from './vouchers';
 import { customerRoutes } from './customers';
 import { distributionRoutes } from './distribution';
+import configRouter from './config';
 
 const routes = new Hono();
 
@@ -43,6 +44,7 @@ routes.route('/devices', devices);
 routes.route('/vouchers', vouchers);
 routes.route('/customers', customerRoutes);
 routes.route('/distribution', distributionRoutes);
+routes.route('/config', configRouter);
 
 // Health check
 routes.get('/health', (c) => {

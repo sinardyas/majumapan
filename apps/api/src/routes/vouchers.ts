@@ -7,6 +7,27 @@ const vouchersRouter = new Hono();
 
 vouchersRouter.use('*', authMiddleware);
 
+vouchersRouter.get('/', requirePermission('vouchers:read'), async (c) => {
+  try {
+    const type = c.req.query('type') as 'GC' | 'PR' | undefined;
+    const isActive = c.req.query('active');
+    const limit = c.req.query('limit');
+    const offset = c.req.query('offset');
+
+    const vouchers = await voucherService.getAllVouchers({
+      type,
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      limit: limit ? parseInt(limit) : 100,
+      offset: offset ? parseInt(offset) : 0,
+    });
+
+    return c.json({ success: true, data: vouchers });
+  } catch (error) {
+    console.error('Get all vouchers error:', error);
+    return c.json({ success: false, error: 'Failed to fetch vouchers' }, 500);
+  }
+});
+
 vouchersRouter.get('/code/:code', async (c) => {
   try {
     const { code } = c.req.param();
