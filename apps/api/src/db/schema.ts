@@ -242,7 +242,7 @@ export const syncLog = pgTable('sync_log', {
 // Vouchers
 export const vouchers = pgTable('vouchers', {
   id: uuid('id').primaryKey().defaultRandom(),
-  code: varchar('code', { length: 19 }).notNull().unique(),
+  code: varchar('code', { length: 16 }).notNull().unique(),
   type: voucherTypeEnum('type').notNull(),
   discountType: voucherDiscountTypeEnum('discount_type'),
   initialValue: decimal('initial_value', { precision: 12, scale: 2 }),

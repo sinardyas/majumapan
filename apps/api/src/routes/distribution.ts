@@ -110,9 +110,10 @@ distributionRoutes.post('/distribute', async (c) => {
     const parsed = distributeSchema.parse(body);
 
     // Get voucher by code
+    const normalizedCode = parsed.voucherCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
     const voucherList = await db.select()
       .from(vouchers)
-      .where(eq(vouchers.code, parsed.voucherCode))
+      .where(eq(vouchers.code, normalizedCode))
       .limit(1);
     
     const voucher = voucherList[0];
@@ -234,9 +235,10 @@ distributionRoutes.post('/preview', async (c) => {
       return c.json({ success: false, error: 'Template not found' }, 404);
     }
 
+    const normalizedCode = voucherCode.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
     const voucherList = await db.select()
       .from(vouchers)
-      .where(eq(vouchers.code, voucherCode))
+      .where(eq(vouchers.code, normalizedCode))
       .limit(1);
     
     const voucher = voucherList[0];

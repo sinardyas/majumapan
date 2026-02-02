@@ -16,6 +16,10 @@ import {
   ChevronRight,
   History,
   Monitor,
+  Percent,
+  Gift,
+  Star,
+  Send,
 } from 'lucide-react';
 
 interface NavItem {
@@ -59,6 +63,31 @@ const navItems: NavItem[] = [
     name: 'Data Management',
     path: '/data',
     icon: <Database className="h-5 w-5" />,
+  },
+  {
+    name: 'Discounts',
+    path: '/discounts',
+    icon: <Percent className="h-5 w-5" />,
+  },
+  {
+    name: 'Vouchers',
+    path: '/vouchers',
+    icon: <Gift className="h-5 w-5" />,
+  },
+  {
+    name: 'Customers',
+    path: '/customers',
+    icon: <Users className="h-5 w-5" />,
+  },
+  {
+    name: 'Customer Groups',
+    path: '/customer-groups',
+    icon: <Star className="h-5 w-5" />,
+  },
+  {
+    name: 'Distribute',
+    path: '/distribute',
+    icon: <Send className="h-5 w-5" />,
   },
   {
     name: 'Settings',
