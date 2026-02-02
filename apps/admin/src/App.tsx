@@ -16,6 +16,11 @@ const DataManagement = lazy(() => import('@/pages/DataManagement'));
 const MasterTerminals = lazy(() => import('@/pages/MasterTerminals'));
 const DayCloseHistory = lazy(() => import('@/pages/DayCloseHistory'));
 const DayCloseDetail = lazy(() => import('@/pages/DayCloseDetail'));
+const Discounts = lazy(() => import('@/pages/Discounts'));
+const Vouchers = lazy(() => import('@/pages/Vouchers'));
+const Customers = lazy(() => import('@/pages/Customers'));
+const CustomerGroups = lazy(() => import('@/pages/CustomerGroups'));
+const Distribute = lazy(() => import('@/pages/Distribute'));
 
 
 function Loading({ children }: { children: ReactNode }) {
@@ -113,6 +118,51 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><Settings /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/discounts"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Discounts /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/vouchers"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Vouchers /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/customers"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Customers /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/customer-groups"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><CustomerGroups /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/distribute"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><Distribute /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

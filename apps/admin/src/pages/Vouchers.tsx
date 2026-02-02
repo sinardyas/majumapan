@@ -4,7 +4,7 @@ import { voucherApi as voucherApiService } from '@/services/voucher';
 import { Button, Input } from '@pos/ui';
 import { Gift, Search, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { VoucherRuleBuilder } from '@/components/pos/VoucherRuleBuilder';
-import { formatCurrency } from '@/hooks/useCurrencyConfig';
+import { formatCurrency } from '@pos/shared';
 
 interface Category {
   id: string;
@@ -41,6 +41,10 @@ export default function Vouchers() {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  const formatCodeDisplay = (code: string) => {
+    return code.replace(/(.{4})(.{4})(.{4})(.{4})/, '$1-$2-$3-$4');
   };
 
   const loadVouchers = useCallback(async () => {
@@ -219,7 +223,7 @@ export default function Vouchers() {
               {filteredVouchers.map((voucher) => (
                 <tr key={voucher.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3">
-                    <span className="font-mono font-medium">{voucher.code}</span>
+                    <span className="font-mono font-medium">{formatCodeDisplay(voucher.code)}</span>
                   </td>
                   <td className="px-4 py-3">
                     {getTypeBadge(voucher)}
@@ -284,7 +288,7 @@ export default function Vouchers() {
             </div>
             
             <p className="text-gray-600 mb-4">
-              Are you sure you want to void voucher <span className="font-mono font-medium">{selectedVoucher.code}</span>?
+              Are you sure you want to void voucher <span className="font-mono font-medium">{formatCodeDisplay(selectedVoucher.code)}</span>?
               This action cannot be undone.
             </p>
             

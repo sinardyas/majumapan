@@ -5,7 +5,7 @@ import { api } from '@/services/api';
 import { Button } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useSyncStore } from '@/stores/syncStore';
-import { formatCurrency } from '@/hooks/useCurrencyConfig';
+import { formatCurrency } from '@pos/shared';
 
 interface DiscountFormData {
   id?: string;

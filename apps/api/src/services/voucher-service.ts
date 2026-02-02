@@ -21,10 +21,7 @@ export function generateVoucherCode(type: 'GC' | 'PR'): string {
   ).join('');
 
   const checkDigits = generateCheckDigits(type + randomPart);
-  const result = type + randomPart + checkDigits;
-
-  const formatted = [result.slice(0, 4), result.slice(4, 8), result.slice(8, 12), result.slice(12, 16)];
-  return formatted.join('-');
+  return type + randomPart + checkDigits;
 }
 
 export function generateCheckDigits(prefix: string): string {
