@@ -13,14 +13,9 @@ import Dashboard from '@/pages/Dashboard';
 import Transactions from '@/pages/Transactions';
 import Products from '@/pages/Products';
 import Categories from '@/pages/Categories';
-import Discounts from '@/pages/Discounts';
 import SyncStatus from '@/pages/SyncStatus';
 import PendingCarts from '@/pages/PendingCarts';
 import EndOfDay from '@/pages/EndOfDay';
-import Vouchers from '@/pages/Vouchers';
-import Customers from '@/pages/admin/Customers';
-import CustomerGroups from '@/pages/admin/CustomerGroups';
-import Distribute from '@/pages/admin/Distribute';
 
 // Protected Route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -42,21 +37,6 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user?.role !== 'manager' && user?.role !== 'admin') {
-    return <Navigate to="/pos" replace />;
-  }
-
-  return <>{children}</>;
-}
-
-// Admin-only route wrapper
-function AdminRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuthStore();
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (user?.role !== 'admin') {
     return <Navigate to="/pos" replace />;
   }
 
@@ -157,50 +137,6 @@ export default function App() {
       />
 
       <Route
-        path="/vouchers"
-        element={
-          <ManagerRoute>
-            <AuthenticatedLayout>
-              <Vouchers />
-            </AuthenticatedLayout>
-          </ManagerRoute>
-        }
-      />
-
-      <Route
-        path="/admin/customers"
-        element={
-          <ManagerRoute>
-            <AuthenticatedLayout>
-              <Customers />
-            </AuthenticatedLayout>
-          </ManagerRoute>
-        }
-      />
-
-      <Route
-        path="/admin/customer-groups"
-        element={
-          <AdminRoute>
-            <AuthenticatedLayout>
-              <CustomerGroups />
-            </AuthenticatedLayout>
-          </AdminRoute>
-        }
-      />
-
-      <Route
-        path="/admin/distribute"
-        element={
-          <ManagerRoute>
-            <AuthenticatedLayout>
-              <Distribute />
-            </AuthenticatedLayout>
-          </ManagerRoute>
-        }
-      />
-
-      <Route
         path="/products"
         element={
           <ProtectedRoute>
@@ -217,17 +153,6 @@ export default function App() {
           <ProtectedRoute>
             <AuthenticatedLayout>
               <Categories />
-            </AuthenticatedLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/discounts"
-        element={
-          <ProtectedRoute>
-            <AuthenticatedLayout>
-              <Discounts />
             </AuthenticatedLayout>
           </ProtectedRoute>
         }

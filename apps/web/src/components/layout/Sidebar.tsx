@@ -10,17 +10,12 @@ import {
   FileText,
   Package,
   Tags,
-  Percent,
   RefreshCw,
   ChevronLeft,
   ChevronRight,
   LogOut,
   Clock,
   CalendarCheck,
-  Gift,
-  Users,
-  Star,
-  Send,
 } from 'lucide-react';
 
 interface NavItem {
@@ -57,36 +52,6 @@ const navItems: NavItem[] = [
     path: '/categories',
     icon: <Tags className="h-5 w-5" />,
     permission: 'categories:create',
-  },
-  {
-    name: 'Discounts',
-    path: '/discounts',
-    icon: <Percent className="h-5 w-5" />,
-    permission: 'discounts:create',
-  },
-  {
-    name: 'Vouchers',
-    path: '/vouchers',
-    icon: <Gift className="h-5 w-5" />,
-    permission: 'vouchers:create',
-  },
-  {
-    name: 'Customers',
-    path: '/admin/customers',
-    icon: <Users className="h-5 w-5" />,
-    permission: 'customers:read',
-  },
-  {
-    name: 'Customer Groups',
-    path: '/admin/customer-groups',
-    icon: <Star className="h-5 w-5" />,
-    permission: 'customers:manage',
-  },
-  {
-    name: 'Distribute',
-    path: '/admin/distribute',
-    icon: <Send className="h-5 w-5" />,
-    permission: 'customers:read',
   },
   {
     name: 'Pending Carts',
