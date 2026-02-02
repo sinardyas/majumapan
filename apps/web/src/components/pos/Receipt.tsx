@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import type { LocalTransaction } from '@/db';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ReceiptProps {
   transaction: LocalTransaction;
@@ -11,13 +12,6 @@ interface ReceiptProps {
 
 export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
   ({ transaction, storeName, storeAddress, storePhone, cashierName }, ref) => {
-    const formatCurrency = (amount: number) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-      }).format(amount);
-    };
-
     const formatDate = (dateString: string) => {
       const date = new Date(dateString);
       return date.toLocaleDateString('en-US', {

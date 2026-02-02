@@ -3,6 +3,7 @@ import { Plus, Tag } from 'lucide-react';
 import { Button } from '@pos/ui';
 import { cn } from '@pos/ui';
 import type { LocalProduct } from '@/db';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ProductWithStock extends LocalProduct {
   stockQuantity: number;
@@ -165,7 +166,7 @@ export function ProductList({
                 )}
               </td>
               <td className="px-4 py-3 text-right font-medium text-gray-900">
-                ${product.price.toFixed(2)}
+                {formatCurrency(product.price)}
               </td>
               <td className="px-4 py-3 text-right">
                 <StockIndicator quantity={product.stockQuantity} />

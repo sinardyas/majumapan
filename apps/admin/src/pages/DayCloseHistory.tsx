@@ -4,6 +4,7 @@ import { api } from '@/services/api';
 import { Button } from '@pos/ui';
 import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail, FileText } from 'lucide-react';
 import { DayCloseHistoryItem } from '@pos/shared';
+import { formatCurrency } from '@/lib/utils';
 
 export default function DayCloseHistory() {
   const { user, selectedStoreId } = useAuthStore();
@@ -51,13 +52,6 @@ export default function DayCloseHistory() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const handleViewDetail = (dayClose: DayCloseHistoryItem) => {

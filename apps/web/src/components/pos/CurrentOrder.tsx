@@ -2,13 +2,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@pos/ui';
 import { X, Plus, Minus, ClipboardList, User, Clock } from 'lucide-react';
 import type { CartItem, CartDiscount } from '@/stores/cartStore';
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
-}
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {

@@ -1,4 +1,5 @@
 import { useShiftStore } from '@/stores/shiftStore';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ShiftStatusProps {
   onOpenShift: () => void;
@@ -7,13 +8,6 @@ interface ShiftStatusProps {
 
 export function ShiftStatus({ onOpenShift, onCloseShift }: ShiftStatusProps) {
   const { activeShift, status, isOpening, isClosing } = useShiftStore();
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const getElapsedTime = () => {
     if (!activeShift?.openingTimestamp) return '';

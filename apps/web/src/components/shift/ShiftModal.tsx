@@ -4,6 +4,7 @@ import { useToast } from '@pos/ui';
 import { useShiftStore } from '@/stores/shiftStore';
 import { useAuthStore } from '@/stores/authStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ShiftModalProps {
   isOpen: boolean;
@@ -101,13 +102,6 @@ export function ShiftModal({ isOpen, onClose, mode, onOpenSuccess }: ShiftModalP
         setLocalError(result.error || 'Failed to close shift');
       }
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
   };
 
   const calculateVariance = () => {
@@ -234,14 +228,14 @@ export function ShiftModal({ isOpen, onClose, mode, onOpenSuccess }: ShiftModalP
 
                   {calculateVariance() >= 1 && calculateVariance() < 5 && (
                     <p className="text-xs text-yellow-700 mt-2">
-                      Variance $1-$5 requires a note
+                      Variance {formatCurrency(1)}-{formatCurrency(5)} requires a note
                     </p>
                   )}
 
                   {calculateVariance() >= 5 && (
                     <>
                       <p className="text-xs text-red-700 mt-2">
-                        Variance ≥$5 requires supervisor approval
+                        Variance ≥{formatCurrency(5)} requires supervisor approval
                       </p>
 
                       {requiresSupervisorApproval && (
@@ -279,7 +273,7 @@ export function ShiftModal({ isOpen, onClose, mode, onOpenSuccess }: ShiftModalP
 
                   {calculateVariance() < 1 && calculateVariance() >= -1 && (
                     <p className="text-xs text-green-700 mt-2">
-                      Variance &lt;$1 is automatically forgiven
+                      Variance &lt;{formatCurrency(1)} is automatically forgiven
                     </p>
                   )}
                 </div>

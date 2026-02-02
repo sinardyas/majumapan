@@ -1,4 +1,5 @@
 import { Button } from '@pos/ui';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface ResumeConfirmModalProps {
   isOpen: boolean;
@@ -16,13 +17,6 @@ export function ResumeConfirmModal({
   currentCartTotal,
 }: ResumeConfirmModalProps) {
   if (!isOpen) return null;
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

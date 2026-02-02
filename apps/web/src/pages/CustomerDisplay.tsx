@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { useCartStore, type CartItem } from '@/stores/cartStore';
 import { db } from '@/db';
-import { TAX_RATE, CURRENCY } from '@pos/shared';
+import { TAX_RATE } from '@pos/shared';
 import { Tag } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface Promotion {
   id: string;
@@ -12,13 +13,6 @@ interface Promotion {
   discountType: 'percentage' | 'fixed';
   value: number;
   priority?: 'high' | 'normal';
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: CURRENCY,
-  }).format(amount);
 }
 
 function PromotionBanner({ promotions }: { promotions: Promotion[] }) {

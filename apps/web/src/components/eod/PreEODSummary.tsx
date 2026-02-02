@@ -1,18 +1,12 @@
 import type { PreEODSummary } from '@pos/shared';
 import { Clock, DollarSign, CreditCard, AlertCircle, CheckCircle, ShoppingCart } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface PreEODSummaryProps {
   summary: PreEODSummary;
 }
 
 export function PreEODSummary({ summary }: PreEODSummaryProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
   const hasIssues = summary.syncStatus.pendingTransactions > 0 || 
                     summary.shifts.activeCount > 0 ||
                     summary.syncStatus.pendingCarts > 0;

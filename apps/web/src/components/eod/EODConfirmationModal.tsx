@@ -1,6 +1,7 @@
 import type { PreEODSummary } from '@pos/shared';
 import { Button } from '@pos/ui';
 import { AlertTriangle, CheckCircle, X } from 'lucide-react';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface EODConfirmationModalProps {
   summary: PreEODSummary;
@@ -15,13 +16,6 @@ export function EODConfirmationModal({
   onCancel, 
   isLoading 
 }: EODConfirmationModalProps) {
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
   const hasIssues = summary.syncStatus.pendingTransactions > 0 || 
                     summary.shifts.activeCount > 0 ||
                     summary.syncStatus.pendingCarts > 0;

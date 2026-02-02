@@ -4,6 +4,7 @@ import { X, RefreshCw, Gift, DollarSign } from 'lucide-react';
 import { voucherApi } from '@/services/voucher';
 import type { LocalTransaction } from '@/db';
 import { useToast } from '@pos/ui';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 interface RefundModalProps {
   isOpen: boolean;
@@ -44,13 +45,6 @@ export function RefundModal({ isOpen, onClose, transaction, onRefundComplete }: 
       setStep('select');
     }
   }, [transaction, isOpen]);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'IDR',
-    }).format(amount);
-  };
 
   const selectedItems = refundItems.filter(item => item.selected);
   const selectedSubtotal = selectedItems.reduce((sum, item) => sum + item.subtotal, 0);

@@ -3,15 +3,7 @@ import { useSyncStore } from '@/stores/syncStore';
 import { Button } from '@pos/ui';
 import { RefreshCw, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-
-const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
-};
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
 export function PendingTransactionsList() {
   const {

@@ -3,6 +3,7 @@ import { api } from '@/services/api';
 import { TransactionItem } from '@pos/shared';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@pos/ui';
+import { formatCurrency } from '@/lib/utils';
 
 interface TransactionLineItemsProps {
   transactionId: string;
@@ -50,10 +51,6 @@ export function TransactionLineItems({ transactionId, dayCloseId }: TransactionL
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
   };
 
   if (loading && items.length === 0) {

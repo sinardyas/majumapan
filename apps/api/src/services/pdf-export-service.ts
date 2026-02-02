@@ -7,6 +7,7 @@ import type {
   ShiftAggregationReport,
   DayClose,
 } from '@pos/shared';
+import { formatCurrency } from '@pos/shared';
 import { createWriteStream, readFileSync, unlinkSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
@@ -17,13 +18,6 @@ interface PDFBuffers {
   audit: TransactionAuditLogReport | null;
   shifts: ShiftAggregationReport | null;
   dayClose: DayClose | null;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(amount);
 }
 
 function formatDate(dateStr: string): string {

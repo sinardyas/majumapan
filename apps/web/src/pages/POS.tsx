@@ -27,6 +27,7 @@ import { CartSidebar } from '@/components/pos/CartSidebar';
 import { CartView } from '@/components/pos/CartView';
 import { CurrentOrder } from '@/components/pos/CurrentOrder';
 import type { PaymentMethod } from '@pos/shared';
+import { formatCurrency } from '@/hooks/useCurrencyConfig';
 import { 
   X, Printer, AlertTriangle, Box 
 } from 'lucide-react';
@@ -86,13 +87,6 @@ export default function POS() {
   const [isHolding, setIsHolding] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
 
   const isPromoActive = (product: LocalProduct): boolean => {
     if (!product.hasPromo) return false;

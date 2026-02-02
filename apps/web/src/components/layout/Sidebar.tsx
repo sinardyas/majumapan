@@ -74,19 +74,19 @@ const navItems: NavItem[] = [
     name: 'Customers',
     path: '/admin/customers',
     icon: <Users className="h-5 w-5" />,
-    permission: 'vouchers:create',
+    permission: 'customers:read',
   },
-{
+  {
     name: 'Customer Groups',
     path: '/admin/customer-groups',
     icon: <Star className="h-5 w-5" />,
-    permission: 'admin',
+    permission: 'customers:manage',
   },
   {
     name: 'Distribute',
     path: '/admin/distribute',
     icon: <Send className="h-5 w-5" />,
-    permission: 'vouchers:create',
+    permission: 'customers:read',
   },
   {
     name: 'Pending Carts',
