@@ -1,10 +1,11 @@
 import { Hono } from 'hono';
 import { eq, and, sql, desc, between } from 'drizzle-orm';
-import { db, transactions, transactionItems, transactionPayments, stock, discounts, products, stores, users } from '../db';
+import { db, transactions, transactionItems, transactionPayments, stock, discounts, products, stores, users, orderVouchers, vouchers as vouchersTable } from '../db';
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
 import { createTransactionSchema, createSplitTransactionSchema, paginationSchema, dateRangeSchema, TAX_RATE } from '@pos/shared';
 import { v4 as uuidv4 } from 'uuid';
+import { voucherService } from '../services/voucher-service';
 
 const transactionsRouter = new Hono();
 
@@ -356,6 +357,36 @@ transactionsRouter.post('/', requirePermission('transactions:create'), async (c)
         .where(eq(discounts.id, discountId));
     }
 
+    // Handle vouchers
+    const vouchers = data.vouchers as Array<{
+      id: string;
+      code: string;
+      type: 'GC' | 'PR';
+      amountApplied: number;
+    }> | undefined;
+
+    if (vouchers && vouchers.length > 0) {
+      const cartItems = items.map(item => ({
+        id: item.productId,
+        productId: item.productId,
+        price: item.unitPrice,
+        quantity: item.quantity,
+      }));
+
+      for (const voucher of vouchers) {
+        try {
+          await voucherService.useVoucher(
+            voucher.code,
+            clientId,
+            cartItems,
+            voucher.amountApplied
+          );
+        } catch (voucherError) {
+          console.error('Error marking voucher as used:', voucherError);
+        }
+      }
+    }
+
     // Fetch created transaction with payments
     const createdTransaction = await db.query.transactions.findFirst({
       where: eq(transactions.clientId, clientId),
@@ -506,6 +537,18 @@ transactionsRouter.get('/:id/receipt', requirePermission('transactions:read'), a
       where: eq(transactionPayments.transactionId, id),
     });
 
+    // Get transaction vouchers
+    const transactionVouchers = await db.select({
+      id: orderVouchers.id,
+      code: vouchersTable.code,
+      type: orderVouchers.type,
+      amountApplied: orderVouchers.amountApplied,
+      discountDetails: orderVouchers.discountDetails,
+    })
+      .from(orderVouchers)
+      .leftJoin(vouchersTable, eq(orderVouchers.voucherId, vouchersTable.id))
+      .where(eq(orderVouchers.orderId, transaction.clientId));
+
     // Format receipt data
     const receiptData = {
       store: store ? {
@@ -529,6 +572,12 @@ transactionsRouter.get('/:id/receipt', requirePermission('transactions:read'), a
           amount: parseFloat(item.discountValue),
         } : null,
       })),
+      vouchers: transactionVouchers.map(v => ({
+        code: v.code,
+        type: v.type,
+        amountApplied: parseFloat(v.amountApplied),
+      })),
+      totalVoucherDiscount: transactionVouchers.reduce((sum, v) => sum + parseFloat(v.amountApplied), 0),
       summary: {
         subtotal: parseFloat(transaction.subtotal),
         cartDiscount: transaction.discountCode ? {

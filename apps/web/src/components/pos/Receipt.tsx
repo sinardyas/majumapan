@@ -134,6 +134,27 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
             </div>
           )}
           
+          {transaction.vouchers && transaction.vouchers.length > 0 && (
+            <>
+              <div className="border-t border-dashed border-gray-400 my-2" />
+              <div className="text-green-600 font-medium mb-1">Vouchers:</div>
+              {transaction.vouchers.map((voucher, index) => (
+                <div key={index} className="flex justify-between text-green-600">
+                  <span>
+                    {voucher.type === 'GC' ? 'Gift Card' : 'Promo'} ({voucher.code.slice(0, 4)}...{voucher.code.slice(-4)}):
+                  </span>
+                  <span>-{formatCurrency(voucher.amountApplied)}</span>
+                </div>
+              ))}
+              {transaction.voucherDiscountAmount && transaction.voucherDiscountAmount > 0 && (
+                <div className="flex justify-between font-bold text-green-600">
+                  <span>Total Savings:</span>
+                  <span>-{formatCurrency(transaction.voucherDiscountAmount)}</span>
+                </div>
+              )}
+            </>
+          )}
+          
           <div className="flex justify-between">
             <span>Tax (10%):</span>
             <span>{formatCurrency(transaction.taxAmount)}</span>

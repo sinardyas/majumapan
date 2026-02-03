@@ -266,6 +266,10 @@ export const vouchers = pgTable('vouchers', {
   voidedBy: uuid('voided_by').references(() => users.id),
   voidReason: text('void_reason'),
   notes: text('notes'),
+  totalUsageLimit: integer('total_usage_limit'),
+  currentUsageCount: integer('current_usage_count').default(0).notNull(),
+  perCustomerLimit: integer('per_customer_limit'),
+  dailyLimit: integer('daily_limit'),
 }, (table) => [
   index('idx_vouchers_code').on(table.code),
   index('idx_vouchers_customer').on(table.customerId),
@@ -326,6 +330,35 @@ export const orderVouchers = pgTable('order_vouchers', {
 }, (table) => [
   index('idx_order_vouchers_order').on(table.orderId),
   index('idx_order_vouchers_voucher').on(table.voucherId),
+]);
+
+// Voucher Customer Usage (tracks per-customer usage)
+export const voucherCustomerUsage = pgTable('voucher_customer_usage', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id, { onDelete: 'cascade' }).notNull(),
+  customerId: uuid('customer_id').references(() => customers.id).notNull(),
+  usageCount: integer('usage_count').default(0).notNull(),
+  lastUsedAt: timestamp('last_used_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_vcu_voucher_customer').on(table.voucherId, table.customerId),
+  index('idx_vcu_customer').on(table.customerId),
+  index('idx_vcu_voucher').on(table.voucherId),
+]);
+
+// Voucher Daily Usage (tracks daily usage)
+export const voucherDailyUsage = pgTable('voucher_daily_usage', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  voucherId: uuid('voucher_id').references(() => vouchers.id, { onDelete: 'cascade' }).notNull(),
+  customerId: uuid('customer_id').references(() => customers.id),
+  usageDate: date('usage_date').notNull(),
+  usageCount: integer('usage_count').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex('idx_vdu_voucher_date').on(table.voucherId, table.usageDate),
+  uniqueIndex('idx_vdu_voucher_customer_date').on(table.voucherId, table.customerId, table.usageDate),
 ]);
 
 // Refresh Tokens
@@ -707,6 +740,8 @@ export const vouchersRelations = relations(vouchers, ({ one, many }) => ({
   qualifierItems: many(voucherQualifierItems),
   transactions: many(voucherTransactions),
   orderVouchers: many(orderVouchers),
+  customerUsage: many(voucherCustomerUsage),
+  dailyUsage: many(voucherDailyUsage),
 }));
 
 // Voucher Applicable Items relations
@@ -750,6 +785,30 @@ export const orderVouchersRelations = relations(orderVouchers, ({ one }) => ({
   voucher: one(vouchers, {
     fields: [orderVouchers.voucherId],
     references: [vouchers.id],
+  }),
+}));
+
+// Voucher Customer Usage relations
+export const voucherCustomerUsageRelations = relations(voucherCustomerUsage, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [voucherCustomerUsage.voucherId],
+    references: [vouchers.id],
+  }),
+  customer: one(customers, {
+    fields: [voucherCustomerUsage.customerId],
+    references: [customers.id],
+  }),
+}));
+
+// Voucher Daily Usage relations
+export const voucherDailyUsageRelations = relations(voucherDailyUsage, ({ one }) => ({
+  voucher: one(vouchers, {
+    fields: [voucherDailyUsage.voucherId],
+    references: [vouchers.id],
+  }),
+  customer: one(customers, {
+    fields: [voucherDailyUsage.customerId],
+    references: [customers.id],
   }),
 }));
 
