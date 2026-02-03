@@ -74,14 +74,14 @@ vouchersRouter.get('/customer/:customerId', async (c) => {
 vouchersRouter.post('/validate', async (c) => {
   try {
     const body = await c.req.json();
-    const { code, cartItems, subtotal } = body;
+    const { code, cartItems, subtotal, customerId } = body;
 
     if (!code) {
       return c.json({ success: false, error: 'Voucher code is required' }, 400);
     }
 
-    const result = await voucherService.validateVoucher(code, cartItems, subtotal);
-    return c.json({ success: result.valid, ...result });
+    const result = await voucherService.validateVoucher(code, cartItems, subtotal, customerId);
+    return c.json({ success: true, data: result });
   } catch (error) {
     console.error('Validate voucher error:', error);
     return c.json({ success: false, error: 'Failed to validate voucher' }, 500);

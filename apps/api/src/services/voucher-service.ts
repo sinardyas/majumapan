@@ -5,8 +5,10 @@ import {
   voucherQualifierItems,
   voucherTransactions,
   orderVouchers,
+  voucherCustomerUsage,
+  voucherDailyUsage,
 } from '../db/schema';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 export function toNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
@@ -218,7 +220,43 @@ export const voucherService = {
     return items;
   },
 
-  async validateVoucher(code: string, cartItems?: CartItem[], subtotal?: number) {
+  async getCustomerUsage(voucherId: string, customerId: string) {
+    const result = await db.query.voucherCustomerUsage.findFirst({
+      where: and(
+        eq(voucherCustomerUsage.voucherId, voucherId),
+        eq(voucherCustomerUsage.customerId, customerId)
+      ),
+    });
+    return result;
+  },
+
+  async getDailyUsage(voucherId: string, customerId?: string) {
+    const today = new Date().toISOString().split('T')[0];
+    
+    if (customerId) {
+      return await db.query.voucherDailyUsage.findFirst({
+        where: and(
+          eq(voucherDailyUsage.voucherId, voucherId),
+          eq(voucherDailyUsage.customerId, customerId),
+          eq(voucherDailyUsage.usageDate, today)
+        ),
+      });
+    }
+    
+    const result = await db.select({ 
+      total: sql<number>`COALESCE(SUM(${voucherDailyUsage.usageCount}), 0)` 
+    })
+    .from(voucherDailyUsage)
+    .where(and(
+      eq(voucherDailyUsage.voucherId, voucherId),
+      isNull(voucherDailyUsage.customerId),
+      eq(voucherDailyUsage.usageDate, today)
+    ));
+    
+    return { usageCount: result[0]?.total || 0 };
+  },
+
+  async validateVoucher(code: string, cartItems?: CartItem[], subtotal?: number, customerId?: string) {
     const normalized = code.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
     const parsed = parseVoucherCode(normalized);
 
@@ -241,6 +279,27 @@ export const voucherService = {
 
     if (voucher.expiresAt && new Date(voucher.expiresAt) < new Date()) {
       return { valid: false, error: `Voucher expired on ${voucher.expiresAt}` };
+    }
+
+    // Check total usage limit
+    if (voucher.totalUsageLimit && voucher.currentUsageCount !== null && voucher.currentUsageCount >= voucher.totalUsageLimit) {
+      return { valid: false, error: 'Voucher usage limit has been reached' };
+    }
+
+    // Check per-customer limit (if customer ID provided)
+    if (voucher.perCustomerLimit && customerId) {
+      const customerUsage = await this.getCustomerUsage(voucher.id, customerId);
+      if (customerUsage && customerUsage.usageCount >= voucher.perCustomerLimit) {
+        return { valid: false, error: 'You have reached the usage limit for this voucher' };
+      }
+    }
+
+    // Check daily limit (if set)
+    if (voucher.dailyLimit) {
+      const dailyUsage = await this.getDailyUsage(voucher.id, customerId);
+      if (dailyUsage && dailyUsage.usageCount >= voucher.dailyLimit) {
+        return { valid: false, error: 'Daily usage limit for this voucher has been reached' };
+      }
     }
 
     if (voucher.type === 'GC') {
@@ -388,9 +447,9 @@ export const voucherService = {
     return { calculatedDiscount, finalDiscount, message };
   },
 
-  async useVoucher(code: string, orderId: string, cartItems?: CartItem[], amountApplied?: number) {
+  async useVoucher(code: string, orderId: string, cartItems?: CartItem[], amountApplied?: number, customerId?: string) {
     const normalized = code.toUpperCase().replace(/\s+/g, '').replace(/-/g, '');
-    const validation = await this.validateVoucher(code, cartItems);
+    const validation = await this.validateVoucher(code, cartItems, undefined, customerId);
 
     if (!validation.valid || !validation.voucher) {
       return { success: false, error: validation.error || 'Voucher validation failed' };
@@ -451,6 +510,54 @@ export const voucherService = {
       }
 
       await db.transaction(async (tx) => {
+        // Update total usage count
+        if (voucher.totalUsageLimit || voucher.dailyLimit) {
+          await tx.update(vouchers)
+            .set({ 
+              currentUsageCount: sql`${vouchers.currentUsageCount} + 1`,
+              updatedAt: now 
+            })
+            .where(eq(vouchers.id, voucher.id));
+        }
+
+        // Update customer-specific usage
+        if (voucher.perCustomerLimit && customerId) {
+          await tx.insert(voucherCustomerUsage)
+            .values({
+              voucherId: voucher.id,
+              customerId,
+              usageCount: 1,
+              lastUsedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [voucherCustomerUsage.voucherId, voucherCustomerUsage.customerId],
+              set: {
+                usageCount: sql`${voucherCustomerUsage.usageCount} + 1`,
+                lastUsedAt: now,
+                updatedAt: now,
+              }
+            });
+        }
+
+        // Update daily usage
+        if (voucher.dailyLimit) {
+          const today = now.toISOString().split('T')[0];
+          await tx.insert(voucherDailyUsage)
+            .values({
+              voucherId: voucher.id,
+              customerId: customerId || undefined,
+              usageDate: today,
+              usageCount: 1,
+            })
+            .onConflictDoUpdate({
+              target: [voucherDailyUsage.voucherId, voucherDailyUsage.customerId ?? sql`NULL`, voucherDailyUsage.usageDate],
+              set: {
+                usageCount: sql`${voucherDailyUsage.usageCount} + 1`,
+                updatedAt: now,
+              }
+            });
+        }
+
         await tx.update(vouchers)
           .set({ isActive: false, updatedAt: now })
           .where(eq(vouchers.id, voucher.id));

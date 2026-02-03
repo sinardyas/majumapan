@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { Button } from '@pos/ui';
-import { AlertTriangle, X, Clipboard, RefreshCw } from 'lucide-react';
+import { AlertTriangle, X, Clipboard, RefreshCw, Gift } from 'lucide-react';
 import { RefundModal } from '@/components/pos/RefundModal';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
@@ -311,6 +311,39 @@ export default function Transactions() {
                     <span>-{formatCurrency(selectedTransaction.discountAmount)}</span>
                   </div>
                 )}
+                
+                {selectedTransaction.vouchers && selectedTransaction.vouchers.length > 0 && (
+                  <div className="border-t border-gray-200 pt-3 mt-2 space-y-2">
+                    <div className="flex items-center gap-2 text-green-600 font-medium">
+                      <Gift className="h-4 w-4" />
+                      <span>Vouchers</span>
+                    </div>
+                    <div className="bg-green-50 rounded-lg divide-y divide-green-100">
+                      {selectedTransaction.vouchers.map((voucher, index) => (
+                        <div key={index} className="px-3 py-2 flex justify-between">
+                          <div>
+                            <p className="font-medium text-green-700">
+                              {voucher.type === 'GC' ? 'Gift Card' : 'Promo'}
+                            </p>
+                            <p className="text-sm text-green-600 font-mono">
+                              {voucher.code}
+                            </p>
+                          </div>
+                          <p className="font-medium text-green-700">
+                            -{formatCurrency(voucher.amountApplied)}
+                          </p>
+                        </div>
+                      ))}
+                      {selectedTransaction.voucherDiscountAmount && selectedTransaction.voucherDiscountAmount > 0 && (
+                        <div className="px-3 py-2 flex justify-between font-bold text-green-700 bg-green-100 rounded-b-lg">
+                          <span>Total Savings:</span>
+                          <span>-{formatCurrency(selectedTransaction.voucherDiscountAmount)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex justify-between">
                   <span className="text-gray-500">Tax</span>
                   <span>{formatCurrency(selectedTransaction.taxAmount)}</span>

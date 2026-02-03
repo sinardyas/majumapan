@@ -369,6 +369,7 @@ class SyncService {
         amountPaid: txn.amountPaid,
         changeAmount: txn.changeAmount,
         payments: txn.payments,
+        vouchers: txn.vouchers,
       }));
 
       const response = await api.post<PushSyncResponse>('/sync/push', {

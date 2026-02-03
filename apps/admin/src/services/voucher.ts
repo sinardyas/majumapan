@@ -24,6 +24,10 @@ export interface Voucher {
   createdAt: string;
   updatedAt?: string;
   notes?: string;
+  totalUsageLimit?: number;
+  currentUsageCount?: number;
+  perCustomerLimit?: number;
+  dailyLimit?: number;
 }
 
 export interface CartItem {
@@ -38,6 +42,7 @@ export interface ValidateVoucherRequest {
   code: string;
   cartItems?: CartItem[];
   subtotal?: number;
+  customerId?: string;
 }
 
 export interface ValidateVoucherResponse {
@@ -59,6 +64,9 @@ export interface CreateGiftCardRequest {
   expiresAt?: string;
   customerId?: string;
   notes?: string;
+  totalUsageLimit?: number;
+  perCustomerLimit?: number;
+  dailyLimit?: number;
 }
 
 export interface CreatePromoRequest {
@@ -76,6 +84,9 @@ export interface CreatePromoRequest {
   qualifierCategories?: string[];
   qualifierProducts?: string[];
   notes?: string;
+  totalUsageLimit?: number;
+  perCustomerLimit?: number;
+  dailyLimit?: number;
 }
 
 export interface UseVoucherRequest {

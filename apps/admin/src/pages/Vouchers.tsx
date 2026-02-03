@@ -215,6 +215,7 @@ export default function Vouchers() {
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Type</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Value/Balance</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Usage</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Expires</th>
                 <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
               </tr>
@@ -241,6 +242,29 @@ export default function Vouchers() {
                   </td>
                   <td className="px-4 py-3">
                     {getStatusBadge(voucher)}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    {voucher.totalUsageLimit ? (
+                      <div className="flex items-center gap-1">
+                        <span className={voucher.currentUsageCount !== undefined && voucher.currentUsageCount >= voucher.totalUsageLimit ? 'text-red-600' : 'text-gray-900'}>
+                          {voucher.currentUsageCount || 0}
+                        </span>
+                        <span className="text-gray-400">/</span>
+                        <span>{voucher.totalUsageLimit}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">{voucher.currentUsageCount || 0} / ∞</span>
+                    )}
+                    {voucher.dailyLimit && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Daily: {voucher.dailyLimit}
+                      </div>
+                    )}
+                    {voucher.perCustomerLimit && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Per customer: {voucher.perCustomerLimit}
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-500">
                     {voucher.expiresAt ? formatDate(voucher.expiresAt) : 'No expiry'}
