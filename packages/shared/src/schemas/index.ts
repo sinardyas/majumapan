@@ -186,6 +186,12 @@ export const syncPushSchema = z.object({
       amount: z.number(),
       changeAmount: z.number().optional().default(0),
     })).optional(),
+    vouchers: z.array(z.object({
+      id: z.string().uuid(),
+      code: z.string(),
+      type: z.enum(['GC', 'PR']),
+      amountApplied: z.number(),
+    })).optional(),
   })),
 });
 

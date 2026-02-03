@@ -42,6 +42,9 @@ interface VoucherFormData {
   qualifierCategories: string[];
   qualifierProducts: string[];
   notes: string;
+  totalUsageLimit: string;
+  perCustomerLimit: string;
+  dailyLimit: string;
 }
 
 export function VoucherRuleBuilder({
@@ -70,6 +73,9 @@ export function VoucherRuleBuilder({
     qualifierCategories: [],
     qualifierProducts: [],
     notes: '',
+    totalUsageLimit: '',
+    perCustomerLimit: '',
+    dailyLimit: '',
   });
 
   const handleDiscountTypeChange = useCallback((type: DiscountType) => {
@@ -164,6 +170,9 @@ export function VoucherRuleBuilder({
           qualifierCategories: formData.qualifierCategories.length > 0 ? formData.qualifierCategories : undefined,
           qualifierProducts: formData.qualifierProducts.length > 0 ? formData.qualifierProducts : undefined,
           notes: formData.notes || undefined,
+          totalUsageLimit: formData.totalUsageLimit ? Number(formData.totalUsageLimit) : undefined,
+          perCustomerLimit: formData.perCustomerLimit ? Number(formData.perCustomerLimit) : undefined,
+          dailyLimit: formData.dailyLimit ? Number(formData.dailyLimit) : undefined,
         });
       } else {
         response = await voucherApi.createPromo({
@@ -177,6 +186,9 @@ export function VoucherRuleBuilder({
           applicableCategories: formData.applicableCategories.length > 0 && formData.scope === 'SPECIFIC_ITEMS' ? formData.applicableCategories : undefined,
           applicableProducts: formData.applicableProducts.length > 0 && formData.scope === 'SPECIFIC_ITEMS' ? formData.applicableProducts : undefined,
           notes: formData.notes || undefined,
+          totalUsageLimit: formData.totalUsageLimit ? Number(formData.totalUsageLimit) : undefined,
+          perCustomerLimit: formData.perCustomerLimit ? Number(formData.perCustomerLimit) : undefined,
+          dailyLimit: formData.dailyLimit ? Number(formData.dailyLimit) : undefined,
         });
       }
 
@@ -612,6 +624,63 @@ export function VoucherRuleBuilder({
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   rows={3}
                 />
+              </div>
+
+              {/* Usage Limits */}
+              <div className="border-t border-gray-200 pt-4 mt-4">
+                <h3 className="text-sm font-medium text-gray-900 mb-3">Usage Limits</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Total Usage Limit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Total Usage Limit
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.totalUsageLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, totalUsageLimit: e.target.value }))}
+                      placeholder="Leave empty for unlimited"
+                      min={1}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximum total uses
+                    </p>
+                  </div>
+
+                  {/* Per Customer Limit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Per Customer Limit
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.perCustomerLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, perCustomerLimit: e.target.value }))}
+                      placeholder="Leave empty for unlimited"
+                      min={1}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Uses per customer
+                    </p>
+                  </div>
+
+                  {/* Daily Limit */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Daily Limit
+                    </label>
+                    <Input
+                      type="number"
+                      value={formData.dailyLimit}
+                      onChange={(e) => setFormData(prev => ({ ...prev, dailyLimit: e.target.value }))}
+                      placeholder="Leave empty for no daily limit"
+                      min={1}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Maximum uses per day
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           )}

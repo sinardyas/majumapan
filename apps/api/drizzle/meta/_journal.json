@@ -71,6 +71,27 @@
       "when": 1769437278902,
       "tag": "0011_vouchers",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1769438278902,
+      "tag": "0012_phase2_customer_distribution",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1769439278902,
+      "tag": "0013_currency_standardization",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1769440278902,
+      "tag": "0014_voucher_code_normalization",
+      "breakpoints": true
     }
   ]
 }

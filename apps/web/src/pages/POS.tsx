@@ -28,6 +28,7 @@ import { CartView } from '@/components/pos/CartView';
 import { CurrentOrder } from '@/components/pos/CurrentOrder';
 import type { PaymentMethod } from '@pos/shared';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
+import { voucherApi, type Voucher } from '@/services/voucher';
 import { 
   X, Printer, AlertTriangle, Box 
 } from 'lucide-react';
@@ -562,7 +563,8 @@ export default function POS() {
     paymentMethod: PaymentMethod, 
     amountPaid: number, 
     isSplitPayment: boolean = false,
-    payments?: LocalPayment[]
+    payments?: LocalPayment[],
+    appliedVouchers?: Array<{ voucher: Voucher; amount: number }>
   ) => {
     if (!user?.storeId || !user?.id) return;
     
@@ -612,6 +614,13 @@ export default function POS() {
       amountPaid: isSplitPayment ? undefined : amountPaid,
       changeAmount: isSplitPayment ? undefined : changeAmount,
       payments: isSplitPayment ? payments : undefined,
+      vouchers: appliedVouchers?.map(v => ({
+        id: v.voucher.id,
+        code: v.voucher.code,
+        type: v.voucher.type,
+        amountApplied: v.amount,
+      })),
+      voucherDiscountAmount: appliedVouchers?.reduce((sum, v) => sum + v.amount, 0) || 0,
       status: 'completed',
       syncStatus: isOnline ? 'pending' : 'pending',
       clientTimestamp: now,
@@ -620,6 +629,28 @@ export default function POS() {
     
     try {
       await db.transactions.add(transaction);
+      
+      if (appliedVouchers && appliedVouchers.length > 0 && isOnline) {
+        const cartItemsForVoucher = items.map(item => ({
+          id: crypto.randomUUID(),
+          productId: item.productId,
+          categoryId: undefined as string | undefined,
+          price: item.unitPrice,
+          quantity: item.quantity,
+        }));
+        
+        for (const { voucher, amount } of appliedVouchers) {
+          try {
+            await voucherApi.useVoucher(voucher.code, {
+              orderId: clientId,
+              cartItems: cartItemsForVoucher,
+              amountApplied: amount,
+            });
+          } catch (voucherError) {
+            console.error('Error marking voucher as used:', voucherError);
+          }
+        }
+      }
       
       for (const item of items) {
         const stockRecord = await db.stock

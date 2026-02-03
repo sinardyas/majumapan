@@ -15,6 +15,7 @@ import {
 import { authMiddleware } from '../middleware/auth';
 import { requirePermission } from '../middleware/rbac';
 import { syncPushSchema } from '@pos/shared';
+import { voucherService } from '../services/voucher-service';
 
 const syncRouter = new Hono();
 
@@ -327,6 +328,7 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
 
         // Create the transaction
         const transactionNumber = generateTransactionNumber();
+        let serverTransactionId: string;
 
         // Check if this is a split payment
         const isSplitPayment = txn.isSplitPayment === true || (txn.payments && txn.payments.length > 0);
@@ -356,6 +358,8 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
             syncStatus: 'synced',
             clientTimestamp: new Date(txn.clientTimestamp),
           }).returning();
+          
+          serverTransactionId = newTransaction.id;
 
           // Create transaction payments
           for (const payment of txn.payments) {
@@ -388,6 +392,8 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
             syncStatus: 'synced',
             clientTimestamp: new Date(txn.clientTimestamp),
           }).returning();
+          
+          serverTransactionId = newTransaction.id;
 
           // Create single transaction payment record
           await db.insert(transactionPayments).values({
@@ -444,6 +450,29 @@ syncRouter.post('/push', requirePermission('sync:push'), async (c) => {
               usageCount: sql`${discounts.usageCount} + 1`,
             })
             .where(eq(discounts.id, txn.discountId));
+        }
+
+        // Process vouchers
+        if (txn.vouchers && txn.vouchers.length > 0) {
+          const cartItems = txn.items.map(item => ({
+            id: item.productId,
+            productId: item.productId,
+            price: item.unitPrice,
+            quantity: item.quantity,
+          }));
+
+          for (const voucher of txn.vouchers) {
+            try {
+              await voucherService.useVoucher(
+                voucher.code,
+                serverTransactionId,
+                cartItems,
+                voucher.amountApplied
+              );
+            } catch (voucherError) {
+              console.error(`Error marking voucher ${voucher.code} as used:`, voucherError);
+            }
+          }
         }
 
         synced.push({

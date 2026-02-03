@@ -103,6 +103,13 @@ export interface LocalTransaction {
   amountPaid?: number;
   changeAmount?: number;
   payments?: LocalPayment[];
+  vouchers?: Array<{
+    id: string;
+    code: string;
+    type: 'GC' | 'PR';
+    amountApplied: number;
+  }>;
+  voucherDiscountAmount?: number;
   status: 'completed' | 'voided' | 'pending_sync';
   syncStatus: 'pending' | 'synced' | 'failed' | 'rejected';
   rejectionReason?: string;
