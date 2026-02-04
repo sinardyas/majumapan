@@ -69,6 +69,7 @@ export interface LocalPayment {
   paymentMethod: 'cash' | 'card';
   amount: number;
   changeAmount: number;
+  approvalCode?: string;
 }
 
 export interface LocalTransaction {
@@ -103,6 +104,8 @@ export interface LocalTransaction {
   amountPaid?: number;
   changeAmount?: number;
   payments?: LocalPayment[];
+  approvalCode?: string;
+  cardLast4?: string;
   vouchers?: Array<{
     id: string;
     code: string;
@@ -205,6 +208,46 @@ export interface PendingShiftOperation {
   error?: string;
 }
 
+// Customer types for member lookup
+export interface LocalCustomerGroup {
+  id: string;
+  name: string;
+  minSpend: string;
+  minVisits: number;
+  priority: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LocalCustomer {
+  id: string;
+  phone: string;
+  name: string | null;
+  email: string | null;
+  customerGroupId: string | null;
+  totalSpend: string;
+  visitCount: number;
+  createdAt: string;
+  updatedAt: string;
+  syncStatus: 'synced' | 'pending_create' | 'pending_update';
+}
+
+export interface LocalCustomerVoucher {
+  id: string;
+  customerId: string;
+  code: string;
+  type: 'GC' | 'PR';
+  discountType?: 'PERCENTAGE' | 'FIXED' | 'FREE_ITEM';
+  value?: string;
+  currentBalance?: string;
+  minPurchase?: string;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  syncStatus: 'synced' | 'pending_create' | 'pending_update';
+}
+
 class PosDatabase extends Dexie {
   categories!: Table<LocalCategory>;
   products!: Table<LocalProduct>;
@@ -216,6 +259,9 @@ class PosDatabase extends Dexie {
   heldOrders!: Table<HeldOrder>;
   shifts!: Table<LocalShift>;
   pendingShiftOperations!: Table<PendingShiftOperation>;
+  customerGroups!: Table<LocalCustomerGroup>;
+  customers!: Table<LocalCustomer>;
+  customerVouchers!: Table<LocalCustomerVoucher>;
 
   constructor() {
     super('pos-database');
@@ -260,7 +306,7 @@ class PosDatabase extends Dexie {
     // See ADR-0004: docs/adr/0004-hold-order-indexeddb-persistence.md
     this.version(4).stores({
       categories: 'id, storeId, name',
-      products: 'id, storeId, categoryId, sku, barcode, name',
+      products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
       stock: 'id, storeId, productId, [storeId+productId]',
       discounts: 'id, storeId, code, discountScope',
       transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
@@ -308,6 +354,24 @@ class PosDatabase extends Dexie {
       heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
       shifts: 'id, storeId, cashierId, status, [storeId+cashierId]',
       pendingShiftOperations: 'id, shiftId, syncStatus',
+    });
+
+    // Version 8: Add customer tables for Member Customer feature
+    // See Member Customer Integration PRD: docs/prd/member-customer-integration.md
+    this.version(8).stores({
+      categories: 'id, storeId, name',
+      products: 'id, storeId, categoryId, sku, barcode, name, hasPromo',
+      stock: 'id, storeId, productId, [storeId+productId]',
+      discounts: 'id, storeId, code, discountScope',
+      transactions: 'clientId, storeId, syncStatus, clientTimestamp, createdAt',
+      syncMeta: 'key',
+      store: 'id',
+      heldOrders: 'id, storeId, cashierId, heldAt, expiresAt',
+      shifts: 'id, storeId, cashierId, status, [storeId+cashierId]',
+      pendingShiftOperations: 'id, shiftId, syncStatus',
+      customerGroups: 'id, priority',
+      customers: 'id, phone, customerGroupId, syncStatus',
+      customerVouchers: 'id, customerId, code, syncStatus',
     });
   }
 }
@@ -521,4 +585,63 @@ export async function markShiftOperationAsFailed(
     syncStatus: 'failed',
     error,
   });
+}
+
+// =============================================================================
+// Customer Helper Functions
+// See Member Customer Integration PRD: docs/prd/member-customer-integration.md
+// =============================================================================
+
+export async function saveCustomer(customer: LocalCustomer): Promise<void> {
+  await db.customers.put(customer);
+}
+
+export async function getCustomerByPhone(phone: string): Promise<LocalCustomer | undefined> {
+  return db.customers
+    .where('phone')
+    .equals(phone)
+    .first();
+}
+
+export async function getCustomerById(id: string): Promise<LocalCustomer | undefined> {
+  return db.customers.get(id);
+}
+
+export async function getCustomerWithGroup(customerId: string): Promise<{ customer: LocalCustomer; group: LocalCustomerGroup | undefined } | undefined> {
+  const customer = await db.customers.get(customerId);
+  if (!customer) return undefined;
+
+  const group = customer.customerGroupId
+    ? await db.customerGroups.get(customer.customerGroupId)
+    : undefined;
+
+  return { customer, group };
+}
+
+export async function saveCustomerGroup(group: LocalCustomerGroup): Promise<void> {
+  await db.customerGroups.put(group);
+}
+
+export async function getAllCustomerGroups(): Promise<LocalCustomerGroup[]> {
+  return db.customerGroups.orderBy('priority').toArray();
+}
+
+export async function getCustomerVouchers(customerId: string): Promise<LocalCustomerVoucher[]> {
+  return db.customerVouchers
+    .where('customerId')
+    .equals(customerId)
+    .filter(v => v.isActive)
+    .toArray();
+}
+
+export async function saveCustomerVoucher(voucher: LocalCustomerVoucher): Promise<void> {
+  await db.customerVouchers.put(voucher);
+}
+
+export async function clearAllCustomers(): Promise<void> {
+  await Promise.all([
+    db.customers.clear(),
+    db.customerGroups.clear(),
+    db.customerVouchers.clear(),
+  ]);
 }

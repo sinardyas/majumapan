@@ -12,6 +12,8 @@ import {
   type LocalDiscount,
   type LocalTransaction,
   type LocalStore,
+  type LocalCustomer,
+  type LocalCustomerGroup,
 } from '@/db';
 import { syncPendingShiftOperations } from '@/db/shifts';
 import { LOCAL_RETENTION_DAYS } from '@pos/shared';
@@ -99,6 +101,24 @@ function transformDiscount(d: Record<string, unknown>): LocalDiscount {
   };
 }
 
+/**
+ * Transforms a customer from API response to local storage format.
+ */
+function transformCustomer(c: Record<string, unknown>): LocalCustomer {
+  return {
+    id: c.id as string,
+    phone: c.phone as string,
+    name: (c.name as string) || null,
+    email: (c.email as string) || null,
+    customerGroupId: (c.customerGroupId as string) || null,
+    totalSpend: String(c.totalSpend ?? 0),
+    visitCount: (c.visitCount as number) ?? 0,
+    createdAt: c.createdAt as string,
+    updatedAt: c.updatedAt as string,
+    syncStatus: 'synced',
+  };
+}
+
 // API response types
 interface FullSyncResponse {
   store: LocalStore;
@@ -106,6 +126,8 @@ interface FullSyncResponse {
   products: LocalProduct[];
   stock: LocalStock[];
   discounts: (LocalDiscount & { productIds?: string[] })[];
+  customerGroups: LocalCustomerGroup[];
+  customers: LocalCustomer[];
   lastSyncTimestamp: string;
 }
 
@@ -115,6 +137,8 @@ interface PullSyncResponse {
     products: { created: LocalProduct[]; updated: LocalProduct[]; deleted: string[] };
     stock: { updated: LocalStock[] };
     discounts: { created: LocalDiscount[]; updated: LocalDiscount[]; deleted: string[] };
+    customerGroups: { created: LocalCustomerGroup[]; updated: LocalCustomerGroup[]; deleted: string[] };
+    customers: { created: LocalCustomer[]; updated: LocalCustomer[]; deleted: string[] };
   };
   lastSyncTimestamp: string;
 }
@@ -183,11 +207,11 @@ class SyncService {
         return { success: false, error: response.error || 'Failed to fetch data' };
       }
 
-      const { store, categories, products, stock, discounts, lastSyncTimestamp } = response.data;
+      const { store, categories, products, stock, discounts, customerGroups, customers, lastSyncTimestamp } = response.data;
 
       // Clear existing data and insert new data in a transaction
       await db.transaction('rw',
-        [db.store, db.categories, db.products, db.stock, db.discounts],
+        [db.store, db.categories, db.products, db.stock, db.discounts, db.customerGroups, db.customers],
         async () => {
           // Clear existing data
           await db.store.clear();
@@ -195,6 +219,8 @@ class SyncService {
           await db.products.clear();
           await db.stock.clear();
           await db.discounts.clear();
+          await db.customerGroups.clear();
+          await db.customers.clear();
 
           // Insert store
           if (store) {
@@ -226,6 +252,16 @@ class SyncService {
             await db.discounts.bulkPut(
               discounts.map(d => transformDiscount(d as unknown as Record<string, unknown>))
             );
+          }
+
+          // Insert customer groups
+          if (customerGroups?.length > 0) {
+            await db.customerGroups.bulkPut(customerGroups);
+          }
+
+          // Insert customers
+          if (customers?.length > 0) {
+            await db.customers.bulkPut(customers.map(c => transformCustomer(c as unknown as Record<string, unknown>)));
           }
         }
       );
@@ -272,7 +308,7 @@ class SyncService {
 
       // Apply changes in a transaction
       await db.transaction('rw', 
-        [db.categories, db.products, db.stock, db.discounts], 
+        [db.categories, db.products, db.stock, db.discounts, db.customerGroups, db.customers], 
         async () => {
           // Categories
           if (changes.categories.created.length > 0) {
@@ -318,6 +354,38 @@ class SyncService {
           }
           if (changes.discounts.deleted.length > 0) {
             await db.discounts.bulkDelete(changes.discounts.deleted);
+          }
+
+          // Customer Groups
+          if (changes.customerGroups.created.length > 0) {
+            await db.customerGroups.bulkPut(changes.customerGroups.created);
+          }
+          if (changes.customerGroups.updated.length > 0) {
+            await db.customerGroups.bulkPut(changes.customerGroups.updated);
+          }
+          if (changes.customerGroups.deleted.length > 0) {
+            await db.customerGroups.bulkDelete(changes.customerGroups.deleted);
+          }
+
+          // Customers
+          if (changes.customers.created.length > 0) {
+            await db.customers.bulkPut(
+              changes.customers.created.map(c => ({
+                ...transformCustomer(c as unknown as Record<string, unknown>),
+                syncStatus: 'synced' as const,
+              }))
+            );
+          }
+          if (changes.customers.updated.length > 0) {
+            await db.customers.bulkPut(
+              changes.customers.updated.map(c => ({
+                ...transformCustomer(c as unknown as Record<string, unknown>),
+                syncStatus: 'synced' as const,
+              }))
+            );
+          }
+          if (changes.customers.deleted.length > 0) {
+            await db.customers.bulkDelete(changes.customers.deleted);
           }
         }
       );

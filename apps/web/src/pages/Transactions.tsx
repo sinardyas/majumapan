@@ -356,9 +356,17 @@ export default function Transactions() {
                   <div className="mt-2">
                     <div className="text-sm font-medium text-gray-500 mb-1">Payment Breakdown:</div>
                     {selectedTransaction.payments?.map((payment, index) => (
-                      <div key={index} className="flex justify-between text-gray-500">
-                        <span className="capitalize">{payment.paymentMethod}</span>
-                        <span>{formatCurrency(payment.amount)}</span>
+                      <div key={index}>
+                        <div className="flex justify-between text-gray-500">
+                          <span className="capitalize">{payment.paymentMethod}</span>
+                          <span>{formatCurrency(payment.amount)}</span>
+                        </div>
+                        {payment.paymentMethod === 'card' && payment.approvalCode && (
+                          <div className="flex justify-between text-gray-400 text-sm pl-4">
+                            <span>Approval Code</span>
+                            <span className="font-mono">{payment.approvalCode}</span>
+                          </div>
+                        )}
                       </div>
                     ))}
                     {selectedTransaction.payments?.some(p => p.changeAmount > 0) && (
@@ -376,6 +384,18 @@ export default function Transactions() {
                       <span>Amount Paid</span>
                       <span>{formatCurrency(selectedTransaction.amountPaid || 0)}</span>
                     </div>
+                    {selectedTransaction.paymentMethod === 'card' && selectedTransaction.approvalCode && (
+                      <div className="flex justify-between text-gray-500">
+                        <span>Approval Code</span>
+                        <span className="font-mono">{selectedTransaction.approvalCode}</span>
+                      </div>
+                    )}
+                    {selectedTransaction.paymentMethod === 'card' && selectedTransaction.cardLast4 && (
+                      <div className="flex justify-between text-gray-500">
+                        <span>Card</span>
+                        <span>**** {selectedTransaction.cardLast4}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-500">
                       <span>Change</span>
                       <span>{formatCurrency(selectedTransaction.changeAmount || 0)}</span>
