@@ -369,8 +369,6 @@ export default function POS() {
         e.preventDefault();
         if (skuSearchResults[popoverSelectedIndex]) {
           handleProductClick(skuSearchResults[popoverSelectedIndex]);
-          setSkuSearchOpen(false);
-          setSkuSearchQuery('');
         }
         break;
       case 'Escape':
@@ -564,7 +562,8 @@ export default function POS() {
     amountPaid: number, 
     isSplitPayment: boolean = false,
     payments?: LocalPayment[],
-    appliedVouchers?: Array<{ voucher: Voucher; amount: number }>
+    appliedVouchers?: Array<{ voucher: Voucher; amount: number }>,
+    approvalCode?: string
   ) => {
     if (!user?.storeId || !user?.id) return;
     
@@ -614,6 +613,7 @@ export default function POS() {
       amountPaid: isSplitPayment ? undefined : amountPaid,
       changeAmount: isSplitPayment ? undefined : changeAmount,
       payments: isSplitPayment ? payments : undefined,
+      approvalCode: isSplitPayment ? payments?.find(p => p.paymentMethod === 'card')?.approvalCode : approvalCode,
       vouchers: appliedVouchers?.map(v => ({
         id: v.voucher.id,
         code: v.voucher.code,
