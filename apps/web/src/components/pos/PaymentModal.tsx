@@ -9,7 +9,7 @@ import { formatCurrency } from '@/hooks/useCurrencyConfig';
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (paymentMethod: PaymentMethod, amountPaid: number, isSplitPayment: boolean, payments?: LocalPayment[], vouchers?: Array<{ voucher: Voucher; amount: number }>) => void;
+  onConfirm: (paymentMethod: PaymentMethod, amountPaid: number, isSplitPayment: boolean, payments?: LocalPayment[], vouchers?: Array<{ voucher: Voucher; amount: number }>, approvalCode?: string) => void;
   total: number;
   cartItems?: Array<{ id: string; productId: string; categoryId?: string; price: number; quantity: number }>;
 }
@@ -19,6 +19,7 @@ interface LocalPayment {
   paymentMethod: 'cash' | 'card';
   amount: number;
   changeAmount: number;
+  approvalCode?: string;
 }
 
 interface AppliedVoucher {
@@ -30,6 +31,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('cash');
   const [amountPaid, setAmountPaid] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [approvalCode, setApprovalCode] = useState<string>('');
+  const [approvalCodeError, setApprovalCodeError] = useState<string>('');
   const [isSplitMode, setIsSplitMode] = useState(false);
   const [payments, setPayments] = useState<LocalPayment[]>([]);
   const [appliedVouchers, setAppliedVouchers] = useState<AppliedVoucher[]>([]);
@@ -61,6 +64,8 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
       setPaymentMethod('cash');
       setAmountPaid('');
       setError('');
+      setApprovalCode('');
+      setApprovalCodeError('');
       setIsSplitMode(false);
       setPayments([]);
       setAppliedVouchers([]);
@@ -118,6 +123,16 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
     setError('');
   }, [remainingAmount]);
 
+  const updatePaymentApprovalCode = useCallback((id: string, code: string) => {
+    setPayments(prev => prev.map(p => {
+      if (p.id === id) {
+        return { ...p, approvalCode: code };
+      }
+      return p;
+    }));
+    setError('');
+  }, []);
+
   const handleConfirm = useCallback(() => {
     if (isSplitMode) {
       if (payments.length === 0) {
@@ -138,6 +153,12 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
         return;
       }
 
+      const cardPayment = payments.find(p => p.paymentMethod === 'card');
+      if (cardPayment && !cardPayment.approvalCode?.trim()) {
+        setError('Approval code is required for card payments');
+        return;
+      }
+
       onConfirm('cash', totalPaidSplit, true, payments, appliedVouchers);
     } else {
       if (!isValidPayment) {
@@ -145,10 +166,15 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
         return;
       }
 
+      if (paymentMethod === 'card' && !approvalCode.trim()) {
+        setApprovalCodeError('Approval code is required for card payments');
+        return;
+      }
+
       const finalAmount = paymentMethod === 'card' ? finalTotal : numericAmount;
-      onConfirm(paymentMethod, finalAmount, false, undefined, appliedVouchers);
+      onConfirm(paymentMethod, finalAmount, false, undefined, appliedVouchers, paymentMethod === 'card' ? approvalCode : undefined);
     }
-  }, [isSplitMode, payments, finalTotal, isValidPayment, paymentMethod, numericAmount, remainingAmount, onConfirm, appliedVouchers]);
+  }, [isSplitMode, payments, finalTotal, isValidPayment, paymentMethod, numericAmount, remainingAmount, onConfirm, appliedVouchers, approvalCode]);
 
   const handleKeypadClick = useCallback((value: string) => {
     if (value === 'C') {
@@ -322,13 +348,22 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
                         )}
                       </div>
                     ) : (
-                      <input
-                        type="number"
-                        value={payment.amount || ''}
-                        onChange={(e) => updatePaymentAmount(payment.id, parseFloat(e.target.value) || 0)}
-                        placeholder="Card amount"
-                        className="w-full p-2 border rounded-lg text-right font-mono text-xl"
-                      />
+                      <div className="space-y-2">
+                        <input
+                          type="number"
+                          value={payment.amount || ''}
+                          onChange={(e) => updatePaymentAmount(payment.id, parseFloat(e.target.value) || 0)}
+                          placeholder="Card amount"
+                          className="w-full p-2 border rounded-lg text-right font-mono text-xl"
+                        />
+                        <input
+                          type="text"
+                          value={payment.approvalCode || ''}
+                          onChange={(e) => updatePaymentApprovalCode(payment.id, e.target.value)}
+                          placeholder="Approval code *"
+                          className="w-full p-2 border rounded-lg font-mono text-sm"
+                        />
+                      </div>
                     )}
                   </div>
                 ))}
@@ -418,9 +453,30 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
                 )}
 
                 {paymentMethod === 'card' && (
-                  <div className="text-center py-8">
-                    <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-500">Card payment of {formatCurrency(finalTotal)}</p>
+                  <div className="space-y-4">
+                    <div className="text-center py-4">
+                      <CreditCard className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-500">Card payment of {formatCurrency(finalTotal)}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Approval Code <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={approvalCode}
+                        onChange={(e) => {
+                          setApprovalCode(e.target.value);
+                          setApprovalCodeError('');
+                        }}
+                        placeholder="Enter code from EDC receipt"
+                        className="w-full p-3 border rounded-lg font-mono text-lg"
+                        autoFocus
+                      />
+                      {approvalCodeError && (
+                        <p className="mt-1 text-sm text-red-600">{approvalCodeError}</p>
+                      )}
+                    </div>
                   </div>
                 )}
               </>
@@ -440,7 +496,13 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total, cartItems = []
             <Button
               className="flex-1"
               onClick={handleConfirm}
-              disabled={isSplitMode ? payments.length === 0 : !isValidPayment}
+              disabled={
+                isSplitMode
+                  ? payments.length === 0 || (payments.some(p => p.paymentMethod === 'card') && !payments.find(p => p.paymentMethod === 'card')?.approvalCode?.trim())
+                  : paymentMethod === 'card'
+                    ? !approvalCode.trim() || !isValidPayment
+                    : !isValidPayment
+              }
             >
               {isSplitMode ? `Pay ${formatCurrency(totalPaid)}` : `Pay ${formatCurrency(finalTotal)}`}
             </Button>

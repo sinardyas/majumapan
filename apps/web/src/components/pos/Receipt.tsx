@@ -176,6 +176,12 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
               <span>Payment Method:</span>
               <span className="uppercase">{transaction.paymentMethod}</span>
             </div>
+            {transaction.paymentMethod === 'card' && transaction.approvalCode && (
+              <div className="flex justify-between">
+                <span>Approval Code:</span>
+                <span className="font-mono">{transaction.approvalCode}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span>Amount Paid:</span>
               <span>{formatCurrency(transaction.amountPaid || 0)}</span>
@@ -192,13 +198,21 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
           <div className="mb-4">
             <div className="font-bold mb-2">PAYMENT BREAKDOWN</div>
             {transaction.payments?.map((payment, index) => (
-              <div key={index} className="flex justify-between">
-                <span>
-                  {payment.paymentMethod === 'cash' ? 'Cash' : 'Card'}:
-                </span>
-                <span>
-                  {formatCurrency(payment.amount)}
-                </span>
+              <div key={index}>
+                <div className="flex justify-between">
+                  <span>
+                    {payment.paymentMethod === 'cash' ? 'Cash' : 'Card'}:
+                  </span>
+                  <span>
+                    {formatCurrency(payment.amount)}
+                  </span>
+                </div>
+                {payment.paymentMethod === 'card' && payment.approvalCode && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>  Approval Code:</span>
+                    <span className="font-mono">{payment.approvalCode}</span>
+                  </div>
+                )}
               </div>
             ))}
             {(transaction.payments?.some(p => p.changeAmount > 0)) && (
