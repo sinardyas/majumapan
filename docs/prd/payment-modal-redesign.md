@@ -1,8 +1,8 @@
 # Product Requirements Document: Payment Modal Redesign
 
-**Document Version:** 1.0  
+**Document Version:** 1.1  
 **Last Updated:** 2026-02-05  
-**Status:** Draft - Pending Implementation  
+**Status:** In Implementation  
 **Related PRD:** Member Customer Integration for POS
 
 ---
@@ -96,11 +96,19 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 
 #### 2.2.3 Payment Entry Form
 
-| Field | Required | Shown For |
-|-------|----------|-----------|
-| Amount | Yes | All methods |
-| Card Number | No | Debit, Credit |
-| Voucher Code | No | Voucher |
+| Field | Required | Shown For | Focus Behavior |
+|-------|----------|-----------|----------------|
+| Amount | Yes | All methods | Click/tap to focus, keypad types here |
+| Card Number | No | Debit, Credit | Click/tap to focus, keypad types here |
+| Voucher Code | No | Voucher | Click/tap to focus, keypad types here |
+
+**Focus Management:**
+- Input fields are clickable/tappable (no `readOnly`)
+- Clicking/tapping a field sets it as focused
+- Keypad numbers are routed to the focused field
+- Focused field has visual indicator (blue border/ring)
+- Focus is cleared after adding a payment
+- Focus is cleared when switching tabs
 
 #### 2.2.4 Breakdown Table
 
@@ -166,19 +174,37 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 - Look up voucher balance (future enhancement)
 - Auto-fill amount from voucher (future enhancement)
 
+### 3.2.1 Focus Management
+
+#### FR-005a: Click-to-Focus
+- Input fields (Amount, Card Number, Voucher Code) are clickable/tappable
+- Clicking a field sets it as the focused field
+- Keypad numbers are routed to the focused field
+
+#### FR-005b: Visual Focus Indicator
+- Focused field has visual highlight (blue border/ring)
+- Provides clear feedback on which field will receive keypad input
+
+#### FR-005c: Focus Behavior
+- Focus is cleared when switching tabs (defaults to Amount field)
+- Focus is cleared after adding a payment
+- Focus is cleared when clicking CANCEL
+- No focus = keypad numbers are ignored (or default to Amount)
+
 ### 3.3 Add Payment
 
 #### FR-006: Validation
 - Amount must be greater than 0
-- Card number required for Debit/Credit (validation TBD)
-- Voucher code required for Voucher (validation TBD)
+- Card number is optional for Debit/Credit (if entered, must be at least 4 digits)
+- Voucher code is optional (if entered, must be at least 4 characters)
 
 #### FR-007: Add to Table
 - Clicking ADD adds payment to breakdown table
 - Generate unique ID for each payment entry
 - Update payment total
-- Clear form fields after successful add
-- Switch to first tab after add (optional)
+- Clear all form fields after successful add
+- Clear focus after adding a payment
+- Switch to Amount field of first tab after add
 
 ### 3.4 Split Payments
 
@@ -275,13 +301,14 @@ apps/web/src/
 ### 5.2 Component Structure
 
 ```tsx
-export function PaymentModalNew({ isOpen, onClose, onConfirm, total, cartItems }: PaymentModalNewProps) {
+export function PaymentModalNew({ isOpen, onClose, onConfirm, total }: PaymentModalNewProps) {
   // State
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
-Tab, setSelected  const [selectedTab] = useState<'cash' | 'debit' | 'credit' | 'voucher'>('cash');
+  const [selectedTab, setSelectedTab] = useState<'cash' | 'debit' | 'credit' | 'voucher'>('cash');
   const [amount, setAmount] = useState('');
   const [cardNumber, setCardNumber] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
+  const [focusedField, setFocusedField] = useState<'amount' | 'card' | 'voucher' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Computed
@@ -528,6 +555,7 @@ Receipt printing
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-02-05 | Initial draft |
+| 1.1 | 2026-02-05 | Added focus management: click-to-focus input fields, visual focus indicator, keypad routes to focused field |
 
 ---
 
