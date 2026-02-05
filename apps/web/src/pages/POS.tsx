@@ -14,7 +14,7 @@ import {
 import { useToast } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
-import { PaymentModal } from '@/components/pos/PaymentModal';
+import { PaymentModalNew } from '@/components/pos/PaymentModalNew';
 import { Receipt } from '@/components/pos/Receipt';
 import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
 import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
@@ -994,17 +994,22 @@ export default function POS() {
         )}
       </div>
 
-      <PaymentModal
+      <PaymentModalNew
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        onConfirm={handlePaymentConfirm}
+        onConfirm={(payments) => {
+          const isSplit = payments.length > 1;
+          const paymentsArray: LocalPayment[] = payments.map(p => ({
+            id: crypto.randomUUID(),
+            paymentMethod: p.type === 'cash' ? 'cash' : 'card',
+            amount: p.amount,
+            changeAmount: 0,
+            approvalCode: p.type !== 'cash' ? p.cardNumber : undefined,
+          }));
+          const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+          handlePaymentConfirm('cash', totalPaid, isSplit, paymentsArray, [], undefined);
+        }}
         total={total}
-        cartItems={items.map(item => ({
-          id: item.productId,
-          productId: item.productId,
-          price: item.unitPrice,
-          quantity: item.quantity,
-        }))}
       />
 
       {showReceipt && completedTransaction && (
