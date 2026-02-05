@@ -1,8 +1,8 @@
 # Product Requirements Document: Member Customer Integration for POS
 
-**Document Version:** 1.1  
-**Last Updated:** 2026-02-04  
-**Status:** In Progress (Phases 1-2 Complete)  
+**Document Version:** 1.5  
+**Last Updated:** 2026-02-05  
+**Status:** Completed (All Phases Complete - UX Updated)  
 
 ---
 
@@ -79,42 +79,41 @@ Add member customer functionality to the POS system that allows:
 
 ### 3.1 Customer Lookup Flow
 
+**UX Approach:** Inline lookup in CartSidebar (optional, non-blocking)
+
 ```
 Preconditions:
 - Cart has items (or empty cart)
-- Cashier initiates transaction
+- Cashier adds items to cart
 
 Steps:
-1. Customer Lookup Modal appears
-2. Cashier enters phone number (10-20 digits)
-3. System searches for matching customer:
+1. Member Lookup section visible in CartSidebar below header
+2. Phone input always visible - cashier can enter number or leave blank
+3. Cashier clicks "Lookup" or presses Enter
+4. System searches for matching customer:
    a) Online: Query API `/api/v1/customers/phone/:phone`
    b) Offline: Search local IndexedDB
 
 Scenario A - Customer Found:
-4a. Display customer info:
+5a. Display customer info inline:
     - Name (or "Member" if no name)
-    - Phone (masked)
+    - Phone number
     - Group badge (e.g., "Gold Member")
-    - Visit count and total spend
-    - Available vouchers
-5a. Cashier can:
-    - Apply member vouchers
-    - Proceed to checkout
-    - Skip (continue without customer)
-    - Clear selection
+    - Clear (X) button to remove selection
+6a. Customer automatically associated with transaction
+7a. Cashier proceeds with payment
 
 Scenario B - Customer NOT Found:
-4b. Show "Register New Member" option
-5b. Cashier asks for additional info:
-    - Full name (required)
-    - Email (optional)
-6b. Customer created with:
-    - Phone from lookup
-    - Provided name/email
-    - Auto-assigned to Bronze group
-7b. Display new member info
-8b. Proceed with transaction
+5b. Show error message: "Customer not found. Leave blank to skip."
+6b. Cashier can:
+    - Enter different phone number
+    - Leave blank to continue without customer
+
+Scenario C - No Customer Selected (Default):
+- Phone input left blank
+- Transaction proceeds without customer reference
+- Cashier simply continues to payment
+```
 
 Alternative:
 4c. Cashier can "Skip" to continue without customer
@@ -142,62 +141,51 @@ Alternative:
 
 ## 4. User Interface Design
 
-### 4.1 Customer Lookup Modal
+### 4.1 Member Lookup Section (Inline in CartSidebar)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Member Lookup                          │
+│ 🛒 Current Order                                   [+]: │
 ├─────────────────────────────────────────────────────────┤
-│                                                          │
-│   Phone Number                                           │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ 081234567890                                 [X] │   │
-│   └─────────────────────────────────────────────────┘   │
-│                                                          │
-│   ┌──────────────────┐  ┌──────────────────┐           │
-│   │   [Search]       │  │   [Skip]         │           │
-│   └──────────────────┘  └──────────────────┘           │
-│                                                          │
-│   ──────────────────────────────────────────────────    │
-│                                                          │
-│   [RESULT: Customer Found]                               │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ 👤 John Doe                                     │   │
-│   │ 📱 ****567890                                   │   │
-│   │ 🏆 Gold Member (Visit: 15, Spend: $1,250)      │   │
-│   │ 🎁 3 Vouchers Available                         │   │
-│   │                                                  │   │
-│   │ ☑ VOUCHER10 - 10% off            [Apply]    │   │
-│   │ ☑ VOUCHER25 - $25 off              [Apply]  │   │
-│   │ ☑ GIFTCARD100 - Balance: $100       [Apply]  │   │
-│   └─────────────────────────────────────────────────┘   │
-│                                                          │
-│   [Continue as Member]    [Skip]    [Clear]              │
+│ 👤 Member Lookup (Optional)                              │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ 📞 [Enter phone number...]                    [Lookup]│ │
+│ └─────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│ ☑ Wireless Earbuds                                 1×  │
+│      $49.99                                              │
+├─────────────────────────────────────────────────────────┤
+│ ☑ USB-C Cable                                       2×  │
+│      $12.99                                              │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 New Member Registration
+**Features:**
+- Always visible below Current Order header
+- Phone input field with "Lookup" button
+- Optional - leave blank to skip member lookup
+- Inline customer display when found (yellow badge)
+
+### 4.2 Customer Found State
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│               Register New Member                          │
+│ 🛒 Current Order                                   [+]: │
 ├─────────────────────────────────────────────────────────┤
-│                                                          │
-│   Phone: 081234567890 (auto-filled from lookup)         │
-│                                                          │
-│   Full Name *                                            │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ John Doe                                         │   │
-│   └─────────────────────────────────────────────────┘   │
-│                                                          │
-│   Email (Optional)                                       │
-│   ┌─────────────────────────────────────────────────┐   │
-│   │ john@example.com                                │   │
-│   └─────────────────────────────────────────────────┘   │
-│                                                          │
-│   ┌──────────────────┐  ┌──────────────────┐           │
-│   │   [Cancel]       │  │   [Register]     │           │
-│   └──────────────────┘  └──────────────────┘           │
+│ 👤 Member Lookup (Optional)                              │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │ ⭐ John Doe • Gold Member                    [✕]     │ │
+│ └─────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│ ☑ Item 1                                            1×  │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Features:**
+- Yellow background highlight
+- Star icon + name + tier badge
+- Clear (X) button to remove customer
+```
 │                                                          │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -308,29 +296,31 @@ interface CustomerVoucher {
 | `apps/web/src/services/customer-lookup.ts` | Hybrid online/offline lookup (NEW) |
 | `apps/web/src/db/index.ts` | Add IndexedDB stores |
 
-#### Phase 3: Customer Lookup UI
+#### Phase 3: Customer Lookup UI ✅ COMPLETED
 | File | Change |
 |------|--------|
-| `apps/web/src/components/pos/CustomerLookup.tsx` | Enhance for full workflow |
-| `apps/web/src/components/pos/CustomerRegistration.tsx` | New registration modal |
+| `apps/web/src/components/pos/CustomerLookupModal.tsx` | Customer lookup modal component (NEW) |
+| `apps/web/src/services/customer-lookup.ts` | Hybrid lookup service |
 
-#### Phase 4: Cart Integration
+#### Phase 4: Cart Integration ✅ COMPLETED
 | File | Change |
 |------|--------|
-| `apps/web/src/stores/cartStore.ts` | Add customer state |
-| `apps/web/src/components/pos/CurrentOrder.tsx` | Show member info |
+| `apps/web/src/stores/cartStore.ts` | Added `selectedCustomer` state and actions |
+| `apps/web/src/components/pos/CurrentOrder.tsx` | Show member info in order header |
 
-#### Phase 5: POS Integration
+#### Phase 5: POS Integration ✅ COMPLETED
 | File | Change |
 |------|--------|
-| `apps/web/src/pages/POS.tsx` | Integrate lookup before payment |
-| `apps/web/src/components/pos/PaymentModal.tsx` | Pass customer to transaction |
+| `apps/web/src/pages/POS.tsx` | Integrated lookup before payment flow |
+| `apps/web/src/components/pos/MemberLookupSection.tsx` | Inline member lookup component (NEW) |
 
-#### Phase 6: Receipt & Transaction
+#### Phase 6: Receipt & Transaction ✅ COMPLETED
 | File | Change |
 |------|--------|
-| `apps/web/src/components/pos/Receipt.tsx` | Print member info |
-| `apps/web/src/pages/Transactions.tsx` | Show customer in transaction detail |
+| `apps/web/src/db/index.ts` | Added customer fields to LocalTransaction |
+| `apps/web/src/pages/POS.tsx` | Include customer in transaction, update stats |
+| `apps/web/src/components/pos/Receipt.tsx` | Print member info on receipt |
+| `apps/web/src/pages/Transactions.tsx` | Display member info in transaction detail modal |
 
 ---
 
@@ -569,17 +559,44 @@ describe('Cart Integration', () => {
 
 ---
 
-### Phase 3: Customer Registration
-- Create registration modal
-- Handle online and offline registration
+### Phase 3: Member Lookup UI ✅ COMPLETED
+- Create inline MemberLookupSection component
+- Display in CartSidebar below header
 
-### Phase 4: Cart & POS Integration
-- Add customer state to cart
-- Integrate lookup before payment
+**Files Created:**
+| File | Description |
+|------|-------------|
+| `apps/web/src/components/pos/MemberLookupSection.tsx` | Inline member lookup component |
 
-### Phase 5: Receipt & Transaction
-- Print member info on receipts
-- Show customer in transaction detail
+**Features:**
+- Compact phone input field
+- Inline customer display with tier badge
+- Clear button to remove selection
+- Always visible, optional input
+
+---
+
+### Phase 4: Cart Integration ✅ COMPLETED
+- Integrate MemberLookupSection into CurrentOrder
+- Remove CustomerLookupModal component
+
+**Files Modified:**
+| File | Changes |
+|------|---------|
+| `apps/web/src/components/pos/CurrentOrder.tsx` | Added MemberLookupSection below header |
+| `apps/web/src/components/pos/CustomerLookupModal.tsx` | Deleted (replaced by inline component) |
+
+---
+
+### Phase 5 & 6: Receipt & Transaction ✅ COMPLETED
+| `apps/web/src/components/pos/CustomerLookupModal.tsx` | Removed (replaced by inline component) |
+
+---
+
+### Phase 5 & 6: Receipt & Transaction ✅ COMPLETED
+- Customer fields added to transaction record
+- Member info printed on receipts
+- Customer stats (totalSpend, visitCount) updated after transaction
 
 ---
 
@@ -611,6 +628,10 @@ describe('Cart Integration', () => {
 |---------|------|---------|
 | 1.0 | 2026-02-04 | Initial draft |
 | 1.1 | 2026-02-04 | Implemented Phases 1 & 2: Database schema, sync service, customer lookup service |
+| 1.2 | 2026-02-05 | Implemented Phases 3-5: Customer lookup modal, cart integration, POS integration |
+| 1.3 | 2026-02-05 | Completed all phases: Receipt integration, transaction customer fields, stats update |
+| 1.4 | 2026-02-05 | UX Updated: Replaced modal with inline MemberLookupSection in CartSidebar |
+| 1.5 | 2026-02-05 | Added member info display in Transaction Detail modal |
 
 ---
 

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { db, type LocalTransaction } from '@/db';
 import { Button } from '@pos/ui';
-import { AlertTriangle, X, Clipboard, RefreshCw, Gift } from 'lucide-react';
+import { AlertTriangle, X, Clipboard, RefreshCw, Gift, Star } from 'lucide-react';
 import { RefundModal } from '@/components/pos/RefundModal';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
 
@@ -253,8 +253,22 @@ export default function Transactions() {
                 <div>
                   <p className="text-sm text-gray-500">Status</p>
                   <p className="capitalize">{selectedTransaction.status}</p>
-                </div>
+                  </div>
               </div>
+
+              {/* Customer Info */}
+              {selectedTransaction.customerName && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Member</p>
+                  <div className="bg-yellow-50 rounded-lg p-4 flex items-center gap-3">
+                    <Star className="h-5 w-5 text-yellow-600" />
+                    <div>
+                      <p className="font-medium text-gray-900">{selectedTransaction.customerName}</p>
+                      <p className="text-sm text-gray-600">{selectedTransaction.customerPhone}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Items */}
               <div>
