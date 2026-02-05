@@ -68,6 +68,23 @@ export const Receipt = forwardRef<HTMLDivElement, ReceiptProps>(
         {/* Divider */}
         <div className="border-t border-dashed border-gray-400 my-2" />
 
+        {/* Customer Info */}
+        {transaction.customerName && (
+          <>
+            <div className="mb-4">
+              <div className="flex justify-between">
+                <span>Member:</span>
+                <span className="font-medium">{transaction.customerName}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>Phone:</span>
+                <span>{transaction.customerPhone}</span>
+              </div>
+            </div>
+            <div className="border-t border-dashed border-gray-400 my-2" />
+          </>
+        )}
+
         {/* Items */}
         <div className="mb-4">
           <table className="w-full">

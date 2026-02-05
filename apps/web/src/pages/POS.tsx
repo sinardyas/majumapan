@@ -621,6 +621,10 @@ export default function POS() {
         amountApplied: v.amount,
       })),
       voucherDiscountAmount: appliedVouchers?.reduce((sum, v) => sum + v.amount, 0) || 0,
+      customerId: useCartStore.getState().selectedCustomer?.customer.id,
+      customerName: useCartStore.getState().selectedCustomer?.customer.name || undefined,
+      customerPhone: useCartStore.getState().selectedCustomer?.customer.phone,
+      customerGroupId: useCartStore.getState().selectedCustomer?.group?.id,
       status: 'completed',
       syncStatus: isOnline ? 'pending' : 'pending',
       clientTimestamp: now,
@@ -649,6 +653,19 @@ export default function POS() {
           } catch (voucherError) {
             console.error('Error marking voucher as used:', voucherError);
           }
+        }
+      }
+      
+      const currentCustomer = useCartStore.getState().selectedCustomer;
+      if (currentCustomer?.customer.id) {
+        try {
+          await db.customers.update(currentCustomer.customer.id, {
+            totalSpend: String(Number(currentCustomer.customer.totalSpend) + total),
+            visitCount: (currentCustomer.customer.visitCount || 0) + 1,
+            updatedAt: now,
+          });
+        } catch (customerError) {
+          console.error('Error updating customer stats:', customerError);
         }
       }
       
@@ -965,7 +982,7 @@ export default function POS() {
               onApplyDiscount={handleApplyDiscount}
               onClearCart={clearCart}
               onHoldOrder={() => setShowHoldModal(true)}
-              onPay={() => setShowPaymentModal(true)}
+            onPay={() => setShowPaymentModal(true)}
               cashierName={user?.name || 'Unknown'}
               heldOrdersCount={heldOrdersCount}
               onOpenHeldOrders={() => setShowHeldOrdersList(true)}

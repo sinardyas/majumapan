@@ -113,6 +113,10 @@ export interface LocalTransaction {
     amountApplied: number;
   }>;
   voucherDiscountAmount?: number;
+  customerId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerGroupId?: string;
   status: 'completed' | 'voided' | 'pending_sync';
   syncStatus: 'pending' | 'synced' | 'failed' | 'rejected';
   rejectionReason?: string;

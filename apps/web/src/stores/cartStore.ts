@@ -7,6 +7,7 @@ import {
   deleteHeldOrder as deleteHeldOrderFromDb,
   type HeldOrder,
 } from '@/db';
+import { type CustomerWithGroup } from '@/services/customer-lookup';
 
 const CART_SYNC_CHANNEL = 'pos-cart-sync';
 const channel = typeof BroadcastChannel !== 'undefined' 
@@ -99,6 +100,9 @@ interface CartState {
   // Hold Order state
   resumedOrderInfo: ResumedOrderInfo | null;
 
+  // Member customer state
+  selectedCustomer: CustomerWithGroup | null;
+
   // Actions
   addItem: (item: Omit<CartItem, 'subtotal'>) => void;
   updateItemQuantity: (productId: string, quantity: number) => void;
@@ -120,6 +124,9 @@ interface CartState {
     revalidateDiscount: (discount: CartDiscount) => Promise<boolean>
   ) => Promise<ResumeOrderResult>;
   clearResumedOrderInfo: () => void;
+
+  // Member customer actions
+  setSelectedCustomer: (customer: CustomerWithGroup | null) => void;
 
   // EOD Pending Cart actions
   serializeCartForPending: (
@@ -228,6 +235,7 @@ export const useCartStore = create<CartState>()(
       total: 0,
       totalPromoDiscount: 0,
       resumedOrderInfo: null,
+      selectedCustomer: null,
 
       addItem: (newItem) => {
         const items = get().items;
@@ -302,6 +310,7 @@ export const useCartStore = create<CartState>()(
           total: 0,
           totalPromoDiscount: 0,
           resumedOrderInfo: null,
+          selectedCustomer: null,
         });
         broadcastCartState(get());
       },
@@ -464,6 +473,11 @@ export const useCartStore = create<CartState>()(
 
       clearResumedOrderInfo: () => {
         set({ resumedOrderInfo: null });
+        broadcastCartState(get());
+      },
+
+      setSelectedCustomer: (customer) => {
+        set({ selectedCustomer: customer });
         broadcastCartState(get());
       },
 

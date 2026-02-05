@@ -3,6 +3,7 @@ import { Button } from '@pos/ui';
 import { X, Plus, Minus, ClipboardList, User, Clock } from 'lucide-react';
 import type { CartItem, CartDiscount } from '@/stores/cartStore';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
+import { MemberLookupSection } from './MemberLookupSection';
 
 function formatDateTime(date: Date): string {
   return new Intl.DateTimeFormat('en-US', {
@@ -327,6 +328,8 @@ export function CurrentOrder({
           )}
         </button>
       </div>
+
+      <MemberLookupSection />
 
       {showItemsList && (
         <div className="flex-1 min-h-0">
