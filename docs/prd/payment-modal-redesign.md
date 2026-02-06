@@ -1,8 +1,8 @@
 # Product Requirements Document: Payment Modal Redesign
 
-**Document Version:** 1.1  
-**Last Updated:** 2026-02-05  
-**Status:** In Implementation  
+**Document Version:** 1.4  
+**Last Updated:** 2026-02-07  
+**Status:** Completed  
 **Related PRD:** Member Customer Integration for POS
 
 ---
@@ -48,9 +48,10 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 │  ════════════════════════════════════════════════════════════════════════════   │
 │                                                                                 │
 │  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │  AMOUNT: [_________________]                                            │   │
-│  │  [Card Number: _____________________] (for debit/credit)                │   │
-│  │  [Voucher Code: ____________] (for voucher)                            │   │
+│  │  AMOUNT: [_________________]  (Cash/Debit/Credit)                     │   │
+│  │  APPROVAL CODE: [_____________]  (Debit/Credit ONLY - EDC transaction)│   │
+│  │  VOUCHER CODE: [_____________]  (Voucher ONLY - Amount auto-filled)   │   │
+│  │  Voucher Balance: [ 50,000 ]  (shown when voucher code entered)         │   │
 │  │                                                                         │   │
 │  │                                                           [    ADD    ]  │   │
 │  └─────────────────────────────────────────────────────────────────────────┘   │
@@ -59,12 +60,12 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 │                                         │                                     │
 │  BREAKDOWN TABLE                        │  NUMERIC KEYPAD (full height)       │
 │  ┌───────────────────────────┐           │                                     │
-│  │ PAYMENT │ AMOUNT │ CARD  │           │      ┌───┬───┬───┐              │
-│  ├─────────┼────────┼────────┤           │      │ 1 │ 2 │ 3 │              │
-│  │ Cash   │ 50,000 │        │           │      ├───┼───┼───┤              │
-│  │ Debit  │ 30,000 │ 908309 │           │      │ 4 │ 5 │ 6 │              │
-│  │ Credit │ 43,527 │1902999 │           │      ├───┼───┼───┤              │
-│  └─────────┴────────┴────────┘           │      │ 7 │ 8 │ 9 │              │
+│  │ PAYMENT │ AMOUNT │ APPROVAL│           │      ┌───┬───┬───┐              │
+│  ├─────────┼────────┼─────────┤           │      │ 1 │ 2 │ 3 │              │
+│  │ Cash   │ 50,000 │         │           │      ├───┼───┼───┤              │
+│  │ Debit  │ 30,000 │ 908309  │           │      │ 4 │ 5 │ 6 │              │
+│  │ Credit │ 43,527 │1902999  │           │      ├───┼───┼───┤              │
+│  └─────────┴────────┴─────────┘           │      │ 7 │ 8 │ 9 │              │
 │                                         │      ├───┼───┼───┤              │
 │  ╔═══════════════════════════════════╗  │      │ . │ 0 │ C │              │
 │  ║  PAYMENT TOTAL:     123,527     ║  │      └───┴───┴───┘              │
@@ -90,8 +91,8 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 | Tab | Icon | Fields Shown |
 |-----|------|-------------|
 | **Cash** | ○ | Amount only |
-| **Debit** | ■ | Amount + Card Number |
-| **Credit** | ⊟ | Amount + Card Number |
+| **Debit** | ■ | Amount + Approval Code |
+| **Credit** | ⊟ | Amount + Approval Code |
 | **Voucher** | ⊞ | Voucher Code (amount auto-filled) |
 
 #### 2.2.3 Payment Entry Form
@@ -99,8 +100,8 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 | Field | Required | Shown For | Focus Behavior |
 |-------|----------|-----------|----------------|
 | Amount | Yes | All methods | Click/tap to focus, keypad types here |
-| Card Number | No | Debit, Credit | Click/tap to focus, keypad types here |
-| Voucher Code | No | Voucher | Click/tap to focus, keypad types here |
+| Approval Code | Yes | Debit, Credit | Click/tap to focus, keypad types here (EDC transaction code) |
+| Voucher Code | Yes | Voucher | Click/tap to focus, keypad types here |
 
 **Focus Management:**
 - Input fields are clickable/tappable (no `readOnly`)
@@ -164,39 +165,52 @@ Redesign the Payment Modal in the POS system to provide a more intuitive, tablet
 - Validate amount is greater than 0
 - Validate amount is a valid number (max 2 decimal places)
 
-#### FR-004: Card Number Entry
-- Optional field for Debit/Credit
-- Auto-focus after amount when card method selected
-- Store only last 4 digits for display
+#### FR-004: Approval Code Entry (Debit/Credit)
+- **Required field** for Debit/Credit payments
+- Enter EDC transaction approval code from card terminal
+- Auto-focus after amount when debit/credit method selected
 
 #### FR-005: Voucher Code Entry
-- Optional field for Voucher method
-- Look up voucher balance (future enhancement)
-- Auto-fill amount from voucher (future enhancement)
+- **Amount field is HIDDEN** for voucher tab - cashier only enters voucher code
+- Lookup voucher balance automatically when code is entered (4+ characters)
+- Display voucher balance below the input field
+- Amount is auto-filled from voucher balance
+- Validate voucher has balance before adding
+- **Gift Card (GC) vs Promotional (PR):**
+  - GC vouchers: Proceed with payment flow
+  - PR vouchers: Show error "This is a discount voucher. Apply as cart discount first."
+- **Multiple Gift Cards:**
+  - Unlimited GC vouchers can be added to a single transaction
+  - Same GC voucher cannot be added twice (frontend validation)
+  - Backend also validates via `/use` endpoint
+  - Breakdown table groups same vouchers: "Gift Card (2x)"
+  - Single remove button (✕) removes all instances of that voucher
 
 ### 3.2.1 Focus Management
 
-#### FR-005a: Click-to-Focus
+#### FM-001: Click-to-Focus
 - Input fields (Amount, Card Number, Voucher Code) are clickable/tappable
 - Clicking a field sets it as the focused field
 - Keypad numbers are routed to the focused field
 
-#### FR-005b: Visual Focus Indicator
+#### FM-002: Visual Focus Indicator
 - Focused field has visual highlight (blue border/ring)
 - Provides clear feedback on which field will receive keypad input
 
-#### FR-005c: Focus Behavior
-- Focus is cleared when switching tabs (defaults to Amount field)
+#### FM-003: Focus Behavior
+- For Cash/Debit/Credit: Focus defaults to Amount field
+- For Voucher: Focus defaults to Voucher Code field
 - Focus is cleared after adding a payment
+- Focus is cleared when switching tabs
 - Focus is cleared when clicking CANCEL
-- No focus = keypad numbers are ignored (or default to Amount)
 
 ### 3.3 Add Payment
 
 #### FR-006: Validation
-- Amount must be greater than 0
-- Card number is optional for Debit/Credit (if entered, must be at least 4 digits)
-- Voucher code is optional (if entered, must be at least 4 characters)
+- Amount must be greater than 0 (Cash/Debit/Credit)
+- Approval code is required for Debit/Credit
+- Voucher code must be at least 4 characters
+- Voucher must have positive balance
 
 #### FR-007: Add to Table
 - Clicking ADD adds payment to breakdown table
@@ -259,7 +273,7 @@ interface PaymentEntry {
   id: string;
   type: 'cash' | 'debit' | 'credit' | 'voucher';
   amount: number;
-  cardNumber?: string;    // Last 4 digits only
+  approvalCode?: string;    // EDC transaction approval code for card payments
   voucherCode?: string;
   createdAt: string;
 }
@@ -406,7 +420,7 @@ export function PaymentModalNew({ isOpen, onClose, onConfirm, total }: PaymentMo
 6. Cash payment appears in breakdown table
 7. Select "CREDIT" tab
 8. Type 73,527 using keypad
-9. Enter card number: 9083091321
+9. Enter approval code: 908309
 10. Click ADD
 11. Credit payment appears in breakdown table
 12. Payment Total: 123,527
@@ -441,7 +455,11 @@ export function PaymentModalNew({ isOpen, onClose, onConfirm, total }: PaymentMo
 |-------|-----------|---------|
 | **Amount Required** | Amount is empty | "Please enter an amount" |
 | **Invalid Amount** | Amount <= 0 | "Amount must be greater than 0" |
-| **Card Required** | Debit/Credit selected, card empty | "Card number is required" |
+| **Approval Code Required** | Debit/Credit selected, approval code empty | "Approval code is required for card payments" |
+| **Discount Voucher Entered** | Voucher type is PR (promotional) | "This is a discount voucher. Apply as cart discount first." |
+| **Voucher Already Added** | Same GC voucher code entered twice | "This voucher already added (2x total)" |
+| **Voucher No Balance** | GC voucher has zero balance | "Voucher has no balance or already used" |
+| **Voucher Not Found** | Voucher code invalid | "Voucher not found" |
 | **Insufficient Payment** | Payment Total < Cart Total | "Payment total must be at least {total}" |
 
 ### 7.2 Technical Errors
@@ -556,6 +574,9 @@ Receipt printing
 |---------|------|---------|
 | 1.0 | 2026-02-05 | Initial draft |
 | 1.1 | 2026-02-05 | Added focus management: click-to-focus input fields, visual focus indicator, keypad routes to focused field |
+| 1.2 | 2026-02-06 | Voucher flow updated: Amount field hidden for voucher, voucher balance lookup, auto-fill amount from voucher. Changed Card Number to Approval Code (EDC transaction code) for debit/credit payments. |
+| 1.3 | 2026-02-06 | Fixed PR voucher handling: Promotional vouchers show error message guiding cashier to apply as cart discount instead of payment. Added voucher type validation (GC vs PR). |
+| 1.4 | 2026-02-07 | Added multiple Gift Card support: Unlimited GC vouchers per transaction, duplicate prevention, grouped display "Gift Card (2x)", single remove button removes all instances. |
 
 ---
 

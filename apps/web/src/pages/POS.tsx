@@ -999,14 +999,33 @@ export default function POS() {
         onClose={() => setShowPaymentModal(false)}
         onConfirm={(payments) => {
           const isSplit = payments.length > 1;
-          const paymentsArray: LocalPayment[] = payments.map(p => ({
-            id: crypto.randomUUID(),
-            paymentMethod: p.type === 'cash' ? 'cash' : 'card',
-            amount: p.amount,
-            changeAmount: 0,
-            approvalCode: p.type !== 'cash' ? p.cardNumber : undefined,
-          }));
           const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+          const remaining = Math.max(0, total - totalPaid);
+          
+          // Calculate change from cash payments only
+          const cashPayments = payments.filter(p => p.type === 'cash');
+          let totalCashChange = 0;
+          if (cashPayments.length > 0) {
+            const cashPaid = cashPayments.reduce((sum, p) => sum + p.amount, 0);
+            totalCashChange = Math.max(0, cashPaid - remaining);
+          }
+
+          const paymentsArray: LocalPayment[] = payments.map((p) => {
+            let changeAmount = 0;
+            if (p.type === 'cash' && totalCashChange > 0) {
+              changeAmount = Math.min(p.amount, totalCashChange);
+              totalCashChange -= changeAmount;
+            }
+            
+            return {
+              id: crypto.randomUUID(),
+              paymentMethod: p.type === 'cash' ? 'cash' : 'card',
+              amount: p.amount,
+              changeAmount,
+              approvalCode: p.type !== 'cash' ? p.approvalCode : undefined,
+            };
+          });
+
           handlePaymentConfirm('cash', totalPaid, isSplit, paymentsArray, [], undefined);
         }}
         total={total}
