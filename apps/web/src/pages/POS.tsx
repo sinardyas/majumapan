@@ -14,7 +14,7 @@ import {
 import { useToast } from '@pos/ui';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useBarcode } from '@/hooks/useBarcode';
-import { PaymentModalNew } from '@/components/pos/PaymentModalNew';
+import { PaymentModal } from '@/components/pos/PaymentModal';
 import { Receipt } from '@/components/pos/Receipt';
 import { HoldOrderModal } from '@/components/pos/HoldOrderModal';
 import { HeldOrdersList } from '@/components/pos/HeldOrdersList';
@@ -994,7 +994,7 @@ export default function POS() {
         )}
       </div>
 
-      <PaymentModalNew
+      <PaymentModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
         onConfirm={(payments) => {

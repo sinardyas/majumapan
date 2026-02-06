@@ -27,9 +27,9 @@ async function seed() {
     // Seed app settings
     console.log('Seeding app settings...');
     await db.insert(appSettings).values([
-      { key: 'tax_rate', value: '0.10' },
-      { key: 'currency', value: 'USD' },
-      { key: 'currency_symbol', value: '$' },
+      { key: 'tax_rate', value: '0.11' },
+      { key: 'currency', value: 'IDR' },
+      { key: 'currency_symbol', value: 'Rp' },
       { key: 'transaction_prefix', value: 'TXN' },
       { key: 'local_retention_days', value: '30' },
       { key: 'eod_operational_day_start_hour', value: '6' },
@@ -150,8 +150,8 @@ async function seed() {
         barcode: '1234567890123',
         name: 'Wireless Earbuds',
         description: 'Bluetooth 5.0 wireless earbuds with charging case',
-        price: '49.99',
-        costPrice: '25.00',
+        price: '775000',
+        costPrice: '387500',
         isActive: true,
       },
       {
@@ -161,8 +161,8 @@ async function seed() {
         barcode: '1234567890124',
         name: 'USB-C Cable',
         description: '6ft USB-C to USB-C charging cable',
-        price: '12.99',
-        costPrice: '4.00',
+        price: '200000',
+        costPrice: '62000',
         isActive: true,
       },
       {
@@ -172,8 +172,8 @@ async function seed() {
         barcode: '1234567890125',
         name: 'Phone Case',
         description: 'Universal smartphone protective case',
-        price: '19.99',
-        costPrice: '6.00',
+        price: '310000',
+        costPrice: '93000',
         isActive: true,
       },
       // Beverages
@@ -184,8 +184,8 @@ async function seed() {
         barcode: '2234567890123',
         name: 'Cola 500ml',
         description: 'Classic cola soft drink',
-        price: '2.49',
-        costPrice: '0.80',
+        price: '38500',
+        costPrice: '12400',
         isActive: true,
       },
       {
@@ -195,8 +195,8 @@ async function seed() {
         barcode: '2234567890124',
         name: 'Orange Juice 1L',
         description: '100% fresh orange juice',
-        price: '4.99',
-        costPrice: '2.00',
+        price: '77500',
+        costPrice: '31000',
         isActive: true,
       },
       {
@@ -206,8 +206,8 @@ async function seed() {
         barcode: '2234567890125',
         name: 'Mineral Water 500ml',
         description: 'Natural spring water',
-        price: '1.49',
-        costPrice: '0.30',
+        price: '23000',
+        costPrice: '4650',
         isActive: true,
       },
       // Snacks
@@ -218,8 +218,8 @@ async function seed() {
         barcode: '3234567890123',
         name: 'Potato Chips',
         description: 'Classic salted potato chips 150g',
-        price: '3.99',
-        costPrice: '1.50',
+        price: '62000',
+        costPrice: '23250',
         isActive: true,
       },
       {
@@ -229,8 +229,8 @@ async function seed() {
         barcode: '3234567890124',
         name: 'Chocolate Bar',
         description: 'Milk chocolate bar 100g',
-        price: '2.99',
-        costPrice: '1.00',
+        price: '46500',
+        costPrice: '15500',
         isActive: true,
       },
       {
@@ -240,8 +240,8 @@ async function seed() {
         barcode: '3234567890125',
         name: 'Mixed Nuts 200g',
         description: 'Premium roasted mixed nuts',
-        price: '7.99',
-        costPrice: '4.00',
+        price: '124000',
+        costPrice: '62000',
         isActive: true,
       },
       // Household
@@ -252,8 +252,8 @@ async function seed() {
         barcode: '4234567890123',
         name: 'Paper Towels',
         description: '2-ply paper towel roll',
-        price: '4.49',
-        costPrice: '2.00',
+        price: '69500',
+        costPrice: '31000',
         isActive: true,
       },
       {
@@ -263,8 +263,8 @@ async function seed() {
         barcode: '4234567890124',
         name: 'Dish Soap',
         description: 'Liquid dish soap 500ml',
-        price: '3.99',
-        costPrice: '1.50',
+        price: '62000',
+        costPrice: '23250',
         isActive: true,
       },
       // Personal Care
@@ -275,8 +275,8 @@ async function seed() {
         barcode: '5234567890123',
         name: 'Hand Sanitizer',
         description: 'Antibacterial hand gel 250ml',
-        price: '5.99',
-        costPrice: '2.00',
+        price: '93000',
+        costPrice: '31000',
         isActive: true,
       },
       {
@@ -286,8 +286,8 @@ async function seed() {
         barcode: '5234567890124',
         name: 'Toothpaste',
         description: 'Whitening toothpaste 100ml',
-        price: '4.49',
-        costPrice: '1.80',
+        price: '69500',
+        costPrice: '27900',
         isActive: true,
       },
     ];
@@ -312,11 +312,11 @@ async function seed() {
         storeId: downtownStore.id,
         code: 'WELCOME10',
         name: 'Welcome Discount',
-        description: '$10 off your first purchase',
+        description: 'Rp 150.000 off your first purchase',
         discountType: 'fixed',
         discountScope: 'cart',
-        value: '10.00',
-        minPurchaseAmount: '50.00',
+        value: '150000',
+        minPurchaseAmount: '500000',
         isActive: true,
       },
       {
@@ -327,8 +327,8 @@ async function seed() {
         discountType: 'percentage',
         discountScope: 'cart',
         value: '20.00',
-        minPurchaseAmount: '100.00',
-        maxDiscountAmount: '50.00',
+        minPurchaseAmount: '1000000',
+        maxDiscountAmount: '500000',
         isActive: true,
       },
       {
@@ -356,8 +356,8 @@ async function seed() {
     console.log('----------------------------------------\n');
     console.log('Discount Codes:');
     console.log('----------------------------------------');
-    console.log('WELCOME10 - $10 off (min $50 purchase)');
-    console.log('SAVE20 - 20% off (min $100, max $50 discount)');
+    console.log('WELCOME10 - Rp 150.000 off (min Rp 500.000 purchase)');
+    console.log('SAVE20 - 20% off (min Rp 1.000.000, max Rp 500.000 discount)');
     console.log('SUMMER15 - 15% off (limited to 100 uses)');
     console.log('----------------------------------------\n');
 

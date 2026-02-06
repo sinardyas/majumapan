@@ -1,9 +1,33 @@
-CREATE TYPE "public"."discount_scope" AS ENUM('product', 'cart');--> statement-breakpoint
-CREATE TYPE "public"."discount_type" AS ENUM('percentage', 'fixed');--> statement-breakpoint
-CREATE TYPE "public"."payment_method" AS ENUM('cash', 'card');--> statement-breakpoint
-CREATE TYPE "public"."sync_status" AS ENUM('pending', 'synced', 'failed', 'rejected');--> statement-breakpoint
-CREATE TYPE "public"."transaction_status" AS ENUM('completed', 'voided', 'pending_sync');--> statement-breakpoint
-CREATE TYPE "public"."user_role" AS ENUM('admin', 'manager', 'cashier');--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."discount_scope" AS ENUM('product', 'cart');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."discount_type" AS ENUM('percentage', 'fixed');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."payment_method" AS ENUM('cash', 'card');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."sync_status" AS ENUM('pending', 'synced', 'failed', 'rejected');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."transaction_status" AS ENUM('completed', 'voided', 'pending_sync');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  CREATE TYPE "public"."user_role" AS ENUM('admin', 'manager', 'cashier');
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;--> statement-breakpoint
 CREATE TABLE "app_settings" (
 	"key" varchar(100) PRIMARY KEY NOT NULL,
 	"value" text NOT NULL,
