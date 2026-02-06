@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
 import { Button } from '@pos/ui';
-import { X, Banknote, Landmark, CreditCard, Ticket } from 'lucide-react';
+import { X, Banknote, Landmark, CreditCard, Ticket, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
+import { voucherApi } from '@/services/voucher';
 
 interface PaymentEntry {
   id: string;
   type: 'cash' | 'debit' | 'credit' | 'voucher';
   amount: number;
-  cardNumber?: string;
+  approvalCode?: string;
   voucherCode?: string;
 }
 
@@ -22,35 +23,83 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
   const [payments, setPayments] = useState<PaymentEntry[]>([]);
   const [selectedTab, setSelectedTab] = useState<'cash' | 'debit' | 'credit' | 'voucher'>('cash');
   const [amount, setAmount] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
+  const [approvalCode, setApprovalCode] = useState('');
   const [voucherCode, setVoucherCode] = useState('');
-  const [focusedField, setFocusedField] = useState<'amount' | 'card' | 'voucher' | null>(null);
+  const [focusedField, setFocusedField] = useState<'amount' | 'approval' | 'voucher' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voucherBalance, setVoucherBalance] = useState<number | null>(null);
+  const [isLoadingVoucher, setIsLoadingVoucher] = useState(false);
+  const [voucherType, setVoucherType] = useState<'GC' | 'PR' | null>(null);
 
   const paymentTotal = payments.reduce((sum, p) => sum + p.amount, 0);
-  const change = Math.max(0, paymentTotal - total);
   const remainingAmount = Math.max(0, total - paymentTotal);
+  const cashTotal = payments.filter(p => p.type === 'cash').reduce((sum, p) => sum + p.amount, 0);
+  const change = Math.max(0, cashTotal - remainingAmount);
+  const hasVoucherOverpayment = payments.some(p => p.type === 'voucher' && p.amount > remainingAmount);
 
-  const formatCardNumber = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    return digits.slice(-4).padStart(4, '*').padStart(8, '*');
-  };
+  const lookupVoucherBalance = useCallback(async (code: string) => {
+    if (code.length < 4) {
+      setVoucherBalance(null);
+      setVoucherType(null);
+      setError(null);
+      return;
+    }
+
+    setIsLoadingVoucher(true);
+    setError(null);
+
+    try {
+      const response = await voucherApi.validateVoucher({ code });
+      if (response.success && response.data?.voucher) {
+        const voucher = response.data.voucher;
+        
+        if (voucher.type === 'PR') {
+          setVoucherType('PR');
+          setError('This is a discount voucher. Apply as cart discount first.');
+          setVoucherBalance(null);
+        } else {
+          setVoucherType('GC');
+          const balanceResponse = await voucherApi.getBalance(code);
+          if (balanceResponse.success && balanceResponse.data?.data) {
+            const balance = parseFloat(balanceResponse.data.data.balance || '0');
+            setVoucherBalance(balance);
+          } else {
+            setVoucherBalance(0);
+          }
+        }
+      } else {
+        setVoucherType(null);
+        setError('Voucher not found');
+        setVoucherBalance(0);
+      }
+    } catch {
+      setVoucherType(null);
+      setError('Failed to validate voucher');
+      setVoucherBalance(0);
+    } finally {
+      setIsLoadingVoucher(false);
+    }
+  }, []);
 
   const handleKeypadClick = useCallback((value: string) => {
     setError(null);
     
     if (value === 'C') {
       setAmount('');
-      setCardNumber('');
+      setApprovalCode('');
       setVoucherCode('');
+      setVoucherBalance(null);
+      setVoucherType(null);
       return;
     }
 
     if (value === 'backspace') {
       if (focusedField === 'voucher') {
-        setVoucherCode(prev => prev.slice(0, -1));
-      } else if (focusedField === 'card') {
-        setCardNumber(prev => prev.slice(0, -1));
+        const newCode = voucherCode.slice(0, -1);
+        setVoucherCode(newCode);
+        lookupVoucherBalance(newCode);
+      } else if (focusedField === 'approval') {
+        setApprovalCode(prev => prev.slice(0, -1));
       } else if (focusedField === 'amount' || !focusedField) {
         setAmount(prev => prev.slice(0, -1));
       }
@@ -66,11 +115,13 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
 
     if (focusedField === 'voucher') {
       if (voucherCode.length < 20) {
-        setVoucherCode(prev => prev + value.toUpperCase());
+        const newCode = voucherCode + value.toUpperCase();
+        setVoucherCode(newCode);
+        lookupVoucherBalance(newCode);
       }
-    } else if (focusedField === 'card') {
-      if (cardNumber.length < 16) {
-        setCardNumber(prev => prev + value);
+    } else if (focusedField === 'approval') {
+      if (approvalCode.length < 20) {
+        setApprovalCode(prev => prev + value.toUpperCase());
       }
     } else if (focusedField === 'amount' || !focusedField) {
       const currentAmount = focusedField === 'amount' ? amount : amount;
@@ -78,25 +129,47 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
       if (parts[1]?.length >= 2) return;
       setAmount(prev => prev + value);
     }
-  }, [amount, cardNumber, voucherCode, focusedField]);
+  }, [amount, approvalCode, voucherCode, focusedField, lookupVoucherBalance]);
 
   const handleAddPayment = useCallback(() => {
     setError(null);
 
-    const numericAmount = parseFloat(amount);
+    let numericAmount: number;
 
-    if (!numericAmount || numericAmount <= 0) {
-      setError('Please enter a valid amount');
-      return;
+    if (selectedTab === 'voucher') {
+      if (!voucherCode || voucherCode.length < 4) {
+        setError('Please enter a valid voucher code');
+        return;
+      }
+      if (voucherType === 'PR') {
+        setError('This is a discount voucher. Apply as cart discount first.');
+        return;
+      }
+      if (!voucherBalance || voucherBalance <= 0) {
+        setError('Voucher has no balance or already used');
+        return;
+      }
+      
+      // Check if voucher already added in this transaction
+      const upperCode = voucherCode.toUpperCase();
+      const existingCount = payments.filter(p => p.type === 'voucher' && p.voucherCode === upperCode).length;
+      if (existingCount > 0) {
+        setError(`This voucher already added (${existingCount + 1}x total)`);
+        return;
+      }
+      
+      numericAmount = voucherBalance;
+    } else {
+      numericAmount = parseFloat(amount);
+      if (!numericAmount || numericAmount <= 0) {
+        setError('Please enter a valid amount');
+        return;
+      }
     }
 
-    if ((selectedTab === 'debit' || selectedTab === 'credit') && cardNumber.length > 0 && cardNumber.length < 4) {
-      setError('Card number must be at least 4 digits');
-      return;
-    }
-
-    if (selectedTab === 'voucher' && voucherCode.length > 0 && voucherCode.length < 4) {
-      setError('Voucher code must be at least 4 characters');
+    // Approval code is required for debit/credit
+    if ((selectedTab === 'debit' || selectedTab === 'credit') && !approvalCode) {
+      setError('Please enter approval code');
       return;
     }
 
@@ -104,20 +177,45 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
       id: crypto.randomUUID(),
       type: selectedTab,
       amount: numericAmount,
-      ...(selectedTab === 'voucher' && voucherCode.length > 0 && { voucherCode: voucherCode.toUpperCase() }),
-      ...((selectedTab === 'debit' || selectedTab === 'credit') && cardNumber.length >= 4 && { cardNumber: formatCardNumber(cardNumber) }),
+      ...(selectedTab === 'voucher' && { voucherCode: voucherCode.toUpperCase() }),
+      ...((selectedTab === 'debit' || selectedTab === 'credit') && { approvalCode: approvalCode }),
     };
 
     setPayments(prev => [...prev, newPayment]);
     setAmount('');
-    setCardNumber('');
+    setApprovalCode('');
     setVoucherCode('');
+    setVoucherBalance(null);
+    setVoucherType(null);
     setFocusedField(null);
-  }, [amount, cardNumber, voucherCode, selectedTab]);
+  }, [amount, approvalCode, voucherCode, voucherBalance, selectedTab]);
 
   const handleRemovePayment = useCallback((id: string) => {
     setPayments(prev => prev.filter(p => p.id !== id));
   }, []);
+
+  const handleRemoveAllVouchers = useCallback((voucherCode: string) => {
+    setPayments(prev => prev.filter(p => p.type !== 'voucher' || p.voucherCode !== voucherCode));
+  }, []);
+
+  const groupedPayments = useCallback(() => {
+    const voucherGroups: Record<string, typeof payments> = {};
+    const otherPayments: typeof payments = [];
+
+    payments.forEach(payment => {
+      if (payment.type === 'voucher' && payment.voucherCode) {
+        const key = payment.voucherCode;
+        if (!voucherGroups[key]) {
+          voucherGroups[key] = [];
+        }
+        voucherGroups[key].push(payment);
+      } else {
+        otherPayments.push(payment);
+      }
+    });
+
+    return { voucherGroups, otherPayments };
+  }, [payments]);
 
   const handleSave = useCallback(() => {
     if (paymentTotal < total) {
@@ -127,8 +225,10 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
     onConfirm(payments);
     setPayments([]);
     setAmount('');
-    setCardNumber('');
+    setApprovalCode('');
     setVoucherCode('');
+    setVoucherBalance(null);
+    setVoucherType(null);
     setFocusedField(null);
     setError(null);
   }, [paymentTotal, total, payments, onConfirm]);
@@ -137,15 +237,22 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
     onClose();
     setPayments([]);
     setAmount('');
-    setCardNumber('');
+    setApprovalCode('');
     setVoucherCode('');
+    setVoucherBalance(null);
+    setVoucherType(null);
     setFocusedField(null);
     setError(null);
   }, [onClose]);
 
   const handleTabChange = (tab: 'cash' | 'debit' | 'credit' | 'voucher') => {
     setSelectedTab(tab);
-    setFocusedField('amount');
+    setAmount('');
+    setApprovalCode('');
+    setVoucherCode('');
+    setVoucherBalance(null);
+    setVoucherType(null);
+    setFocusedField(tab === 'voucher' ? 'voucher' : 'amount');
     setError(null);
   };
 
@@ -169,7 +276,7 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
     }
   };
 
-  const getInputBorderClass = (field: 'amount' | 'card' | 'voucher') => {
+  const getInputBorderClass = (field: 'amount' | 'approval' | 'voucher') => {
     const isFocused = focusedField === field;
     return isFocused 
       ? 'border-primary-600 ring-2 ring-primary-200' 
@@ -227,34 +334,39 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
         {/* Payment Entry Form */}
         <div className="px-6 py-4 border-b border-gray-200 flex-shrink-0 bg-white">
           <div className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Amount
-              </label>
-              <input
-                type="text"
-                value={amount}
-                onFocus={() => setFocusedField('amount')}
-                placeholder="0.00"
-                className={`w-full px-4 py-3 border rounded-lg font-mono text-xl text-right bg-white ${getInputBorderClass('amount')}`}
-              />
-            </div>
-            
-            {(selectedTab === 'debit' || selectedTab === 'credit') && (
+            {/* Amount - Hide for voucher */}
+            {selectedTab !== 'voucher' && (
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Card Number
+                  Amount
                 </label>
                 <input
                   type="text"
-                  value={cardNumber}
-                  onFocus={() => setFocusedField('card')}
-                  placeholder="**** **** **** ****"
-                  className={`w-full px-4 py-3 border rounded-lg font-mono text-xl bg-white ${getInputBorderClass('card')}`}
+                  value={amount}
+                  onFocus={() => setFocusedField('amount')}
+                  placeholder="0.00"
+                  className={`w-full px-4 py-3 border rounded-lg font-mono text-xl text-right bg-white ${getInputBorderClass('amount')}`}
+                />
+              </div>
+            )}
+            
+            {/* Approval Code - Show for debit/credit */}
+            {(selectedTab === 'debit' || selectedTab === 'credit') && (
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Approval Code
+                </label>
+                <input
+                  type="text"
+                  value={approvalCode}
+                  onFocus={() => setFocusedField('approval')}
+                  placeholder="Enter approval code"
+                  className={`w-full px-4 py-3 border rounded-lg font-mono text-xl bg-white uppercase ${getInputBorderClass('approval')}`}
                 />
               </div>
             )}
 
+            {/* Voucher Code - Only show for voucher */}
             {selectedTab === 'voucher' && (
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -274,13 +386,32 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
               <Button
                 onClick={handleAddPayment}
                 className="px-8 py-3 text-lg font-medium"
+                disabled={isLoadingVoucher}
               >
                 ADD
               </Button>
             </div>
           </div>
 
-          {error && (
+          {/* Voucher Balance / Error Display */}
+          {selectedTab === 'voucher' && voucherCode.length >= 4 && (
+            <div className="mt-3">
+              {isLoadingVoucher ? (
+                <p className="text-sm text-gray-500">Loading voucher...</p>
+              ) : error && voucherType === 'PR' ? (
+                <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <p className="text-sm text-amber-800 flex-1">{error}</p>
+                </div>
+              ) : voucherBalance !== null ? (
+                <div className={`text-sm ${voucherBalance > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  Voucher Balance: <span className="font-bold">{formatCurrency(voucherBalance)}</span>
+                </div>
+              ) : null}
+            </div>
+          )}
+
+          {error && !isLoadingVoucher && voucherType !== 'PR' && (
             <p className="mt-2 text-sm text-red-600">{error}</p>
           )}
         </div>
@@ -296,40 +427,78 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                   <tr>
                     <th className="px-4 py-3 text-left text-sm font-medium text-gray-600">Payment</th>
                     <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Amount</th>
-                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Card</th>
+                    <th className="px-4 py-3 text-right text-sm font-medium text-gray-600">Approval</th>
                     <th className="px-4 py-3 w-16"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {payments.map(payment => (
-                    <tr key={payment.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <span className="flex items-center gap-2 font-medium">
-                          {getPaymentIcon(payment.type)}
-                          {getPaymentLabel(payment.type)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono">{formatCurrency(payment.amount)}</td>
-                      <td className="px-4 py-3 text-right font-mono text-sm text-gray-500">
-                        {payment.cardNumber || payment.voucherCode || '-'}
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => handleRemovePayment(payment.id)}
-                          className="text-red-500 hover:text-red-700 font-medium text-sm"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                  {payments.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="px-4 py-12 text-center text-gray-400">
-                        No payments added yet
-                      </td>
-                    </tr>
-                  )}
+                  {(() => {
+                    const { voucherGroups, otherPayments } = groupedPayments();
+                    const rows: JSX.Element[] = [];
+
+                    Object.entries(voucherGroups).forEach(([code, vouchers]) => {
+                      const totalAmount = vouchers.reduce((sum, v) => sum + v.amount, 0);
+                      rows.push(
+                        <tr key={code} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <span className="flex items-center gap-2 font-medium">
+                              <Ticket className="w-5 h-5" />
+                              Gift Card ({vouchers.length}x)
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono">{formatCurrency(totalAmount)}</td>
+                          <td className="px-4 py-3 text-right font-mono text-sm text-gray-500">
+                            {code}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleRemoveAllVouchers(code)}
+                              className="text-red-500 hover:text-red-700 font-medium text-sm"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+
+                    otherPayments.forEach(payment => {
+                      rows.push(
+                        <tr key={payment.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <span className="flex items-center gap-2 font-medium">
+                              {getPaymentIcon(payment.type)}
+                              {getPaymentLabel(payment.type)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono">{formatCurrency(payment.amount)}</td>
+                          <td className="px-4 py-3 text-right font-mono text-sm text-gray-500">
+                            {payment.approvalCode || '-'}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleRemovePayment(payment.id)}
+                              className="text-red-500 hover:text-red-700 font-medium text-sm"
+                            >
+                              ✕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+
+                    if (rows.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-12 text-center text-gray-400">
+                            No payments added yet
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return rows;
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -343,11 +512,25 @@ export function PaymentModal({ isOpen, onClose, onConfirm, total }: PaymentModal
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Change:</span>
-                <span className={`text-xl font-bold ${change > 0 ? 'text-green-600' : 'text-gray-400'}`}>
-                  {formatCurrency(change)}
-                </span>
+                {hasVoucherOverpayment ? (
+                  <>
+                    <span className="text-blue-600">Voucher Credit:</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {formatCurrency(paymentTotal - total)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className={change > 0 ? 'text-gray-600' : 'text-gray-400'}>Change:</span>
+                    <span className={`text-xl font-bold ${change > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                      {formatCurrency(change)}
+                    </span>
+                  </>
+                )}
               </div>
+              {hasVoucherOverpayment && (
+                <p className="text-xs text-blue-600 mt-1">No cash change - voucher fully consumed</p>
+              )}
             </div>
           </div>
 
