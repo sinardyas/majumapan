@@ -20,6 +20,8 @@ import vouchers from './vouchers';
 import { customerRoutes } from './customers';
 import { distributionRoutes } from './distribution';
 import configRouter from './config';
+import deviceBindings from './device-bindings';
+import deviceAuth from './device-auth';
 
 const routes = new Hono();
 
@@ -41,6 +43,8 @@ routes.route('/shifts', shifts);
 routes.route('/day-close', dayClose);
 routes.route('/pending-carts', pendingCarts);
 routes.route('/devices', devices);
+routes.route('/device-bindings', deviceBindings);
+routes.route('', deviceAuth);
 routes.route('/vouchers', vouchers);
 routes.route('/customers', customerRoutes);
 routes.route('/distribution', distributionRoutes);

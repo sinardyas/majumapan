@@ -3,8 +3,29 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import routes from './routes';
+import { runSessionCleanup } from './jobs/sessionCleanup';
 
 const app = new Hono();
+
+// Session cleanup scheduler - run every 5 minutes
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+function startCleanupScheduler() {
+  // Run immediately on startup
+  runSessionCleanup();
+  
+  // Then run every 5 minutes
+  setInterval(() => {
+    runSessionCleanup();
+  }, CLEANUP_INTERVAL);
+  
+  console.log('[Scheduler] Session cleanup scheduler started');
+}
+
+// Start cleanup scheduler in production or when explicitly enabled
+if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 'true') {
+  startCleanupScheduler();
+}
 
 // Middleware
 app.use('*', logger());

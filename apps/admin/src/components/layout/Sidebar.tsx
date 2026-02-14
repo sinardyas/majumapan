@@ -20,6 +20,7 @@ import {
   Gift,
   Star,
   Send,
+  Smartphone,
 } from 'lucide-react';
 
 interface NavItem {
@@ -48,6 +49,11 @@ const navItems: NavItem[] = [
     name: 'Users',
     path: '/users',
     icon: <Users className="h-5 w-5" />,
+  },
+  {
+    name: 'Devices',
+    path: '/devices',
+    icon: <Smartphone className="h-5 w-5" />,
   },
   {
     name: 'Reports',

@@ -5,15 +5,15 @@ import { hasPermission, type UserRole } from '@pos/shared';
 import { useSync } from '@/hooks/useSync';
 import { RejectedTransactions } from '@/components/shared/RejectedTransactions';
 import {
-  ShoppingCart,
   LayoutGrid,
-  FileText,
   Package,
-  Tags,
-  RefreshCw,
+  ShoppingCart,
+  LogOut,
   ChevronLeft,
   ChevronRight,
-  LogOut,
+  RefreshCw,
+  FileText,
+  Tags,
   Clock,
   CalendarCheck,
 } from 'lucide-react';
@@ -107,11 +107,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     if (!item.permission) return true;
     return hasPermission(userRole, item.permission as Parameters<typeof hasPermission>[1]);
   });
-
-  const handleLogout = async () => {
-    logout();
-    navigate('/login');
-  };
 
   return (
     <>
@@ -218,16 +213,32 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   <p className="text-xs text-gray-400 capitalize">{user.role}</p>
                 </div>
               )}
-              <button
-                onClick={handleLogout}
-                className={`p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white ${
-                  isCollapsed ? 'w-full' : ''
-                }`}
-                title={isCollapsed ? 'Logout' : undefined}
-              >
-                <LogOut className="h-5 w-5" />
-              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => {
+                    logout();
+                    navigate('/login');
+                  }}
+                  className={`p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white ${
+                    isCollapsed ? 'w-full' : ''
+                  }`}
+                  title={isCollapsed ? 'Logout' : undefined}
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             </div>
+            {!isCollapsed && (
+              <button
+                onClick={() => {
+                  logout();
+                  navigate('/login');
+                }}
+                className="w-full mt-3 text-xs text-center text-gray-400 hover:text-white"
+              >
+                Switch User
+              </button>
+            )}
           </div>
         )}
       </aside>
