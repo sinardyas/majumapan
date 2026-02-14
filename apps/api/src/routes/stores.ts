@@ -27,8 +27,13 @@ storesRouter.get('/', requireRole('admin'), async (c) => {
     return c.json({
       success: true,
       data: {
-        stores: allStores,
-        total: allStores.length,
+        items: allStores,
+        pagination: {
+          page: 1,
+          limit: allStores.length,
+          total: allStores.length,
+          totalPages: 1,
+        },
       },
     });
   } catch (error) {
@@ -52,7 +57,7 @@ storesRouter.get('/:id', requireRole('admin'), async (c) => {
 
     return c.json({
       success: true,
-      data: store,
+      data: { store },
     });
   } catch (error) {
     console.error('Get store error:', error);

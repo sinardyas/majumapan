@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
 import { Button, Card, CardContent, Input, Modal, Badge, Skeleton } from '@pos/ui';
 import type { Store } from '@pos/shared';
@@ -15,11 +16,17 @@ const storeSchema = z.object({
 type StoreFormData = z.infer<typeof storeSchema>;
 
 interface StoresListData {
-  stores: Store[];
-  total: number;
+  items: Store[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export default function Stores() {
+  const navigate = useNavigate();
   const [stores, setStores] = useState<Store[]>([]);
   const [filteredStores, setFilteredStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,7 +46,7 @@ export default function Stores() {
     try {
       const response = await api.get<StoresListData>('/stores');
       if (response.success && response.data) {
-        const storesList = response.data.stores || [];
+        const storesList = response.data.items || [];
         setStores(storesList);
         setFilteredStores(storesList);
       }
@@ -197,16 +204,23 @@ export default function Stores() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredStores.map((store) => (
-            <Card key={store.id}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <h3 className="text-lg font-semibold text-gray-900">{store.name}</h3>
-                    <Badge variant={store.isActive ? 'success' : 'outline'}>
-                      {store.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
+            <div
+              key={store.id}
+              onClick={() => navigate(`/stores/${store.id}`)}
+              className="cursor-pointer hover:opacity-90 transition-opacity"
+            >
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {store.name}
+                      </h3>
+                      <Badge variant={store.isActive ? 'success' : 'outline'}>
+                        {store.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
                   </div>
-                </div>
 
                 {(store.address || store.phone) && (
                   <div className="mt-4 space-y-2">
@@ -236,6 +250,7 @@ export default function Stores() {
                 </Button>
               </div>
             </Card>
+            </div>
           ))}
         </div>
       )}

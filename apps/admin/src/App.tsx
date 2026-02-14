@@ -8,6 +8,7 @@ const Login = lazy(() => import('@/pages/Login'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Products = lazy(() => import('@/pages/Products'));
 const Stores = lazy(() => import('@/pages/Stores'));
+const StoreDetail = lazy(() => import('@/pages/StoreDetail'));
 const Users = lazy(() => import('@/pages/Users'));
 const Devices = lazy(() => import('@/pages/Devices'));
 const Reports = lazy(() => import('@/pages/Reports'));
@@ -74,6 +75,15 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><Stores /></AdminLayout></Loading>
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/stores/:id"
+          element={
+            <ProtectedRoute>
+              <Loading><AdminLayout><StoreDetail /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />
