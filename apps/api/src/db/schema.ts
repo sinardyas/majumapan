@@ -62,7 +62,7 @@ export const users = pgTable('users', {
   passwordHash: varchar('password_hash', { length: 255 }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   role: userRoleEnum('role').default('cashier').notNull(),
-  pin: varchar('pin', { length: 6 }),
+  pin: varchar('pin', { length: 100 }),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -507,7 +507,50 @@ export const pendingCartsQueue = pgTable('pending_carts_queue', {
   index('idx_pending_carts_expires').on(table.expiresAt),
 ]);
 
-// Devices (for master terminal management)
+// Device Bindings (for device binding login system) - defined first
+export const deviceBindings = pgTable('device_bindings', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  storeId: uuid('store_id').notNull().references(() => stores.id),
+  deviceId: uuid('device_id').references(() => devices.id),
+  bindingCode: varchar('binding_code', { length: 6 }).notNull().unique(),
+  qrData: text('qr_data').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('pending'),
+  deviceName: varchar('device_name').notNull(),
+  deviceFingerprint: text('device_fingerprint'),
+  boundAt: timestamp('bound_at'),
+  expiresAt: timestamp('expires_at'),
+  revokedAt: timestamp('revoked_at'),
+  revokedBy: uuid('revoked_by').references(() => users.id),
+  revokedReason: text('revoked_reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('device_bindings_store_idx').on(table.storeId),
+  index('device_bindings_status_idx').on(table.status),
+  index('device_bindings_binding_code_idx').on(table.bindingCode),
+]);
+
+// User Sessions (for device binding login system)
+export const userSessions = pgTable('user_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  deviceId: uuid('device_id').notNull(),
+  storeId: uuid('store_id').notNull(),
+  pinHash: varchar('pin_hash').notNull(),
+  isActive: boolean('is_active').notNull().default(true),
+  pinFailedAttempts: integer('pin_failed_attempts').notNull().default(0),
+  pinLockedUntil: timestamp('pin_locked_until'),
+  lastActiveAt: timestamp('last_active_at'),
+  lastPinAt: timestamp('last_pin_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  endedAt: timestamp('ended_at'),
+}, (table) => [
+  index('user_sessions_user_idx').on(table.userId),
+  index('user_sessions_device_idx').on(table.deviceId),
+  index('user_sessions_is_active_idx').on(table.isActive),
+]);
+
+// Devices (for master terminal management) - defined after deviceBindings
 export const devices = pgTable('devices', {
   id: uuid('id').primaryKey().defaultRandom(),
   storeId: uuid('store_id').references(() => stores.id).notNull(),
@@ -516,6 +559,7 @@ export const devices = pgTable('devices', {
   isMasterTerminal: boolean('is_master_terminal').default(false).notNull(),
   masterTerminalName: varchar('master_terminal_name', { length: 100 }),
   lastActiveAt: timestamp('last_active_at'),
+  bindingId: uuid('binding_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
@@ -711,6 +755,30 @@ export const devicesRelations = relations(devices, ({ one }) => ({
   store: one(stores, {
     fields: [devices.storeId],
     references: [stores.id],
+  }),
+}));
+
+// Device Bindings relations
+export const deviceBindingsRelations = relations(deviceBindings, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [deviceBindings.storeId],
+    references: [stores.id],
+  }),
+  device: one(devices, {
+    fields: [deviceBindings.deviceId],
+    references: [devices.id],
+  }),
+  revokedByUser: one(users, {
+    fields: [deviceBindings.revokedBy],
+    references: [users.id],
+  }),
+}));
+
+// User Sessions relations
+export const userSessionsRelations = relations(userSessions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSessions.userId],
+    references: [users.id],
   }),
 }));
 
