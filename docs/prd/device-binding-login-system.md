@@ -275,16 +275,20 @@ Each POS device is bound to exactly one store (1:1 relationship), and each user 
 | **Session History** | List of user sessions with timestamps |
 | **Actions** | Revoke, Regenerate Code, Download QR |
 
-#### FR-005: Store → Devices Tab
+#### FR-005: Store → Devices Tab ✅ IMPLEMENTED
 
 **Location:** Stores → [Store Name] → Devices Tab
 
 **Requirements:**
-- Show only devices for that specific store
-- Same columns as Devices Menu (minus Store column)
-- Can create new devices for this store
-- Can revoke/regenerate codes for these devices
-- Can set device as master terminal
+- Show only devices for that specific store ✅
+- Same columns as Devices Menu (minus Store column) ✅
+- Can create new devices for this store ✅
+- Can revoke/regenerate codes for these devices ✅
+- Can set device as master terminal (not implemented in v1)
+
+**Implementation:**
+- Admin Panel: `/stores/:id` route with Devices tab
+- Store list: Click store name to navigate to detail page
 
 ---
 
@@ -931,6 +935,7 @@ Admin Portal                    POS Application
 |---------|------|---------|
 | 1.0 | 2026-02-13 | Initial draft |
 | 1.1 | 2026-02-14 | Implementation complete - All phases implemented |
+| 1.2 | 2026-02-14 | Added Store Detail page with Devices tab (FR-005) |
 
 ---
 
