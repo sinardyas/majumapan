@@ -22,7 +22,6 @@ const Discounts = lazy(() => import('@/pages/Discounts'));
 const Vouchers = lazy(() => import('@/pages/Vouchers'));
 const Customers = lazy(() => import('@/pages/Customers'));
 const CustomerGroups = lazy(() => import('@/pages/CustomerGroups'));
-const Distribute = lazy(() => import('@/pages/Distribute'));
 
 
 function Loading({ children }: { children: ReactNode }) {
@@ -174,15 +173,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><CustomerGroups /></AdminLayout></Loading>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/distribute"
-          element={
-            <ProtectedRoute>
-              <Loading><AdminLayout><Distribute /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

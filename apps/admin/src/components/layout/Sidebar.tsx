@@ -91,11 +91,6 @@ const navItems: NavItem[] = [
     icon: <Star className="h-5 w-5" />,
   },
   {
-    name: 'Distribute',
-    path: '/distribute',
-    icon: <Send className="h-5 w-5" />,
-  },
-  {
     name: 'Settings',
     path: '/settings',
     icon: <Settings className="h-5 w-5" />,
