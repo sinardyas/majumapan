@@ -3,7 +3,7 @@ import { api } from '@/services/api';
 import { Button, Card, Input, Modal, Badge, Skeleton } from '@pos/ui';
 import type { User } from '@pos/shared';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Search, Mail, User as UserIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Mail, User as UserIcon, Key } from 'lucide-react';
 
 const userSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -41,6 +41,13 @@ export default function Users() {
     isActive: true,
   });
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
+
+  // PIN management state
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pinTargetUser, setPinTargetUser] = useState<User | null>(null);
+  const [pinFormData, setPinFormData] = useState({ pin: '', confirmPin: '' });
+  const [pinError, setPinError] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -183,6 +190,76 @@ export default function Users() {
     }
   };
 
+  // PIN Management handlers
+  const handleSetPin = (user: User) => {
+    setPinTargetUser(user);
+    setPinFormData({ pin: '', confirmPin: '' });
+    setPinError('');
+    setShowPinModal(true);
+  };
+
+  const handleResetPin = async (userId: string) => {
+    if (!confirm('Are you sure you want to reset this user\'s PIN? They will need to contact admin to set a new PIN.')) return;
+    
+    setPinLoading(true);
+    try {
+      const response = await api.delete(`/auth/users/${userId}/pin`);
+      if (response.success) {
+        alert('PIN reset successfully');
+        await fetchUsers();
+      } else {
+        alert(response.error || 'Failed to reset PIN');
+      }
+    } catch {
+      console.error('Failed to reset PIN');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const handlePinSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPinError('');
+
+    if (pinFormData.pin.length !== 6) {
+      setPinError('PIN must be exactly 6 digits');
+      return;
+    }
+
+    if (pinFormData.pin !== pinFormData.confirmPin) {
+      setPinError('PINs do not match');
+      return;
+    }
+
+    if (!/^\d+$/.test(pinFormData.pin)) {
+      setPinError('PIN must contain only numbers');
+      return;
+    }
+
+    setPinLoading(true);
+    try {
+      const response = await api.put(`/auth/users/${pinTargetUser?.id}/pin`, { pin: pinFormData.pin });
+      if (response.success) {
+        setShowPinModal(false);
+        alert('PIN set successfully');
+        await fetchUsers();
+      } else {
+        setPinError(response.error || 'Failed to set PIN');
+      }
+    } catch {
+      setPinError('Failed to set PIN');
+    } finally {
+      setPinLoading(false);
+    }
+  };
+
+  const closePinModal = () => {
+    setShowPinModal(false);
+    setPinTargetUser(null);
+    setPinFormData({ pin: '', confirmPin: '' });
+    setPinError('');
+  };
+
   if (isLoading && users.length === 0) {
     return (
       <div className="p-6 space-y-6">
@@ -252,6 +329,7 @@ export default function Users() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">PIN</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -282,12 +360,30 @@ export default function Users() {
                       {user.storeId || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {user.pin ? (
+                        <Badge variant="success">Set</Badge>
+                      ) : (
+                        <Badge variant="outline">Not Set</Badge>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <Badge variant={user.isActive ? 'success' : 'outline'}>
                         {user.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
                       <div className="flex justify-end gap-2">
+                        {user.pin ? (
+                          <Button variant="outline" size="sm" onClick={() => handleResetPin(user.id)}>
+                            <Key className="w-4 h-4 mr-1" />
+                            Reset PIN
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => handleSetPin(user)}>
+                            <Key className="w-4 h-4 mr-1" />
+                            Set PIN
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
                           <Edit className="w-4 h-4 mr-1" />
                           Edit
@@ -396,6 +492,54 @@ export default function Users() {
             </Button>
             <Button type="submit" isLoading={isLoading}>
               {editingUser ? 'Update User' : 'Create User'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* PIN Management Modal */}
+      <Modal isOpen={showPinModal} onClose={closePinModal} title={`${pinTargetUser?.pin ? 'Reset' : 'Set'} PIN`}>
+        <form onSubmit={handlePinSubmit}>
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Enter a 6-digit PIN for <strong>{pinTargetUser?.name}</strong>
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">PIN (6 digits)</label>
+              <Input
+                type="password"
+                value={pinFormData.pin}
+                onChange={(e) => setPinFormData({ ...pinFormData, pin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder="Enter 6-digit PIN"
+                maxLength={6}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-700">Confirm PIN</label>
+              <Input
+                type="password"
+                value={pinFormData.confirmPin}
+                onChange={(e) => setPinFormData({ ...pinFormData, confirmPin: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                placeholder="Confirm 6-digit PIN"
+                maxLength={6}
+                inputMode="numeric"
+                autoComplete="off"
+              />
+            </div>
+
+            {pinError && <p className="text-sm text-red-500">{pinError}</p>}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={closePinModal} disabled={pinLoading}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={pinLoading}>
+              {pinTargetUser?.pin ? 'Reset PIN' : 'Set PIN'}
             </Button>
           </div>
         </form>

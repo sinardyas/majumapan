@@ -5,7 +5,7 @@ const JWT_SECRET = new TextEncoder().encode(
   process.env.JWT_SECRET || 'your-super-secret-jwt-key-change-in-production'
 );
 
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 function parseExpiration(exp: string): number {
@@ -31,6 +31,7 @@ export async function generateAccessToken(payload: {
   email: string;
   role: string;
   storeId: string | null;
+  deviceId?: string;
 }): Promise<string> {
   const expiresIn = parseExpiration(JWT_EXPIRES_IN);
   
@@ -39,6 +40,7 @@ export async function generateAccessToken(payload: {
     email: payload.email,
     role: payload.role,
     storeId: payload.storeId,
+    deviceId: payload.deviceId,
   })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
