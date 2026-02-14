@@ -64,9 +64,9 @@ export default function Devices() {
 
   const fetchStores = async () => {
     try {
-      const response = await api.get<{ stores: Store[] }>('/stores');
+      const response = await api.get<{ items: Store[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>('/stores');
       if (response.success && response.data) {
-        setStores(response.data.stores || []);
+        setStores(response.data.items || []);
       }
     } catch {
       console.error('Failed to load stores');

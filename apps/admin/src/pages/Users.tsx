@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
 import { Button, Card, Input, Modal, Badge, Skeleton } from '@pos/ui';
-import type { User } from '@pos/shared';
+import type { User, Store } from '@pos/shared';
 import { z } from 'zod';
 import { Plus, Edit, Trash2, Search, Mail, User as UserIcon, Key } from 'lucide-react';
 
@@ -27,6 +27,7 @@ type UserFormData = z.infer<typeof userSchema>;
 export default function Users() {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [stores, setStores] = useState<Store[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -64,8 +65,20 @@ export default function Users() {
     }
   };
 
+  const fetchStores = async () => {
+    try {
+      const response = await api.get<{ items: Store[] }>('/stores');
+      if (response.success && response.data) {
+        setStores(response.data.items);
+      }
+    } catch {
+      console.error('Failed to load stores');
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchStores();
   }, []);
 
   useEffect(() => {
@@ -357,7 +370,7 @@ export default function Users() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {user.storeId || '-'}
+                      {stores.find(s => s.id === user.storeId)?.name || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {user.pin ? (
@@ -450,8 +463,8 @@ export default function Users() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
                 <option value="">None</option>
-                {Array.from(new Set(users.map(u => u.storeId).filter((id): id is string => Boolean(id)))).map(storeId => (
-                  <option key={storeId} value={storeId}>{storeId}</option>
+                {stores.map(store => (
+                  <option key={store.id} value={store.id}>{store.name}</option>
                 ))}
               </select>
             </div>
