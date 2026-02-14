@@ -10,8 +10,13 @@ interface Store {
 }
 
 interface StoresListData {
-  stores: Store[];
-  total: number;
+  items: Store[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export function StoreSelector() {
@@ -32,7 +37,7 @@ export function StoreSelector() {
     try {
       const response = await api.get<StoresListData>('/stores');
       if (response.success && response.data) {
-        setStores(response.data.stores);
+        setStores(response.data.items);
       }
     } catch (error) {
       console.error('Error fetching stores:', error);
