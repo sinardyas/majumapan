@@ -508,3 +508,56 @@ export interface TransactionItemsResponse {
     totalPages: number;
   };
 }
+
+// =============================================================================
+// DEVICE BINDING LOGIN TYPES
+// =============================================================================
+
+export type DeviceBindingStatus = 'pending' | 'active' | 'revoked';
+
+export interface DeviceBinding {
+  id: string;
+  storeId: string;
+  storeName?: string;
+  deviceId: string | null;
+  bindingCode: string;
+  qrData: string;
+  status: DeviceBindingStatus;
+  deviceName: string;
+  deviceFingerprint: string | null;
+  boundAt: Date | null;
+  expiresAt: Date | null;
+  revokedAt: Date | null;
+  revokedBy: string | null;
+  revokedReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserSession {
+  id: string;
+  userId: string;
+  userName?: string;
+  deviceId: string;
+  storeId: string;
+  isActive: boolean;
+  pinFailedAttempts: number;
+  pinLockedUntil: Date | null;
+  lastActiveAt: Date | null;
+  lastPinAt: Date | null;
+  createdAt: Date;
+  endedAt: Date | null;
+}
+
+export interface DeviceWithBinding {
+  id: string;
+  storeId: string;
+  storeName?: string;
+  deviceName: string | null;
+  deviceIdentifier: string;
+  isMasterTerminal: boolean;
+  masterTerminalName: string | null;
+  lastActiveAt: Date | null;
+  bindingId: string | null;
+  binding?: DeviceBinding;
+}
