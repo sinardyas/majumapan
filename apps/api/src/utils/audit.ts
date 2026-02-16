@@ -2,7 +2,7 @@ import { db } from '../db/index.js';
 import { auditLogTable } from '../db/schema.js';
 import type { Context } from 'hono';
 
-export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'revoke' | 'regenerate' | 'bind';
+export type AuditAction = 'create' | 'update' | 'delete' | 'login' | 'logout' | 'revoke' | 'regenerate' | 'bind' | 'set_master' | 'replace_master' | 'remove_master';
 
 export interface AuditLogParams {
   userId: string;

@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@pos/api-client';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface MessageTemplate {
   id: string;
@@ -50,13 +51,25 @@ export interface DistributeInput {
 class DistributionApiService {
   private baseUrl = '/api/v1/distribution';
 
+  private async getHeaders() {
+    const { accessToken } = useAuthStore.getState();
+    return {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+    };
+  }
+
   async getTemplates(): Promise<ApiResponse<MessageTemplate[]>> {
-    const response = await fetch(`${this.baseUrl}/templates`);
+    const response = await fetch(`${this.baseUrl}/templates`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   async getTemplateById(id: string): Promise<ApiResponse<MessageTemplate>> {
-    const response = await fetch(`${this.baseUrl}/templates/${id}`);
+    const response = await fetch(`${this.baseUrl}/templates/${id}`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
@@ -68,7 +81,7 @@ class DistributionApiService {
   }): Promise<ApiResponse<MessageTemplate>> {
     const response = await fetch(`${this.baseUrl}/templates`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -85,7 +98,7 @@ class DistributionApiService {
   ): Promise<ApiResponse<MessageTemplate>> {
     const response = await fetch(`${this.baseUrl}/templates/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -94,6 +107,7 @@ class DistributionApiService {
   async deleteTemplate(id: string): Promise<ApiResponse<null>> {
     const response = await fetch(`${this.baseUrl}/templates/${id}`, {
       method: 'DELETE',
+      headers: await this.getHeaders(),
     });
     return response.json();
   }
@@ -101,14 +115,16 @@ class DistributionApiService {
   async distribute(input: DistributeInput): Promise<ApiResponse<DistributionResult>> {
     const response = await fetch(`${this.baseUrl}/distribute`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
   }
 
   async getHistory(limit = 50): Promise<ApiResponse<DistributionHistory[]>> {
-    const response = await fetch(`${this.baseUrl}/history?limit=${limit}`);
+    const response = await fetch(`${this.baseUrl}/history?limit=${limit}`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
@@ -119,7 +135,7 @@ class DistributionApiService {
   }): Promise<ApiResponse<{ preview: string }>> {
     const response = await fetch(`${this.baseUrl}/preview`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();

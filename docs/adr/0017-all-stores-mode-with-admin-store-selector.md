@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+~~Accepted~~ **Deprecated** (superseded by [ADR-0021](./ADR-0021-admin-store-selector-deprecation.md))
 
 ## Date
 

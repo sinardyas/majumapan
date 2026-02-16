@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { authMiddleware } from '../middleware/auth';
 import { customerService } from '../services/customer-service';
 import { z } from 'zod';
 
@@ -29,6 +30,8 @@ const updateGroupSchema = z.object({
 });
 
 export const customerRoutes = new Hono();
+
+customerRoutes.use('*', authMiddleware);
 
 // Customer CRUD
 customerRoutes.post('/', async (c) => {

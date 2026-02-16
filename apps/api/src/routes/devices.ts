@@ -5,6 +5,7 @@ import { devices } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth';
 import { requireRole } from '../middleware/rbac';
+import { createAuditLog } from '../utils/audit';
 
 const devicesRouter = new Hono();
 
@@ -55,12 +56,25 @@ devicesRouter.put(
   async (c) => {
     try {
       const deviceId = c.req.param('id');
+      const user = c.get('user');
       const body = await c.req.json();
       const validation = updateMasterTerminalSchema.safeParse(body);
 
       if (!validation.success) {
         return c.json({ success: false, error: 'Invalid request body' }, 400);
       }
+
+      const currentDevice = await db.query.devices.findFirst({
+        where: eq(devices.id, deviceId),
+      });
+
+      if (!currentDevice) {
+        return c.json({ success: false, error: 'Device not found' }, 404);
+      }
+
+      const oldMasterDevice = await db.query.devices.findFirst({
+        where: eq(devices.isMasterTerminal, true),
+      });
 
       await db.update(devices)
         .set({
@@ -69,6 +83,32 @@ devicesRouter.put(
           updatedAt: new Date(),
         })
         .where(eq(devices.id, deviceId));
+
+      if (oldMasterDevice && validation.data.isMasterTerminal && oldMasterDevice.id !== deviceId) {
+        await db.update(devices)
+          .set({ isMasterTerminal: false, updatedAt: new Date() })
+          .where(eq(devices.id, oldMasterDevice.id));
+      }
+
+      const action = validation.data.isMasterTerminal
+        ? (oldMasterDevice ? 'replace_master' : 'set_master')
+        : 'remove_master';
+
+      await createAuditLog({
+        userId: user.userId,
+        userEmail: user.email,
+        action,
+        entityType: 'master_terminal',
+        entityId: deviceId,
+        entityName: currentDevice.deviceName || currentDevice.deviceIdentifier,
+        changes: {
+          masterStatus: {
+            old: currentDevice.isMasterTerminal ? (oldMasterDevice?.deviceName || oldMasterDevice?.deviceIdentifier || 'Current') : null,
+            new: validation.data.isMasterTerminal ? (currentDevice.deviceName || currentDevice.deviceIdentifier) : null,
+          },
+        },
+        c,
+      });
 
       return c.json({ success: true, message: 'Master terminal status updated' });
     } catch (error) {

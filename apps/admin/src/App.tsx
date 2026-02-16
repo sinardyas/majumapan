@@ -15,8 +15,6 @@ const Reports = lazy(() => import('@/pages/Reports'));
 const AuditLogs = lazy(() => import('@/pages/AuditLogs'));
 const Settings = lazy(() => import('@/pages/Settings'));
 const DataManagement = lazy(() => import('@/pages/DataManagement'));
-const MasterTerminals = lazy(() => import('@/pages/MasterTerminals'));
-const DayCloseHistory = lazy(() => import('@/pages/DayCloseHistory'));
 const DayCloseDetail = lazy(() => import('@/pages/DayCloseDetail'));
 const Discounts = lazy(() => import('@/pages/Discounts'));
 const Vouchers = lazy(() => import('@/pages/Vouchers'));
@@ -173,24 +171,6 @@ export default function App() {
           element={
             <ProtectedRoute>
               <Loading><AdminLayout><CustomerGroups /></AdminLayout></Loading>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/eod/master-terminals"
-          element={
-            <ProtectedRoute>
-              <Loading><AdminLayout><MasterTerminals /></AdminLayout></Loading>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/eod/day-close-history"
-          element={
-            <ProtectedRoute>
-              <Loading><AdminLayout><DayCloseHistory /></AdminLayout></Loading>
             </ProtectedRoute>
           }
         />

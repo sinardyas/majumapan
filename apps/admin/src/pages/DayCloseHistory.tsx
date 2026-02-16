@@ -1,26 +1,43 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
-import { Button } from '@pos/ui';
-import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail, FileText } from 'lucide-react';
-import { DayCloseHistoryItem } from '@pos/shared';
+import { Button, Select } from '@pos/ui';
+import { Calendar, ChevronLeft, ChevronRight, Eye, Download, Mail, FileText, Store } from 'lucide-react';
+import { DayCloseHistoryItem, type Store as StoreType } from '@pos/shared';
 import { formatCurrency } from '@/lib/utils';
 
 export default function DayCloseHistory() {
-  const { user, selectedStoreId } = useAuthStore();
+  const { user } = useAuthStore();
   const [history, setHistory] = useState<DayCloseHistoryItem[]>([]);
+  const [stores, setStores] = useState<StoreType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [storeFilter, setStoreFilter] = useState<string>('');
 
   const pageSize = 20;
   const totalPages = Math.ceil(total / pageSize);
+
+  const fetchStores = useCallback(async () => {
+    try {
+      const response = await api.get<{ items: StoreType[] }>('/stores');
+      if (response.success && response.data) {
+        setStores(response.data.items || []);
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
 
   useEffect(() => {
     if (user) {
       fetchHistory();
     }
-  }, [user, selectedStoreId, page]);
+  }, [user, storeFilter, page]);
 
   const fetchHistory = async () => {
     setIsLoading(true);
@@ -30,10 +47,8 @@ export default function DayCloseHistory() {
         pageSize,
       };
 
-      if (selectedStoreId === 'all') {
-        queryParams.allStores = true;
-      } else if (selectedStoreId) {
-        queryParams.storeId = selectedStoreId;
+      if (storeFilter) {
+        queryParams.storeId = storeFilter;
       } else if (user?.storeId) {
         queryParams.storeId = user.storeId;
       }
@@ -132,6 +147,27 @@ export default function DayCloseHistory() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Day Close History</h1>
         <p className="text-gray-600">View historical day close records</p>
+      </div>
+
+      <div className="mb-4 flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Store className="h-4 w-4 text-gray-500" />
+          <Select
+            value={storeFilter}
+            onChange={(e) => {
+              setStoreFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-64"
+          >
+            <option value="">All Stores</option>
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {history.length === 0 ? (

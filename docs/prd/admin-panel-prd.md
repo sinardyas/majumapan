@@ -135,6 +135,10 @@ Before the Admin Panel was implemented, admin functionality was mixed into the P
 | Data Management | `/data` | CSV import/export functionality |
 | Settings | `/settings` | App-wide configuration |
 
+> **Note (2026-02-15):** End of Day features (Master Terminal configuration and Day Close History) are accessible via **Store Detail page** tabs:
+> - **Devices tab**: Configure Master Terminal using inline toggle
+> - **End of Day tab**: View Day Close History for the store
+
 ### 5.2 Dashboard Requirements
 
 **Primary KPIs (Top Row Cards):**
@@ -201,9 +205,11 @@ Before the Admin Panel was implemented, admin functionality was mixed into the P
 **List View Features:**
 - Search by name/email
 - Filter by role (admin/manager/cashier)
-- Filter by store
+- Filter by store (via dropdown in page)
 - Show last login time
 - Quick actions: Edit, Reset Password, Deactivate
+
+> **Note (2026-02-15):** The global store selector in the header has been deprecated. Store filtering is now implemented per-page via dropdown filters, consistent with other admin pages (Products, Reports, Devices). See [ADR-0021](./adr/ADR-0021-admin-store-selector-deprecation.md).
 
 ### 5.5 Reports Requirements
 
@@ -643,6 +649,7 @@ Using shared UI components:
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2024-12-31 | Initial release |
+| 1.1 | 2026-02-15 | Added note about EOD features moved to Store Detail page (under Devices and End of Day tabs) |
 
 ---
 

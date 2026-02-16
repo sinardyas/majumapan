@@ -33,12 +33,15 @@ A configurable time period that defines "one business day" per store.
 - EOD at 6:00 AM marks all transactions from 6:00 AM (yesterday) to 5:59 AM (today) as closed
 
 ### 2.2 Master Terminal
+
 A designated POS terminal authorized to trigger End of Day.
 
 - Only terminals marked as `isMasterTerminal = true` can initiate EOD
 - Ensures centralized control and prevents conflicts
-- Configured explicitly in Admin Panel
+- Configured in Admin Panel under **Store Detail > Devices tab**
 - Typically: Manager's station or back-office computer
+
+> **Note (2026-02-15):** Master Terminal configuration has been moved from the sidebar to **Store Detail > Devices tab**. This allows store managers to configure the master terminal in the same location where device bindings are managed.
 
 ### 2.3 Day Close Record
 A permanent audit record created when EOD is executed.
@@ -126,10 +129,13 @@ Result: Transaction belongs to "2026-01-15" operational day
 | eodNotificationEmails | string[] | No | [] | Email addresses for EOD alerts |
 
 #### 4.1.2 Master Terminal Settings
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | isMasterTerminal | boolean | Yes | Terminal can trigger EOD |
 | masterTerminalName | string | No | Human-readable name (e.g., "Manager Station") |
+
+> **Location:** Admin Panel → Stores → [Select Store] → **Devices** tab → Toggle master status inline |
 
 ### 4.2 Pre-EOD Validation
 
@@ -1016,12 +1022,14 @@ pending_carts_queue: (storeId, operationalDate)
 - DayClosedOverlay component ✅
 - EOD button on Dashboard ✅
 - EOD Settings page (Admin) ✅
-- Master Terminals page (Admin) ✅
-- Day Close History page (Admin) ✅
+- Master Terminal configuration (Admin - now in Store Detail > Devices) ✅
+- Day Close History (Admin - now in Store Detail > End of Day tab) ✅
 - Day Close Detail page with reports ✅
 - Unit tests
 - Integration tests
 - Bug fixes
+
+> **Note (2026-02-15):** Navigation updated - Master Terminal and Day Close History are now accessed via **Store Detail page** tabs (Devices and End of Day respectively) instead of separate sidebar items.
 
 ---
 
@@ -1034,3 +1042,4 @@ pending_carts_queue: (storeId, operationalDate)
 | 1.2 | Jan 16, 2026 | - | Phase 3 Reports Engine complete |
 | 1.3 | Jan 16, 2026 | - | Phase 4 Export & Notifications complete |
 | 1.4 | Jan 16, 2026 | - | Phase 5 UI Integration complete |
+| 1.5 | Feb 15, 2026 | - | Updated Master Terminal navigation - now under Store Detail > Devices tab with inline toggle |

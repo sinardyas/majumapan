@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import { api } from '@/services/api';
-import { Button } from '@pos/ui';
-import { Monitor, Plus, Check, X } from 'lucide-react';
+import { Button, Select } from '@pos/ui';
+import { Monitor, Plus, Check, X, Store } from 'lucide-react';
+import type { Store as StoreType } from '@pos/shared';
 
 interface Device {
   id: string;
@@ -13,44 +14,54 @@ interface Device {
 }
 
 export default function MasterTerminals() {
-  const { user, selectedStoreId } = useAuthStore();
+  const { user } = useAuthStore();
   const [devices, setDevices] = useState<Device[]>([]);
+  const [stores, setStores] = useState<StoreType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState('');
+  const [selectedStoreId, setSelectedStoreId] = useState<string>('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const fetchStores = useCallback(async () => {
+    try {
+      const response = await api.get<{ items: StoreType[] }>('/stores');
+      if (response.success && response.data) {
+        setStores(response.data.items || []);
+        if (response.data.items.length > 0 && !selectedStoreId) {
+          setSelectedStoreId(response.data.items[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching stores:', error);
+    }
+  }, []);
 
   useEffect(() => {
-    if (user) {
+    fetchStores();
+  }, [fetchStores]);
+
+  useEffect(() => {
+    if (user && selectedStoreId) {
       fetchDevices();
     }
   }, [user, selectedStoreId]);
 
-  const getEffectiveStoreId = () => {
-    if (selectedStoreId && selectedStoreId !== 'all') {
-      return selectedStoreId;
-    }
-    return user?.storeId;
-  };
-
   const fetchDevices = async () => {
-    const storeId = getEffectiveStoreId();
-    if (!storeId) {
-      setError('Please select a store to manage master terminals.');
+    if (!selectedStoreId) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await api.get<Device[]>(`/stores/${storeId}/devices`);
+      const response = await api.get<Device[]>(`/stores/${selectedStoreId}/devices`);
 
       if (response.success && response.data) {
         setDevices(response.data);
       }
     } catch (err) {
       console.error('Error fetching devices:', err);
-      setError('Failed to load devices.');
+      setMessage({ type: 'error', text: 'Failed to load devices.' });
     } finally {
       setIsLoading(false);
     }
@@ -93,8 +104,7 @@ export default function MasterTerminals() {
   const addDevice = async () => {
     if (!newDeviceName.trim()) return;
 
-    const storeId = getEffectiveStoreId();
-    if (!storeId) {
+    if (!selectedStoreId) {
       setMessage({ type: 'error', text: 'Store not selected.' });
       return;
     }
@@ -102,7 +112,7 @@ export default function MasterTerminals() {
     setIsSaving(true);
     try {
       const response = await api.post(
-        `/stores/${storeId}/devices`,
+        `/stores/${selectedStoreId}/devices`,
         {
           deviceName: newDeviceName,
           deviceIdentifier: `device-${Date.now()}`,
@@ -133,22 +143,6 @@ export default function MasterTerminals() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Master Terminals</h1>
-          <p className="text-gray-600">
-            Configure which devices can perform End of Day operations
-          </p>
-        </div>
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-700">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
@@ -156,6 +150,23 @@ export default function MasterTerminals() {
         <p className="text-gray-600">
           Configure which devices can perform End of Day operations
         </p>
+      </div>
+
+      <div className="mb-4 flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Store className="h-4 w-4 text-gray-500" />
+          <Select
+            value={selectedStoreId}
+            onChange={(e) => setSelectedStoreId(e.target.value)}
+            className="w-64"
+          >
+            {stores.map((store) => (
+              <option key={store.id} value={store.id}>
+                {store.name}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {message && (

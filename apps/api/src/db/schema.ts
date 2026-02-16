@@ -517,6 +517,7 @@ export const deviceBindings = pgTable('device_bindings', {
   status: varchar('status', { length: 20 }).notNull().default('pending'),
   deviceName: varchar('device_name').notNull(),
   deviceFingerprint: text('device_fingerprint'),
+  isMasterTerminal: boolean('is_master_terminal').default(false).notNull(),
   boundAt: timestamp('bound_at'),
   expiresAt: timestamp('expires_at'),
   revokedAt: timestamp('revoked_at'),
@@ -528,6 +529,7 @@ export const deviceBindings = pgTable('device_bindings', {
   index('device_bindings_store_idx').on(table.storeId),
   index('device_bindings_status_idx').on(table.status),
   index('device_bindings_binding_code_idx').on(table.bindingCode),
+  index('device_bindings_master_idx').on(table.isMasterTerminal),
 ]);
 
 // User Sessions (for device binding login system)

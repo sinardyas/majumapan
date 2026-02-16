@@ -31,7 +31,7 @@ if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULER === 't
 app.use('*', logger());
 app.use('*', prettyJSON());
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:4001', 'http://localhost:4002', 'http://localhost:3000'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowHeaders: ['Content-Type', 'Authorization'],
   exposeHeaders: ['Content-Length'],
@@ -66,7 +66,7 @@ app.onError((err, c) => {
 });
 
 // Server configuration
-const port = parseInt(process.env.API_PORT || '3000', 10);
+const port = parseInt(process.env.API_PORT || '4000', 10);
 const host = process.env.API_HOST || '0.0.0.0';
 
 console.log(`Server starting on http://${host}:${port}`);

@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { authMiddleware } from '../middleware/auth';
 import { distributionService } from '../services/distribution-service';
 import { customerService } from '../services/customer-service';
 import { db } from '../db';
@@ -31,6 +32,8 @@ const distributeSchema = z.object({
 });
 
 export const distributionRoutes = new Hono();
+
+distributionRoutes.use('*', authMiddleware);
 
 // Template endpoints
 distributionRoutes.get('/templates', async (c) => {
