@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { voucherApi, type Voucher } from '@/services/voucher';
 import { voucherApi as voucherApiService } from '@/services/voucher';
-import { Button, Input } from '@pos/ui';
-import { Gift, Search, Plus, Trash2, AlertCircle, Send } from 'lucide-react';
+import { Button } from '@pos/ui';
+import { Gift, Plus, Trash2, AlertCircle, Send, Search } from 'lucide-react';
 import { VoucherRuleBuilder } from '@/components/pos/VoucherRuleBuilder';
 import { DistributionModal } from '@/components/DistributionModal';
-import { formatCurrency } from '@pos/shared';
 
 interface Category {
   id: string;
@@ -163,6 +162,145 @@ export default function Vouchers() {
           Create Voucher
         </Button>
       </div>
+
+      {/* Filters */}
+      <div className="flex gap-4 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by code..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+          />
+        </div>
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value as 'all' | 'GC' | 'PR')}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="all">All Types</option>
+          <option value="GC">Gift Cards</option>
+          <option value="PR">Promotional</option>
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'expired' | 'voided')}
+          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="expired">Expired</option>
+          <option value="voided">Voided</option>
+        </select>
+      </div>
+
+      {/* Vouchers Table */}
+      {isLoading ? (
+        <div className="text-center py-12">
+          <div className="animate-spin h-8 w-8 border-4 border-primary-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading vouchers...</p>
+        </div>
+      ) : filteredVouchers.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Gift className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No vouchers found</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Code</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Type</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Value/Balance</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Status</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Usage</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Expires</th>
+                <th className="px-4 py-3 text-left text-sm font-medium text-gray-500">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredVouchers.map((voucher) => (
+                <tr key={voucher.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3">
+                    <span className="font-mono font-medium">{formatCodeDisplay(voucher.code)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {getTypeBadge(voucher)}
+                  </td>
+                  <td className="px-4 py-3">
+                    {voucher.type === 'GC' ? (
+                      <span className="font-medium">Rp {(voucher.currentBalance || 0).toLocaleString('id-ID')}</span>
+                    ) : (
+                      <span>
+                        {voucher.discountType === 'PERCENTAGE' && `${voucher.percentageValue}% off`}
+                        {voucher.discountType === 'FIXED' && `Rp ${(voucher.fixedValue || 0).toLocaleString('id-ID')}`}
+                        {voucher.discountType === 'FREE_ITEM' && 'Free Item'}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {getStatusBadge(voucher)}
+                  </td>
+                  <td className="px-4 py-3 text-sm">
+                    {voucher.totalUsageLimit ? (
+                      <div className="flex items-center gap-1">
+                        <span className={voucher.currentUsageCount !== undefined && voucher.currentUsageCount >= voucher.totalUsageLimit ? 'text-red-600' : 'text-gray-900'}>
+                          {voucher.currentUsageCount || 0}
+                        </span>
+                        <span className="text-gray-400">/</span>
+                        <span>{voucher.totalUsageLimit}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">{voucher.currentUsageCount || 0} / ∞</span>
+                    )}
+                    {voucher.dailyLimit && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Daily: {voucher.dailyLimit}
+                      </div>
+                    )}
+                    {voucher.perCustomerLimit && (
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        Per customer: {voucher.perCustomerLimit}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-500">
+                    {voucher.expiresAt ? formatDate(voucher.expiresAt) : 'No expiry'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {!voucher.isVoid && voucher.isActive && (
+                        <button
+                          onClick={() => {
+                            setSelectedVoucher(voucher);
+                            setIsDistributionModalOpen(true);
+                          }}
+                          className="p-1 text-primary-600 hover:text-primary-700"
+                          title="Distribute voucher"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      )}
+                      {!voucher.isVoid && voucher.isActive && (
+                        <button
+                          onClick={() => openVoidModal(voucher)}
+                          className="p-1 text-red-600 hover:text-red-700"
+                          title="Void voucher"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Distribution Modal */}
       <DistributionModal

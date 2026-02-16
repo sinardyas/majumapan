@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/services/api';
-import { Button, Card, Input, Modal, Badge, Skeleton } from '@pos/ui';
+import { Button, Card, Input, Modal, Badge, Skeleton, Select } from '@pos/ui';
 import type { User, Store } from '@pos/shared';
 import { z } from 'zod';
-import { Plus, Edit, Trash2, Search, Mail, User as UserIcon, Key } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Mail, User as UserIcon, Key, Store as StoreIcon } from 'lucide-react';
 
 const userSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -33,6 +33,7 @@ export default function Users() {
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
+  const [storeFilter, setStoreFilter] = useState('');
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     name: '',
@@ -96,8 +97,12 @@ export default function Users() {
       filtered = filtered.filter(user => user.role === roleFilter);
     }
 
+    if (storeFilter) {
+      filtered = filtered.filter(user => user.storeId === storeFilter);
+    }
+
     setFilteredUsers(filtered);
-  }, [searchQuery, roleFilter, users]);
+  }, [searchQuery, roleFilter, storeFilter, users]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,12 +330,25 @@ export default function Users() {
           <option value="manager">Manager</option>
           <option value="cashier">Cashier</option>
         </select>
+
+        <select
+          value={storeFilter}
+          onChange={(e) => setStoreFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <option value="">All Stores</option>
+          {stores.map((store) => (
+            <option key={store.id} value={store.id}>
+              {store.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {filteredUsers.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">
-            {searchQuery || roleFilter ? 'No users match your filters' : 'No users yet. Create your first user!'}
+            {searchQuery || roleFilter || storeFilter ? 'No users match your filters' : 'No users yet. Create your first user!'}
           </p>
         </div>
       ) : (

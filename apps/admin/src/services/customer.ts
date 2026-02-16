@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@pos/api-client';
+import { useAuthStore } from '@/stores/authStore';
 
 export interface Customer {
   id: string;
@@ -52,6 +53,14 @@ export interface UpdateGroupInput {
 class CustomerApiService {
   private baseUrl = '/api/v1/customers';
 
+  private async getHeaders() {
+    const { accessToken } = useAuthStore.getState();
+    return {
+      'Content-Type': 'application/json',
+      ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {}),
+    };
+  }
+
   async list(options?: {
     search?: string;
     groupId?: string;
@@ -64,7 +73,9 @@ class CustomerApiService {
     if (options?.limit) params.append('limit', String(options.limit));
     if (options?.offset) params.append('offset', String(options.offset));
 
-    const response = await fetch(`${this.baseUrl}?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}?${params.toString()}`, {
+      headers: await this.getHeaders(),
+    });
     const data = await response.json();
     return data;
   }
@@ -73,24 +84,30 @@ class CustomerApiService {
     const params = new URLSearchParams();
     if (options?.groupId) params.append('groupId', options.groupId);
     
-    const response = await fetch(`${this.baseUrl}/count?${params.toString()}`);
+    const response = await fetch(`${this.baseUrl}/count?${params.toString()}`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   async getById(id: string): Promise<ApiResponse<Customer>> {
-    const response = await fetch(`${this.baseUrl}/${id}`);
+    const response = await fetch(`${this.baseUrl}/${id}`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   async getByPhone(phone: string): Promise<ApiResponse<Customer>> {
-    const response = await fetch(`${this.baseUrl}/phone/${encodeURIComponent(phone)}`);
+    const response = await fetch(`${this.baseUrl}/phone/${encodeURIComponent(phone)}`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   async create(input: CreateCustomerInput): Promise<ApiResponse<Customer>> {
     const response = await fetch(this.baseUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -99,7 +116,7 @@ class CustomerApiService {
   async update(id: string, input: UpdateCustomerInput): Promise<ApiResponse<Customer>> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -108,25 +125,30 @@ class CustomerApiService {
   async delete(id: string): Promise<ApiResponse<null>> {
     const response = await fetch(`${this.baseUrl}/${id}`, {
       method: 'DELETE',
+      headers: await this.getHeaders(),
     });
     return response.json();
   }
 
   async getVouchers(customerId: string): Promise<ApiResponse<any[]>> {
-    const response = await fetch(`${this.baseUrl}/${customerId}/vouchers`);
+    const response = await fetch(`${this.baseUrl}/${customerId}/vouchers`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   // Customer Groups
   async getGroups(): Promise<ApiResponse<CustomerGroup[]>> {
-    const response = await fetch(`${this.baseUrl}/groups/list`);
+    const response = await fetch(`${this.baseUrl}/groups/list`, {
+      headers: await this.getHeaders(),
+    });
     return response.json();
   }
 
   async createGroup(input: CreateGroupInput): Promise<ApiResponse<CustomerGroup>> {
     const response = await fetch(`${this.baseUrl}/groups`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -135,7 +157,7 @@ class CustomerApiService {
   async updateGroup(id: string, input: UpdateGroupInput): Promise<ApiResponse<CustomerGroup>> {
     const response = await fetch(`${this.baseUrl}/groups/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: await this.getHeaders(),
       body: JSON.stringify(input),
     });
     return response.json();
@@ -144,6 +166,7 @@ class CustomerApiService {
   async deleteGroup(id: string): Promise<ApiResponse<null>> {
     const response = await fetch(`${this.baseUrl}/groups/${id}`, {
       method: 'DELETE',
+      headers: await this.getHeaders(),
     });
     return response.json();
   }

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/services/api';
-import { Button, Card, Badge, Skeleton } from '@pos/ui';
-import { ArrowLeft, Plus, RefreshCw, Trash2, Monitor, User as UserIcon, Mail, Key } from 'lucide-react';
+import { Button, Card, Badge, Skeleton, Switch } from '@pos/ui';
+import { ArrowLeft, Plus, RefreshCw, Trash2, Monitor, User as UserIcon, Mail, Key, History } from 'lucide-react';
 import type { User } from '@pos/shared';
+import { DayCloseHistoryItem } from '@pos/shared';
+import { formatCurrency } from '@/lib/utils';
 
 interface DeviceBinding {
   id: string;
@@ -11,6 +13,8 @@ interface DeviceBinding {
   bindingCode: string;
   status: 'pending' | 'active' | 'revoked';
   deviceName: string;
+  isMasterTerminal?: boolean;
+  masterTerminalName?: string;
   boundAt: string | null;
   expiresAt: string | null;
   createdAt: string;
@@ -31,12 +35,15 @@ export default function StoreDetail() {
   const [store, setStore] = useState<Store | null>(null);
   const [devices, setDevices] = useState<DeviceBinding[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [dayCloseHistory, setDayCloseHistory] = useState<DayCloseHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'devices' | 'users' | 'eod'>('overview');
   const [showCreateDevice, setShowCreateDevice] = useState(false);
   const [deviceExpiresIn, setDeviceExpiresIn] = useState<'24h' | '7d' | '30d' | 'never'>('24h');
   const [revokeDevice, setRevokeDevice] = useState<DeviceBinding | null>(null);
   const [revokeReason, setRevokeReason] = useState('');
+  const [masterToggleDevice, setMasterToggleDevice] = useState<DeviceBinding | null>(null);
+  const [masterToggleLoading, setMasterToggleLoading] = useState(false);
 
   const fetchStore = async () => {
     try {
@@ -50,6 +57,7 @@ export default function StoreDetail() {
   };
 
   const fetchDevices = async () => {
+    if (!id) return;
     try {
       const response = await api.get<DeviceBinding[]>(`/device-bindings?storeId=${id}`);
       if (response.success && response.data) {
@@ -71,6 +79,20 @@ export default function StoreDetail() {
     }
   };
 
+  const fetchDayCloseHistory = async () => {
+    if (!id) return;
+    try {
+      const response = await api.get<{ dayCloses: DayCloseHistoryItem[]; total: number }>(
+        `/day-close/history?storeId=${id}&pageSize=10`
+      );
+      if (response.success && response.data) {
+        setDayCloseHistory(response.data.dayCloses || []);
+      }
+    } catch (error) {
+      console.error('Failed to load day close history');
+    }
+  };
+
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
@@ -81,6 +103,12 @@ export default function StoreDetail() {
     };
     load();
   }, [id]);
+
+  useEffect(() => {
+    if (activeTab === 'eod') {
+      fetchDayCloseHistory();
+    }
+  }, [activeTab, id]);
 
   const handleCreateDevice = async () => {
     try {
@@ -129,6 +157,24 @@ export default function StoreDetail() {
       }
     } catch (error) {
       console.error('Failed to regenerate code');
+    }
+  };
+
+  const handleDownloadCSV = async (dayClose: DayCloseHistoryItem) => {
+    try {
+      const response = await api.get<string>(`/day-close/${dayClose.id}/export/csv/all`, { responseType: 'text' });
+
+      if (response.success && response.data) {
+        const blob = new Blob([response.data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `eod-report-${dayClose.operationalDate}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error downloading CSV:', error);
     }
   };
 
@@ -219,6 +265,16 @@ export default function StoreDetail() {
           >
             Users ({users.length})
           </button>
+          <button
+            onClick={() => setActiveTab('eod')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'eod'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            End of Day
+          </button>
         </nav>
       </div>
 
@@ -271,6 +327,7 @@ export default function StoreDetail() {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Master</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Bound</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Expires</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -287,6 +344,17 @@ export default function StoreDetail() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           {getStatusBadge(device.status)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {device.status === 'active' ? (
+                            <Switch
+                              checked={device.isMasterTerminal}
+                              onCheckedChange={() => setMasterToggleDevice(device)}
+                              disabled={masterToggleLoading}
+                            />
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {formatDate(device.boundAt)}
@@ -386,6 +454,108 @@ export default function StoreDetail() {
         </div>
       )}
 
+      {activeTab === 'eod' && (
+        <div className="space-y-6">
+          {/* Day Close History Section */}
+          <Card>
+            <div className="p-4 border-b border-gray-200">
+              <div className="flex items-center gap-2">
+                <History className="h-5 w-5 text-gray-500" />
+                <h2 className="font-semibold text-gray-900">Day Close History</h2>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">Recent day close records for this store</p>
+            </div>
+            <div className="p-4">
+              {dayCloseHistory.length === 0 ? (
+                <div className="text-center py-8">
+                  <History className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500">No day close records for this store</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Day Close #</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transactions</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Sales</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Closed By</th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {dayCloseHistory.map((dayClose) => (
+                        <tr key={dayClose.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <div className="text-sm font-medium text-gray-900">
+                              {new Date(dayClose.operationalDate).toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm font-mono text-gray-900">
+                              {dayClose.dayCloseNumber}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm text-gray-900">
+                              {dayClose.totalTransactions}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm font-medium text-gray-900">
+                              {formatCurrency(dayClose.totalSales)}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className="text-sm text-gray-500">
+                              {dayClose.closedByUserName || 'N/A'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              dayClose.syncStatus === 'clean'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {dayClose.syncStatus === 'clean' ? 'Synced' : 'Pending Sync'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => navigate(`/eod/day-close/${dayClose.id}`)}
+                                className="text-blue-600 hover:text-blue-900"
+                                title="View Details"
+                              >
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDownloadCSV(dayClose)}
+                                className="text-gray-600 hover:text-gray-900"
+                                title="Download CSV"
+                              >
+                                CSV
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Create Device Modal */}
       {showCreateDevice && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -437,6 +607,68 @@ export default function StoreDetail() {
                 <Button variant="secondary" onClick={() => setRevokeDevice(null)}>Cancel</Button>
                 <Button variant="destructive" onClick={handleRevoke}>Revoke</Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Master Toggle Confirmation Modal */}
+      {masterToggleDevice && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            {masterToggleDevice.isMasterTerminal ? (
+              <>
+                <h2 className="text-lg font-bold mb-4">Remove Master Terminal?</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  <strong>{masterToggleDevice.deviceName}</strong> will no longer be the master terminal for this store.
+                  Only the designated master terminal can execute End of Day operations.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-lg font-bold mb-4">Set as Master Terminal?</h2>
+                <p className="text-sm text-gray-600 mb-4">
+                  Set <strong>{masterToggleDevice.deviceName}</strong> as the master terminal for this store?
+                  {devices.find(d => d.isMasterTerminal) && (
+                    <>
+                      <br />
+                      <span className="text-yellow-600">
+                        This will replace the current master terminal: <strong>{devices.find(d => d.isMasterTerminal)?.deviceName}</strong>
+                      </span>
+                    </>
+                  )}
+                </p>
+              </>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setMasterToggleDevice(null)}>Cancel</Button>
+              <Button
+                onClick={async () => {
+                  const isCurrentlyMaster = masterToggleDevice.isMasterTerminal;
+                  setMasterToggleLoading(true);
+                  try {
+                    const response = await api.put(`/device-bindings/${masterToggleDevice.id}/master-status`, {
+                      isMasterTerminal: !isCurrentlyMaster,
+                    });
+                    if (response.success) {
+                      await fetchDevices();
+                      setMasterToggleDevice(null);
+                      alert(isCurrentlyMaster 
+                        ? 'Device removed from master terminal' 
+                        : 'Device set as master terminal');
+                    } else {
+                      alert(response.error || 'Failed to update master status');
+                    }
+                  } catch (error) {
+                    alert('Failed to update master status');
+                  } finally {
+                    setMasterToggleLoading(false);
+                  }
+                }}
+                isLoading={masterToggleLoading}
+              >
+                {masterToggleDevice.isMasterTerminal ? 'Remove Master' : 'Confirm'}
+              </Button>
             </div>
           </div>
         </div>

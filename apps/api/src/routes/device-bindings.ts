@@ -53,6 +53,7 @@ deviceBindingsRouter.get('/', async (c) => {
       bindingCode: deviceBindings.bindingCode,
       status: deviceBindings.status,
       deviceName: deviceBindings.deviceName,
+      isMasterTerminal: deviceBindings.isMasterTerminal,
       boundAt: deviceBindings.boundAt,
       expiresAt: deviceBindings.expiresAt,
       createdAt: deviceBindings.createdAt,
@@ -345,6 +346,86 @@ deviceBindingsRouter.post('/force-logout', async (c) => {
   } catch (error) {
     console.error('Force logout error:', error);
     return c.json({ success: false, error: 'Failed to force logout user' }, 500);
+  }
+});
+
+// Set/unset master terminal
+deviceBindingsRouter.put('/:id/master-status', async (c) => {
+  try {
+    const user = c.get('user');
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const { isMasterTerminal } = body;
+
+    if (typeof isMasterTerminal !== 'boolean') {
+      return c.json({ success: false, error: 'isMasterTerminal must be a boolean' }, 400);
+    }
+
+    const binding = await db.query.deviceBindings.findFirst({
+      where: eq(deviceBindings.id, id),
+    });
+
+    if (!binding) {
+      return c.json({ success: false, error: 'Device binding not found' }, 404);
+    }
+
+    // Managers can only modify devices from their store
+    if (user.role === 'manager' && binding.storeId !== user.storeId) {
+      return c.json({ success: false, error: 'Access denied' }, 403);
+    }
+
+    // Check if binding is active
+    if (binding.status !== 'active') {
+      return c.json({ success: false, error: 'Can only set master terminal on active devices' }, 400);
+    }
+
+    const oldMasterTerminal = binding.isMasterTerminal;
+
+    // If setting as master, unset any existing master terminal for this store
+    if (isMasterTerminal && !oldMasterTerminal) {
+      await db.update(deviceBindings)
+        .set({ isMasterTerminal: false, updatedAt: new Date() })
+        .where(and(
+          eq(deviceBindings.storeId, binding.storeId),
+          eq(deviceBindings.isMasterTerminal, true)
+        ));
+    }
+
+    // Update the device binding
+    await db.update(deviceBindings)
+      .set({ isMasterTerminal, updatedAt: new Date() })
+      .where(eq(deviceBindings.id, id));
+
+    // Determine audit action
+    let auditAction: 'set_master' | 'replace_master' | 'remove_master' = 'set_master';
+    if (!isMasterTerminal) {
+      auditAction = 'remove_master';
+    } else if (oldMasterTerminal) {
+      auditAction = 'set_master';
+    } else {
+      auditAction = 'replace_master';
+    }
+
+    await createAuditLog({
+      userId: user.userId,
+      userEmail: user.email,
+      action: auditAction,
+      entityType: 'device_binding',
+      entityId: id,
+      entityName: binding.deviceName,
+      changes: {
+        isMasterTerminal: { old: oldMasterTerminal, new: isMasterTerminal },
+      },
+      c,
+    });
+
+    return c.json({
+      success: true,
+      data: { id, isMasterTerminal },
+    });
+  } catch (error) {
+    console.error('Set master terminal error:', error);
+    return c.json({ success: false, error: 'Failed to set master terminal' }, 500);
   }
 });
 

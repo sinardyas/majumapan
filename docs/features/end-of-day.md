@@ -328,11 +328,13 @@ apps/admin/src/
 | T5.1.6 | Add EndOfDay route | POS routing | `apps/web/src/App.tsx` | ✅ Done |
 | T5.1.7 | Add Sidebar nav item | POS nav | `apps/web/src/components/layout/Sidebar.tsx` | ✅ Done |
 | T5.2.1 | Create EODSettings page | Admin UI | `apps/admin/src/pages/EODSettings.tsx` | ✅ Done |
-| T5.2.2 | Create MasterTerminals page | Admin UI | `apps/admin/src/pages/MasterTerminals.tsx` | ✅ Done |
-| T5.3.1 | Create DayCloseHistory page | Admin UI | `apps/admin/src/pages/DayCloseHistory.tsx` | ✅ Done |
+| T5.2.2 | Create MasterTerminals page | ~~Admin UI~~ | ~~`apps/admin/src/pages/MasterTerminals.tsx`~~ | ⚠️ Merged |
+| T5.2.2a | Master Terminal inline toggle | Admin UI | `apps/admin/src/pages/StoreDetail.tsx` (Devices tab) | ✅ Done |
+| T5.3.1 | Create DayCloseHistory page | ~~Admin UI~~ | ~~`apps/admin/src/pages/DayCloseHistory.tsx`~~ | ⚠️ Moved |
+| T5.3.1a | Day Close History tab | Admin UI | `apps/admin/src/pages/StoreDetail.tsx` (End of Day tab) | ✅ Done |
 | T5.3.2 | Create DayCloseDetail page | Admin UI | `apps/admin/src/pages/DayCloseDetail.tsx` | ✅ Done |
 | T5.3.3 | Add Admin routes | Routing | `apps/admin/src/App.tsx` | ✅ Done |
-| T5.3.4 | Add Admin sidebar nav | Nav | `apps/admin/src/components/layout/Sidebar.tsx` | ✅ Done |
+| T5.3.4 | Add Admin sidebar nav | ~~Nav~~ | ~~`apps/admin/src/components/layout/Sidebar.tsx`~~ | ⚠️ Removed |
 
 **Phase 5 Deliverables (POS):**
 - EndOfDay page with pre-EOD summary
@@ -344,10 +346,10 @@ apps/admin/src/
 
 **Phase 5 Deliverables (Admin):**
 - EOD Settings page - Configure operational day, notifications
-- Master Terminals page - Designate master terminals
-- Day Close History page - View all historical records
+- Master Terminal configuration - Now in **Store Detail > Devices tab** with inline toggle
+- Day Close History - Now in **Store Detail > End of Day tab**
 - Day Close Detail page - View reports with tabs
-- Admin sidebar navigation for EOD section
+- Sidebar navigation removed - EOD features now under Store Detail
 
 ### Phase 6: Testing & Polish (Week 4) - ⏳ PENDING
 
@@ -584,15 +586,17 @@ ALTER TABLE transactions ADD COLUMN operational_date DATE;
 
 ### Admin Pages
 - `apps/admin/src/pages/EODSettings.tsx`
-- `apps/admin/src/pages/MasterTerminals.tsx`
-- `apps/admin/src/pages/DayCloseHistory.tsx`
+- `apps/admin/src/pages/StoreDetail.tsx` (Devices tab - Master Terminal toggle)
+- `apps/admin/src/pages/StoreDetail.tsx` (End of Day tab - Day Close History)
 - `apps/admin/src/pages/DayCloseDetail.tsx`
+
+> **Note (2026-02-15):** Master Terminal and Day Close History features have been moved from separate pages to Store Detail page tabs.
 
 ### Frontend Routing
 - `apps/web/src/App.tsx` - Added routes
 - `apps/web/src/components/layout/Sidebar.tsx` - Added nav items
-- `apps/admin/src/App.tsx` - Added routes
-- `apps/admin/src/components/layout/Sidebar.tsx` - Added nav items
+- `apps/admin/src/App.tsx` - Routes simplified (removed `/eod/master-terminals` and `/eod/day-close-history`)
+- `apps/admin/src/components/layout/Sidebar.tsx` - Removed EOD section
 
 ### Shared Types
 - `packages/shared/src/types/models.ts`

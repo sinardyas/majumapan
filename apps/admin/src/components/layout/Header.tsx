@@ -1,5 +1,4 @@
 import { useAuthStore } from '@/stores/authStore';
-import { StoreSelector } from '../StoreSelector';
 
 export function Header() {
   const { user } = useAuthStore();
@@ -9,11 +8,6 @@ export function Header() {
       <h2 className="text-lg font-semibold text-gray-900">Admin Panel</h2>
       {user && (
         <div className="flex items-center gap-4">
-          {user.role === 'admin' && (
-            <div className="flex items-center gap-2">
-              <StoreSelector />
-            </div>
-          )}
           <div className="text-sm text-gray-600">
             <span className="font-medium text-gray-900">{user.name}</span>
             <span className="mx-2">•</span>
