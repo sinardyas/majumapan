@@ -9,4 +9,5 @@ export { Badge, badgeVariants } from './Badge';
 export { Skeleton } from './Skeleton';
 export { ToastProvider, useToast } from './Toast';
 export { Switch } from './Toggle';
+export { Numpad } from './Numpad';
 export { cn } from './lib/utils';

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { LocalShift } from '@/db';
+import { saveShift } from '@/db';
 import {
   openShiftOnline,
   openShiftOffline,
@@ -11,6 +12,7 @@ import {
   type CloseShiftData,
 } from '@/db/shifts';
 import { useAuthStore } from './authStore';
+import { api } from '@/services/api';
 
 const SHIFT_SYNC_CHANNEL = 'pos-shift-sync';
 const channel = typeof BroadcastChannel !== undefined
@@ -31,6 +33,7 @@ interface ShiftState {
   openShift: (storeId: string, data: OpenShiftData) => Promise<{ success: boolean; error?: string }>;
   closeShift: (data: CloseShiftData) => Promise<{ success: boolean; error?: string }>;
   loadActiveShift: () => Promise<void>;
+  loadActiveShiftFromServer: () => Promise<void>;
   verifySupervisorAndClose: (
     pin: string,
     data: Omit<CloseShiftData, 'supervisorApproval'>
@@ -188,6 +191,55 @@ export const useShiftStore = create<ShiftState>((set, get) => ({
         status: 'error',
         error: 'Failed to load active shift',
       });
+    }
+  },
+
+  loadActiveShiftFromServer: async () => {
+    const { user } = useAuthStore.getState();
+    if (!user || !user.storeId) {
+      return;
+    }
+
+    try {
+      const response = await api.get<any>('/shifts/active');
+      
+      if (response.success && response.data?.shift) {
+        const serverShift = response.data.shift;
+        
+        const localShift: LocalShift = {
+          id: serverShift.id,
+          serverId: serverShift.id,
+          shiftNumber: serverShift.shiftNumber,
+          cashierId: serverShift.cashierId,
+          storeId: serverShift.storeId,
+          status: serverShift.status,
+          openingFloat: parseFloat(serverShift.openingFloat),
+          openingNote: serverShift.openingNote ?? null,
+          openingImageUrl: null,
+          openingTimestamp: new Date(serverShift.openingTimestamp).toISOString(),
+          endingCash: serverShift.endingCash ? parseFloat(serverShift.endingCash) : null,
+          endingNote: serverShift.endingNote ?? null,
+          closingTimestamp: serverShift.closingTimestamp ? new Date(serverShift.closingTimestamp).toISOString() : null,
+          variance: serverShift.variance ? parseFloat(serverShift.variance) : null,
+          varianceReason: serverShift.varianceReason ?? null,
+          varianceApprovedBy: serverShift.varianceApprovedBy ?? null,
+          varianceApprovedAt: serverShift.varianceApprovedAt ? new Date(serverShift.varianceApprovedAt).toISOString() : null,
+          syncStatus: 'synced',
+          createdAt: new Date(serverShift.createdAt).toISOString(),
+          updatedAt: new Date(serverShift.updatedAt).toISOString(),
+        };
+
+        await saveShift(localShift);
+        
+        set({
+          activeShift: localShift,
+          status: localShift.status === 'ACTIVE' ? 'active' : 'none',
+        });
+        
+        broadcastShiftState(get());
+      }
+    } catch (error) {
+      console.error('Error loading active shift from server:', error);
     }
   },
 

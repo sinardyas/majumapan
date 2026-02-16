@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { Numpad } from '@pos/ui';
 
 interface User {
   id: string;
@@ -45,24 +46,6 @@ export function PinEntryScreen({
         return 'Cashier';
       default:
         return role;
-    }
-  };
-
-  const handleKeyPress = (key: string) => {
-    if (key === 'backspace') {
-      setPin((prev) => prev.slice(0, -1));
-    } else if (key === 'submit') {
-      if (pin.length === 6) {
-        onSubmit(pin);
-      }
-    } else if (/^\d$/.test(key)) {
-      if (pin.length < 6) {
-        setPin((prev) => prev + key);
-        // Auto-submit when 6 digits entered
-        if (pin.length === 5) {
-          setTimeout(() => onSubmit(pin + key), 100);
-        }
-      }
     }
   };
 
@@ -129,31 +112,16 @@ export function PinEntryScreen({
         )}
 
         {/* Keypad */}
-        <div className="grid grid-cols-3 gap-2">
-          {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'backspace', '0', 'submit'].map((key) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => handleKeyPress(key)}
-              disabled={isLoading || (key === 'submit' && pin.length !== 6)}
-              className={`h-14 rounded-lg font-medium text-lg transition-colors ${
-                key === 'backspace'
-                  ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  : key === 'submit'
-                  ? 'bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed'
-                  : 'bg-gray-50 text-gray-900 hover:bg-gray-100 active:bg-gray-200'
-              }`}
-            >
-              {key === 'backspace' ? (
-                <span className="text-lg">⌫</span>
-              ) : key === 'submit' ? (
-                <span>✓</span>
-              ) : (
-                key
-              )}
-            </button>
-          ))}
-        </div>
+        <Numpad
+          value={pin}
+          onChange={setPin}
+          maxLength={6}
+          showBackspace={true}
+          submitLabel="✓"
+          onSubmit={(value) => onSubmit(value)}
+          autoSubmit={true}
+          disabled={isLoading}
+        />
 
         {/* Back Button */}
         <button

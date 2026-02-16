@@ -51,7 +51,7 @@ export default function POS() {
     holdOrder,
     resumeOrder,
   } = useCartStore();
-  const { activeShift, loadActiveShift, status } = useShiftStore();
+  const { activeShift, loadActiveShift, loadActiveShiftFromServer, status } = useShiftStore();
   const { isOnline } = useOnlineStatus();
   const toast = useToast();
   
@@ -264,8 +264,14 @@ export default function POS() {
   }, [user?.storeId, user?.id]);
 
   useEffect(() => {
-    loadActiveShift();
-  }, [loadActiveShift]);
+    const loadShift = async () => {
+      await loadActiveShift();
+      if (isOnline) {
+        await loadActiveShiftFromServer();
+      }
+    };
+    loadShift();
+  }, [loadActiveShift, loadActiveShiftFromServer, isOnline]);
 
   useEffect(() => {
     if (status === 'none' && !activeShift) {
