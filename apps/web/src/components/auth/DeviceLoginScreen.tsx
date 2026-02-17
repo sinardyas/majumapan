@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from '@pos/ui';
+import { Button, Numpad } from '@pos/ui';
 import { QrCode, Keyboard, Camera, AlertCircle } from 'lucide-react';
 
 interface DeviceLoginScreenProps {
@@ -21,18 +21,6 @@ export function DeviceLoginScreen({
 }: DeviceLoginScreenProps) {
   const [bindingCode, setBindingCode] = useState('');
   const [inputError, setInputError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setInputError('');
-
-    if (bindingCode.length !== 6) {
-      setInputError('Code must be 6 characters');
-      return;
-    }
-
-    await onDeviceLogin(bindingCode);
-  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -90,19 +78,27 @@ export function DeviceLoginScreen({
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Enter 6-character binding code
+              <label className="block text-sm font-medium text-gray-700 mb-4 text-center">
+                Enter 6-digit binding code
               </label>
-              <input
-                type="text"
+              
+              {/* Display Area */}
+              <div className="text-center text-3xl font-mono tracking-[0.5em] mb-6 py-4 bg-gray-50 rounded-lg">
+                {bindingCode.padEnd(6, '•').split('').join(' ')}
+              </div>
+              
+              {/* Numpad */}
+              <Numpad
                 value={bindingCode}
-                onChange={(e) => setBindingCode(e.target.value.toUpperCase().slice(0, 6))}
-                className="w-full px-4 py-4 text-center text-2xl font-mono tracking-widest border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent uppercase"
-                placeholder="X X X X X X"
+                onChange={(value) => {
+                  setBindingCode(value);
+                  setInputError('');
+                }}
                 maxLength={6}
-                autoComplete="off"
+                showBackspace={true}
+                disabled={isLoading}
               />
             </div>
 
@@ -121,7 +117,13 @@ export function DeviceLoginScreen({
             )}
 
             <Button
-              type="submit"
+              onClick={async () => {
+                if (bindingCode.length !== 6) {
+                  setInputError('Code must be 6 digits');
+                  return;
+                }
+                await onDeviceLogin(bindingCode);
+              }}
               className="w-full"
               size="lg"
               isLoading={isLoading}
@@ -137,7 +139,7 @@ export function DeviceLoginScreen({
             >
               Switch to QR scan
             </button>
-          </form>
+          </div>
         )}
       </div>
     </div>

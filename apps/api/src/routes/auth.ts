@@ -120,7 +120,7 @@ auth.post('/device-login', async (c) => {
 
     // Find device binding by code
     const binding = await db.query.deviceBindings.findFirst({
-      where: eq(deviceBindings.bindingCode, bindingCode.toUpperCase()),
+      where: eq(deviceBindings.bindingCode, bindingCode),
     });
 
     if (!binding) {

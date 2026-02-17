@@ -106,25 +106,66 @@ import { useAuthStore } from '@/stores/authStore';
 | Files | kebab-case | `shift-modal.tsx` |
 | DB tables | snake_case | `device_bindings` |
 
-### Error Handling
+### API Response Standards
 
-**API Responses:**
+All API endpoints must follow the standard response envelope format (see ADR-0012).
+
+**TypeScript Interface** (`packages/api/src/types.ts`):
 ```typescript
-// Success: { success: true, data: { ... } }
-// Error: { success: false, error: "Error message" }
+interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+  pagination?: { page: number; limit: number; total: number; totalPages: number; };
+}
 ```
 
-**API Routes (Hono):**
+**Success Response:**
 ```typescript
-shiftsRouter.post('/open', async (c) => {
-  const data = await c.req.json();
-  const parsed = openShiftSchema.parse(data); // Zod
-  if (!user.storeId) {
-    return c.json({ success: false, error: 'Not assigned to store' }, 400);
-  }
-  return c.json({ success: true, data: { shift: newShift } });
-});
+{ success: true, data: { entity: {...} } }
 ```
+
+**Error Response:**
+```typescript
+{ success: false, error: "Error message", details?: {...} }
+```
+
+**HTTP Status Codes:**
+- Always use HTTP 200 for responses
+- Business errors indicated via `success: false` in body
+- Validation error: `200` with `{ success: false, error: "Validation failed", details: {...} }`
+
+**Response Formats by Endpoint Type:**
+- Single Entity: `{ success: true, data: { entity: {...} } }`
+- List/Paginated: `{ success: true, data: { items: [], pagination: {...} } }`
+- Action: `{ success: true, message: "..." }`
+
+**Backend Examples:**
+```typescript
+// ✅ CORRECT
+return c.json({ success: true, data: { shift: newShift } });
+return c.json({ success: false, error: 'Not found' }, 400);
+
+// ❌ INCORRECT - missing success field
+return c.json({ shift: newShift });
+
+// ❌ INCORRECT - data at root level
+return c.json({ success: true, shift: newShift });
+```
+
+**Frontend Handling:**
+```typescript
+const response = await api.get<{ success: boolean; data: Shift }>('/shifts/active');
+if (response.success && response.data?.shift) { /* handle success */ }
+if (!response.success) { /* handle error */ }
+```
+
+**Code Review Checklist:**
+1. Success responses include `success: true`
+2. Success responses wrap data in `data` field
+3. Error responses include `success: false` and `error` field
+4. No responses have data at root level alongside `success`
 
 ### Database (Drizzle ORM)
 - Migrations in `apps/api/drizzle/*.sql`

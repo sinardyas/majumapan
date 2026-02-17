@@ -1,4 +1,4 @@
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CODE_CHARS = '0123456789';
 
 export function generateBindingCode(length: number = 6): string {
   const chars = CODE_CHARS;
