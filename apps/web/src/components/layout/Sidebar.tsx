@@ -76,9 +76,11 @@ const navItems: NavItem[] = [
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggle, isMobileOpen = false, onMobileClose }: SidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
   const {
@@ -110,19 +112,43 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <>
+      {/* Mobile backdrop overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+      
       <aside
         className={`fixed left-0 top-0 h-full bg-gray-900 text-white flex flex-col transition-all duration-300 z-50 ${
-          isCollapsed ? 'w-16' : 'w-64'
+          isCollapsed ? 'lg:w-16' : 'lg:w-64'
+        } ${
+          isMobileOpen 
+            ? 'w-64 translate-x-0' 
+            : 'w-64 -translate-x-full lg:translate-x-0'
         }`}
       >
-        <div className={`h-16 flex items-center justify-center border-b border-gray-800 ${isCollapsed ? 'px-2' : 'px-4'}`}>
+        <div className={`h-16 flex items-center justify-center border-b border-gray-800 ${isCollapsed ? 'lg:px-2' : 'px-4'}`}>
           {!isCollapsed && (
             <h1 className="text-xl font-bold text-primary-400">Majumapan</h1>
           )}
+          {/* Mobile close button */}
+          {isMobileOpen && (
+            <button
+              onClick={onMobileClose}
+              className="lg:hidden ml-auto p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          {/* Desktop toggle button */}
           <button
             onClick={onToggle}
             className={`p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors ${
-              isCollapsed ? 'absolute right-0 translate-x-1/2 top-8 bg-gray-900' : ''
+              isCollapsed ? 'lg:absolute lg:right-0 lg:translate-x-1/2 lg:top-8 lg:bg-gray-900 hidden lg:flex' : 'hidden lg:flex'
             }`}
             title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >

@@ -51,26 +51,26 @@ function CartItemsList({ items, onUpdateQuantity, onRemoveItem }: CartItemsListP
                 )}
                 <p className="text-xs text-gray-500">{formatCurrency(item.subtotal)}</p>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 sm:gap-1">
                 <button
                   onClick={() => onRemoveItem(item.productId)}
-                  className="p-1 text-gray-400 hover:text-red-500"
+                  className="p-1 sm:p-1.5 text-gray-400 hover:text-red-500"
                   title="Remove item"
                 >
-                  <X className="h-3 w-3" />
+                  <X className="h-3 w-3 sm:h-4 sm:w-4" />
                 </button>
                 <button
                   onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
-                  className="h-6 w-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                  className="h-7 w-7 sm:h-6 sm:w-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
                 >
-                  <Minus className="h-3 w-3" />
+                  <Minus className="h-3 w-3 sm:h-3 sm:w-3" />
                 </button>
-                <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
+                <span className="w-6 sm:w-6 text-center text-sm font-medium">{item.quantity}</span>
                 <button
                   onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
-                  className="h-6 w-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
+                  className="h-7 w-7 sm:h-6 sm:w-6 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center"
                 >
-                  <Plus className="h-3 w-3" />
+                  <Plus className="h-3 w-3 sm:h-3 sm:w-3" />
                 </button>
               </div>
             </div>
@@ -266,6 +266,8 @@ export interface CurrentOrderProps {
   items?: CartItem[];
   onUpdateQuantity?: (productId: string, quantity: number) => void;
   onRemoveItem?: (productId: string) => void;
+  isMobile?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function CurrentOrder({
@@ -290,6 +292,8 @@ export function CurrentOrder({
   items = [],
   onUpdateQuantity,
   onRemoveItem,
+  isMobile,
+  onCloseMobile,
 }: CurrentOrderProps) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -304,30 +308,49 @@ export function CurrentOrder({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
-        <div>
+      {/* Mobile header with close button */}
+      {isMobile && (
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">Current Order</h2>
-          <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
-            <User className="h-3 w-3" />
-            <span>{cashierName || 'Unknown'}</span>
-            <span className="text-gray-300">|</span>
-            <Clock className="h-3 w-3" />
-            <span>{formatDateTime(currentTime)}</span>
-          </div>
+          <button
+            onClick={onCloseMobile}
+            className="p-2 hover:bg-gray-200 rounded-lg"
+            title="Close cart"
+          >
+            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <button
-          onClick={onOpenHeldOrders}
-          className="relative p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
-          title="Held Orders"
-        >
-          <ClipboardList className="h-4 w-4 text-gray-600" />
-          {heldOrdersCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
-              {heldOrdersCount}
-            </span>
-          )}
-        </button>
-      </div>
+      )}
+      
+      {/* Desktop header */}
+      {!isMobile && (
+        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Current Order</h2>
+            <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
+              <User className="h-3 w-3" />
+              <span>{cashierName || 'Unknown'}</span>
+              <span className="text-gray-300">|</span>
+              <Clock className="h-3 w-3" />
+              <span>{formatDateTime(currentTime)}</span>
+            </div>
+          </div>
+          <button
+            onClick={onOpenHeldOrders}
+            className="relative p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
+            title="Held Orders"
+          >
+            <ClipboardList className="h-4 w-4 text-gray-600" />
+            {heldOrdersCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-primary-600 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center font-medium">
+                {heldOrdersCount}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       <MemberLookupSection />
 

@@ -6,10 +6,10 @@ interface CategoriesBarProps {
 
 export function CategoriesBar({ categories, selectedCategory, setSelectedCategory }: CategoriesBarProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 px-6">
+    <div className="flex gap-2 overflow-x-auto pb-2 px-3 sm:px-4 lg:px-6">
       <button
         onClick={() => setSelectedCategory(null)}
-        className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+        className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
           !selectedCategory
             ? 'bg-primary-600 text-white'
             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -21,7 +21,7 @@ export function CategoriesBar({ categories, selectedCategory, setSelectedCategor
         <button
           key={category.id}
           onClick={() => setSelectedCategory(category.id)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+          className={`px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium whitespace-nowrap transition-colors ${
             selectedCategory === category.id
               ? 'bg-primary-600 text-white'
               : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

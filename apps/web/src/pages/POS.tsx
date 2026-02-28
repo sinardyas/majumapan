@@ -30,7 +30,7 @@ import type { PaymentMethod } from '@pos/shared';
 import { formatCurrency } from '@/hooks/useCurrencyConfig';
 import { voucherApi, type Voucher } from '@/services/voucher';
 import { 
-  X, Printer, AlertTriangle, Box 
+  X, Printer, AlertTriangle, Box
 } from 'lucide-react';
 
 export default function POS() {
@@ -86,6 +86,10 @@ export default function POS() {
   const [heldOrdersCount, setHeldOrdersCount] = useState(0);
   const [pendingResumeOrderId, setPendingResumeOrderId] = useState<string | null>(null);
   const [isHolding, setIsHolding] = useState(false);
+
+  // Mobile state
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   
   const receiptRef = useRef<HTMLDivElement>(null);
 
@@ -301,6 +305,20 @@ export default function POS() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setViewMode('grid');
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   useEffect(() => {
@@ -779,6 +797,14 @@ export default function POS() {
     setShowShiftModal(true);
   };
 
+  const handleToggleSidebar = () => {
+    window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'));
+  };
+
+  const handleToggleCart = () => {
+    setIsMobileCartOpen(prev => !prev);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -816,6 +842,9 @@ export default function POS() {
         isOnline={isOnline}
         activeShift={activeShift}
         onOpenShiftModal={handleShiftButtonClick}
+        onToggleSidebar={handleToggleSidebar}
+        onToggleCart={handleToggleCart}
+        showCartButton={isMobile}
       />
 
       <div className="flex-1 flex overflow-hidden">
@@ -882,7 +911,7 @@ export default function POS() {
                 skuInputRef={skuInputRef}
               />
             ) : (
-              <div className="h-full overflow-y-auto p-6">
+              <div className="h-full overflow-y-auto p-3 sm:p-4 lg:p-6">
                 {filteredProducts.length === 0 ? (
                   <div className="text-center py-12 text-gray-500">
                     <p>No products found</p>
@@ -891,22 +920,22 @@ export default function POS() {
                     )}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 pb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 lg:gap-4 pb-4">
                     {filteredProducts.map((product) => {
                       const promoLabel = getPromoLabel(product);
                       const stockClass = product.stockQuantity <= 10 ? 'text-red-500' : 'text-gray-500';
                       const buttonClass = product.stockQuantity <= 0 
                         ? 'opacity-50 cursor-not-allowed' 
-                        : 'hover:shadow-md hover:scale-105 cursor-pointer';
+                        : 'hover:shadow-md hover:scale-105 cursor-pointer active:scale-95';
                       
                       return (
                         <button
                           key={product.id}
                           onClick={() => handleProductClick(product)}
                           disabled={product.stockQuantity <= 0}
-                          className={`bg-white rounded-xl p-4 text-left transition-all ${buttonClass}`}
+                          className={`bg-white rounded-xl p-2 sm:p-3 lg:p-4 text-left transition-all ${buttonClass}`}
                         >
-                          <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center relative">
+                          <div className="aspect-square bg-gray-100 rounded-lg mb-2 lg:mb-3 flex items-center justify-center relative">
                             {product.imageBase64 ? (
                               <img
                                 src={product.imageBase64}
@@ -914,33 +943,33 @@ export default function POS() {
                                 className="w-full h-full object-cover rounded-lg"
                               />
                             ) : (
-                              <Box className="h-12 w-12 text-gray-400" />
+                              <Box className="h-8 w-8 sm:h-10 sm:w-10 lg:h-12 lg:w-12 text-gray-400" />
                             )}
                             {promoLabel && (
-                              <span className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                              <span className="absolute top-1 right-1 sm:top-2 sm:right-2 bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium">
                                 {promoLabel}
                               </span>
                             )}
                           </div>
                           <h3 className="font-medium text-gray-900 truncate">{product.name}</h3>
-                          <p className="text-xs text-gray-500">{product.sku}</p>
-                          <div className="mt-1">
+                          <p className="text-[10px] sm:text-xs text-gray-500">{product.sku}</p>
+                          <div className="mt-0.5 sm:mt-1">
                             {promoLabel ? (
                               <div className="flex items-center flex-nowrap">
-                                <span className="text-sm text-gray-400 line-through min-w-0 truncate">
+                                <span className="text-[10px] sm:text-xs text-gray-400 line-through min-w-0 truncate">
                                   {formatCurrency(product.price)}
                                 </span>
                                 <span className="text-gray-400 mx-0.5 flex-shrink-0">→</span>
-                                <span className="text-sm font-bold text-primary-600 flex-shrink-0">
+                                <span className="text-xs sm:text-sm font-bold text-primary-600 flex-shrink-0">
                                   {formatCurrency(product.price * (1 - (product.promoValue ?? 0) / 100))}
                                 </span>
                               </div>
                             ) : (
-                              <span className="font-bold text-primary-600">
+                              <span className="text-xs sm:text-sm font-bold text-primary-600">
                                 {formatCurrency(product.price)}
                               </span>
                             )}
-                            <p className={`text-xs mt-1 ${stockClass}`}>
+                            <p className={`text-[10px] sm:text-xs mt-0.5 ${stockClass}`}>
                               Stock: {product.stockQuantity}
                             </p>
                           </div>
@@ -954,30 +983,47 @@ export default function POS() {
           </div>
         </div>
 
-        {viewMode !== 'cart' ? (
-          <CartSidebar
-            cashierName={user?.name}
-            items={items}
-            subtotal={subtotal}
-            discountAmount={discountAmount}
-            taxAmount={taxAmount}
-            total={total}
-            cartDiscount={cartDiscount}
-            onUpdateQuantity={updateItemQuantity}
-            onRemoveItem={removeItem}
-            onApplyDiscount={handleApplyDiscount}
-            onRemoveDiscount={removeDiscount}
-            onClearCart={clearCart}
-            onHoldOrder={() => setShowHoldModal(true)}
-            onPay={() => setShowPaymentModal(true)}
-            heldOrdersCount={heldOrdersCount}
-            onOpenHeldOrders={() => setShowHeldOrdersList(true)}
-            discountError={discountError}
-            setDiscountError={setDiscountError}
-            isApplyingDiscount={isApplyingDiscount}
+        {/* Mobile cart drawer backdrop */}
+        {isMobile && isMobileCartOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setIsMobileCartOpen(false)}
           />
+        )}
+
+        {/* Cart Sidebar / Drawer */}
+        {viewMode !== 'cart' ? (
+          <div className={`
+            fixed right-0 top-0 h-full bg-white border-l border-gray-200 flex flex-col z-50 transition-transform duration-300
+            lg:relative lg:translate-x-0 lg:w-96 lg:max-w-none lg:border-l
+            ${isMobileCartOpen ? 'translate-x-0 w-full sm:w-96' : 'translate-x-full lg:translate-x-0'}
+          `}>
+            <CartSidebar
+              cashierName={user?.name}
+              items={items}
+              subtotal={subtotal}
+              discountAmount={discountAmount}
+              taxAmount={taxAmount}
+              total={total}
+              cartDiscount={cartDiscount}
+              onUpdateQuantity={updateItemQuantity}
+              onRemoveItem={removeItem}
+              onApplyDiscount={handleApplyDiscount}
+              onRemoveDiscount={removeDiscount}
+              onClearCart={clearCart}
+              onHoldOrder={() => setShowHoldModal(true)}
+              onPay={() => setShowPaymentModal(true)}
+              heldOrdersCount={heldOrdersCount}
+              onOpenHeldOrders={() => setShowHeldOrdersList(true)}
+              discountError={discountError}
+              setDiscountError={setDiscountError}
+              isApplyingDiscount={isApplyingDiscount}
+              isMobile={isMobile}
+              onCloseMobile={() => setIsMobileCartOpen(false)}
+            />
+          </div>
         ) : (
-          <div className="w-96 max-w-md bg-white border-l border-gray-200 flex flex-col h-full">
+          <div className="hidden lg:block w-96 max-w-md bg-white border-l border-gray-200 flex flex-col h-full">
             <CurrentOrder
               subtotal={subtotal}
               discountAmount={discountAmount}
@@ -988,13 +1034,42 @@ export default function POS() {
               onApplyDiscount={handleApplyDiscount}
               onClearCart={clearCart}
               onHoldOrder={() => setShowHoldModal(true)}
-            onPay={() => setShowPaymentModal(true)}
+              onPay={() => setShowPaymentModal(true)}
               cashierName={user?.name || 'Unknown'}
               heldOrdersCount={heldOrdersCount}
               onOpenHeldOrders={() => setShowHeldOrdersList(true)}
               discountError={discountError}
               setDiscountError={setDiscountError}
               showItemsList={false}
+            />
+          </div>
+        )}
+
+        {/* Mobile cart view when in cart mode */}
+        {viewMode === 'cart' && isMobile && (
+          <div className={`
+            fixed right-0 top-0 h-full bg-white border-l border-gray-200 flex flex-col z-50 w-full transition-transform duration-300
+            ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}
+          `}>
+            <CurrentOrder
+              subtotal={subtotal}
+              discountAmount={discountAmount}
+              taxAmount={taxAmount}
+              total={total}
+              cartDiscount={cartDiscount}
+              onRemoveDiscount={removeDiscount}
+              onApplyDiscount={handleApplyDiscount}
+              onClearCart={clearCart}
+              onHoldOrder={() => setShowHoldModal(true)}
+              onPay={() => setShowPaymentModal(true)}
+              cashierName={user?.name || 'Unknown'}
+              heldOrdersCount={heldOrdersCount}
+              onOpenHeldOrders={() => setShowHeldOrdersList(true)}
+              discountError={discountError}
+              setDiscountError={setDiscountError}
+              showItemsList={false}
+              isMobile={true}
+              onCloseMobile={() => setIsMobileCartOpen(false)}
             />
           </div>
         )}

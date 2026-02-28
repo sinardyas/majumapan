@@ -45,7 +45,7 @@ function ManagerRoute({ children }: { children: React.ReactNode }) {
 
 // Layout for authenticated pages
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
-  const [isCollapsed, setIsCollapsed] = useState(() => {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar-collapsed');
     if (saved !== null) {
       return JSON.parse(saved);
@@ -53,26 +53,55 @@ function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
     return window.matchMedia('(max-width: 1279px)').matches;
   });
 
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
   useEffect(() => {
     const mediaQuery = window.matchMedia('(max-width: 1279px)');
     const handler = (e: MediaQueryListEvent) => {
-      setIsCollapsed(e.matches);
+      setIsSidebarCollapsed(e.matches);
     };
     mediaQuery.addEventListener('change', handler);
-    return () => mediaQuery.removeEventListener('change', handler);
+    
+    // Listen for mobile sidebar toggle from POS header
+    const handleMobileSidebarToggle = () => {
+      if (window.innerWidth < 1024) {
+        setIsMobileSidebarOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('toggle-mobile-sidebar', handleMobileSidebarToggle);
+    
+    return () => {
+      mediaQuery.removeEventListener('change', handler);
+      window.removeEventListener('toggle-mobile-sidebar', handleMobileSidebarToggle);
+    };
   }, []);
 
   const handleToggle = () => {
-    const newState = !isCollapsed;
-    setIsCollapsed(newState);
-    localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
+    if (window.innerWidth < 1024) {
+      setIsMobileSidebarOpen(prev => !prev);
+    } else {
+      const newState = !isSidebarCollapsed;
+      setIsSidebarCollapsed(newState);
+      localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
+    }
   };
+
+  const closeMobileSidebar = () => setIsMobileSidebarOpen(false);
 
   return (
     <div className="min-h-screen bg-gray-50">
       <OfflineBanner />
-      <Sidebar isCollapsed={isCollapsed} onToggle={handleToggle} />
-      <main className={`min-h-screen transition-all duration-300 ${isCollapsed ? 'ml-16' : 'ml-64'}`}>
+      <Sidebar 
+        isCollapsed={isSidebarCollapsed} 
+        onToggle={handleToggle}
+        isMobileOpen={isMobileSidebarOpen}
+        onMobileClose={closeMobileSidebar}
+      />
+      <main 
+        className={`min-h-screen transition-all duration-300 ${
+          isSidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64'
+        } ${isMobileSidebarOpen ? 'lg:ml-64' : ''}`}
+      >
         {children}
       </main>
     </div>

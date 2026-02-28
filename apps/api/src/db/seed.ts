@@ -70,7 +70,7 @@ async function seed() {
         name: 'System Admin',
         role: 'admin',
         storeId: null, // Admin has access to all stores
-        pin: '000000',
+        pin: '$2b$12$EZscCvbuklw4EmgpjUT/De2JDKVb2mwZafUqJZY8jnzjp8a9Twyqq',
         isActive: true,
       },
       {
@@ -79,7 +79,7 @@ async function seed() {
         name: 'Downtown Manager',
         role: 'manager',
         storeId: downtownStore.id,
-        pin: '111111',
+        pin: '$2b$12$EZscCvbuklw4EmgpjUT/De2JDKVb2mwZafUqJZY8jnzjp8a9Twyqq',
         isActive: true,
       },
       {
@@ -88,7 +88,7 @@ async function seed() {
         name: 'John Cashier',
         role: 'cashier',
         storeId: downtownStore.id,
-        pin: '123456',
+        pin: '$2b$12$EZscCvbuklw4EmgpjUT/De2JDKVb2mwZafUqJZY8jnzjp8a9Twyqq',
         isActive: true,
       },
       {
@@ -97,7 +97,7 @@ async function seed() {
         name: 'Jane Cashier',
         role: 'cashier',
         storeId: mallStore.id,
-        pin: '654321',
+        pin: '$2b$12$EZscCvbuklw4EmgpjUT/De2JDKVb2mwZafUqJZY8jnzjp8a9Twyqq',
         isActive: true,
       },
     ]);

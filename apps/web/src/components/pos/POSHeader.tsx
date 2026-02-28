@@ -1,7 +1,7 @@
 import { useShiftStore } from '@/stores/shiftStore';
 import { ViewToggle } from './ViewToggle';
 import { Button } from '@pos/ui';
-import { Wifi, Monitor, Calendar } from 'lucide-react';
+import { Wifi, Monitor, Calendar, Menu, ShoppingCart } from 'lucide-react';
 
 interface POSHeaderProps {
   viewMode: 'grid' | 'cart';
@@ -9,17 +9,54 @@ interface POSHeaderProps {
   isOnline: boolean;
   activeShift: ReturnType<typeof useShiftStore.getState>['activeShift'];
   onOpenShiftModal: () => void;
+  onToggleSidebar?: () => void;
+  onToggleCart?: () => void;
+  showCartButton?: boolean;
 }
 
-export function POSHeader({ viewMode, setViewMode, isOnline, activeShift, onOpenShiftModal }: POSHeaderProps) {
+export function POSHeader({ 
+  viewMode, 
+  setViewMode, 
+  isOnline, 
+  activeShift, 
+  onOpenShiftModal,
+  onToggleSidebar,
+  onToggleCart,
+  showCartButton = false,
+}: POSHeaderProps) {
   const shiftTitle = activeShift ? `Shift ${activeShift.shiftNumber}` : 'Open Shift';
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
-      <div className="flex items-center justify-between">
-        <ViewToggle value={viewMode} onChange={setViewMode} />
+    <header className="bg-white border-b border-gray-200 px-4 py-3 lg:px-6 lg:py-4">
+      <div className="flex items-center justify-between gap-2">
+        {/* Left side: Menu button (mobile) + View Toggle (desktop) */}
+        <div className="flex items-center gap-2">
+          {/* Hamburger menu (mobile only) */}
+          <button
+            onClick={onToggleSidebar}
+            className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+            title="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          
+          {/* View toggle - hidden on mobile when cart button is shown */}
+          <div className={showCartButton ? 'hidden lg:block' : ''}>
+            <ViewToggle value={viewMode} onChange={setViewMode} />
+          </div>
+        </div>
 
         <div className="flex items-center gap-2">
+          {/* Cart toggle button (mobile only) */}
+          {showCartButton && (
+            <button
+              onClick={onToggleCart}
+              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+              title="View Cart"
+            >
+              <ShoppingCart className="h-5 w-5" />
+            </button>
+          )}
           {/* Online Status Icon */}
           <div
             className={`flex items-center justify-center w-10 h-10 rounded-lg cursor-help ${
